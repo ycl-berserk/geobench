@@ -1,25 +1,25 @@
-# T001 — Kernel skeleton: construction graph, exact field, operator registry
+# T001 —— 内核骨架：构造图、精确数域、算子注册表
 
-**Status**: proposed
-**Owner**: agent
-**Spec**: `docs/spec.md` §3 (data model), §4 (numeric strategy), §5.1 (registry contract)
-**Depends on**: —
-**Layers touched**: model / infra
+**状态**：提案
+**负责人**：Agent
+**规格**：`docs/spec.md` §3（数据模型）、§4（精确算术）、§5.1（注册表契约）
+**依赖**：—
+**涉及层**：模型 / 基础设施
 
-## Goal
+## 目标
 
-The kernel can load, mutate and serialize a construction graph, hold every geometric value as an exact expression, and register operators behind a uniform contract. Nothing is rendered, nothing is solved; this is the substrate everything else stands on.
+内核能加载、修改、序列化构造图，所有几何量以精确表达式持有，算子以统一契约注册。这一层不做渲染、不做求解，但它是其余一切的地基。
 
-## Deliverables
+## 交付物
 
-- `src/geobench/field.py` — the `Field` protocol: `add`, `sub`, `mul`, `div`, `sqrt`, `simplify_to_zero(expr) -> bool`, `to_float(expr) -> float`. SymPy-backed implementation. Rejects float literals at construction.
-- `src/geobench/model.py` — `Node`, `Relation`, `Figure` dataclasses; validation (unique ids, DAG check, argument arity, type check); JSON round-trip that is byte-stable.
-- `src/geobench/registry.py` — operator registry: `register`, `lookup`, `describe` (returns the §5.1 contract), duplicate-id rejection, `degenerate_when` metadata carried through.
-- `src/geobench/state.py` — figure store: apply/dry-run operations, dependency recomputation of derived nodes, undo history (XML-free, our own snapshot list).
-- `tests/unit/test_model.py`, `tests/unit/test_field.py`, `tests/unit/test_registry.py`.
-- `tests/no_float/test_no_float.py` — AST-walks `src/geobench` and fails on float literals outside `to_float` and display code.
+- `src/geobench/field.py` —— `Field` 协议：`add`、`sub`、`mul`、`div`、`sqrt`、`simplify_to_zero(expr) -> bool`、`to_float(expr) -> float`；SymPy 实现；构造时拒绝浮点字面量。
+- `src/geobench/model.py` —— `Node`、`Relation`、`Figure` 数据类；校验（id 唯一、DAG、参数个数、参数类型）；JSON 往返逐字节稳定。
+- `src/geobench/registry.py` —— 算子注册表：`register`、`lookup`、`describe`（返回 §5.1 契约）、重复 id 拒绝、透传 `degenerate_when`。
+- `src/geobench/state.py` —— 图形存储：应用/试运行操作、派生节点依赖重算、撤销历史（自实现快照列表，不依赖 `ggbApplet.undo`）。
+- `tests/unit/test_model.py`、`tests/unit/test_field.py`、`tests/unit/test_registry.py`。
+- `tests/no_float/test_no_float.py` —— AST 遍历 `src/geobench`，除 `to_float` 与展示层外出现浮点字面量即失败。
 
-## Acceptance criteria
+## 验收标准
 
 ```bash
 pytest tests/unit/test_model.py tests/unit/test_field.py tests/unit/test_registry.py -q
@@ -28,13 +28,14 @@ ruff check . && mypy src
 python -c "from geobench.model import Figure; f=Figure.from_json(Figure.example().to_json()); assert f.to_json()==Figure.example().to_json()"
 ```
 
-Additionally, by hand:
-- Inserting a node whose `op` has the wrong arity fails with an error naming the operator and the expected arity.
-- A cyclic dependency is rejected with the cycle path in the message.
-- `simplify_to_zero` returns `True` for `x - x` and for `sin(x)**2 + cos(x)**2 - 1`, and `False` for `x - 1`.
+另需人工确认：
 
-## Non-goals
+- 插入参数个数与算子契约不符的节点时，错误信息里带算子名与期望个数；
+- 成环依赖被拒绝，错误信息里带环路径；
+- `simplify_to_zero` 对 `x - x` 与 `sin(x)**2 + cos(x)**2 - 1` 返回 `True`，对 `x - 1` 返回 `False`。
 
-- Any operator implementation beyond trivial ones used by tests (T004 owns the catalogue).
-- Rendering, solving, judging, MCP.
-- Performance work.
+## 非目标
+
+- 除测试所需外不实现任何算子（算子目录由 T006 负责）。
+- 渲染、求解、判定、MCP。
+- 性能优化。

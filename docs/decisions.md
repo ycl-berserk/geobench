@@ -1,101 +1,175 @@
-# Open decisions
+# 决策记录
 
-Every decision below has a **recommended** value that the charter commit already assumes, a **status**, and the **alternatives** that were considered. A decision is *Accepted* when the domain owner says so; the change is then recorded in this file (status + date) and, if it changes behaviour, in [`spec.md`](spec.md) first.
+每条决策包含：**推荐/结论**、**状态**、**理由**、**备选**。状态取值：`已定`（域主确认）、`默认采用`（未被反对，随实现推进）、`待定`（阻塞中）。
 
-| ID | Decision | Recommended | Status | Sign-off |
+| ID | 决策 | 结论 | 状态 | 确认日期 |
 |---|---|---|---|---|
-| D1 | Implementation stack | Python kernel (SymPy) + local service + web frontend | *proposed* | |
-| D2 | Exact-arithmetic implementation | SymPy expressions behind a `Field` protocol | *proposed* | |
-| D3 | Kernel data model | Construction graph (§3 of the spec) | *proposed* | |
-| D4 | MCP tool contract | Eight tools (§11 of the spec) | *proposed* | |
-| D5 | v1 scope | Plane geometry, 16 operators, 8 judges | *proposed* | |
-| D6 | Competition figure style | Spec §9.2 — **values need the domain owner** | *proposed* | |
-| D7 | Interaction paradigm | Chat-first, with direct manipulation | *proposed* | |
-| D8 | Repo, license, language | `geobench`, MIT, English canonical + Chinese README | *proposed* | |
+| D1 | 实现栈 | Python 内核（SymPy）+ 浏览器前端（Pyodide 可选）+ 原生 Python MCP | 已定 | 2026-11-05 |
+| D2 | 精确算术实现 | SymPy 表达式 + `Field` 协议抽象 | 默认采用 | — |
+| D3 | 内核数据模型 | 构造图（spec §3） | 默认采用 | — |
+| D4 | MCP 工具契约 | 十个工具（spec §11.1），内核内不含模型 | 默认采用 | — |
+| D5 | v1 范围 | 平面几何；Tier-A 算子 16 个、判定器 8 个 | 默认采用 | — |
+| D6 | 竞赛图规范 | 框架已定，**具体数值待域主给** | 待定 | — |
+| D7 | 交互范式 | 双通道：手绘/交互 **+** text2graph（DSL 优先，AI 翻译兜底） | 已定 | 2026-11-05 |
+| D8 | 仓库与语言 | `geobench`，MIT，**中文为主 + 英文可选** | 已定 | 2026-11-05 |
+| D9 | 几何 DSL | 自研中文 DSL 作为公共中间表示 | 已定 | 2026-11-05 |
+| D10 | 交付形态 | 浏览器优先 + 本地 MCP 双模式，同一份内核代码 | 已定 | 2026-11-05 |
 
 ---
 
-## D1 — Implementation stack
+## D1 —— 实现栈（已定）
 
-**Recommended.** Kernel in Python 3.11+ using SymPy for exact arithmetic; a local service exposing the kernel to the UI; a browser-based frontend (TypeScript, SVG canvas). The MCP server is a thin wrapper over the same service, so the agent path and the human path cannot diverge.
+**结论。** 内核用 **Python 3.11+ / SymPy**；前端用浏览器技术栈（TypeScript + SVG 画布）；**Pyodide 可选**（浏览器内跑同一份内核）；MCP 服务端原生 Python（stdio），与前端共用同一份内核库。
 
-**Why.** The hard part of a geometry kernel is *symbolic simplification and solving*, not rendering — SymPy already has both and is independently trustworthy enough to serve as an oracle for the kernel itself. The frontend is the part the human owner cares about most and wants to own. Browser delivery also means teachers can open a link, which matters more than install friction for this audience.
+### 为什么不需要 Rust / C++
 
-**Alternatives.**
+被问到的核心问题是速度。逐条拆开：
 
-- *Pure Python desktop (PySide/Qt)*: fewer processes, but web delivery reaches more users and makes the MCP and UI paths share one service. Costs a JS toolchain.
-- *All-TypeScript* (exact arithmetic re-implemented): one language, but the hardest component (simplify/solve) would be rewritten from scratch, and JS `Number`/rational handling is weaker.
-- *Jupyter-first*: excellent for exploration, poor as a product surface.
+- **端到端耗时的瓶颈不在内核。** 一次"出题"的实际链路是「Agent 思考 + 调工具 + 渲染」，其中 Agent 往返是**秒级**，内核计算是**毫秒~秒级**。内核快 100 倍，用户完全感知不到。
+- **内核真正的瓶颈是符号表达式的复杂度，不是吞吐。** 化简一个含根号的判定表达式可能几十毫秒到数秒，这是 SymPy 的表达规模问题，**换语言解决不了**（Rust 也只是快一点）。能解决它的只有架构：
+  - **符号证明每个构造族只做一次**（恒等式与自由点取值无关）；
+  - **数值采样做很多次**（采样是廉价的数值运算，Python + numpy 完全够）。
+  这条分界线是整个内核设计的核心，见 spec §6.1 的 `proved` / `supported` 之分。
+- **引入第二语言的代价大于收益。** 一个语言意味着：两套工具链、两套测试、两套构建、AI 要同时遵守两套风格规范。对"实现尽量交给 AI"的单人项目来说，**少一门语言是特性，不是妥协**。
 
-**Risks.** SymPy expression blow-up on long constructions → mitigated by D2's `Field` protocol so the arithmetic backend can be swapped (e.g. a rational-only fast path) without touching the operator layer.
+### 什么时候才需要换
 
-## D2 — Exact-arithmetic implementation
+明确写下来，避免将来凭感觉引入：
 
-**Recommended.** All geometric values are SymPy expressions behind a small `Field` protocol (`add`, `sub`, `mul`, `div`, `sqrt`, `simplify_to_zero`, `to_float`). No float literals anywhere in the kernel (enforced by lint rule, not review).
+1. 精确算术核心（有理数 + 代数数域）需要跑到**百万级采样**量级；
+2. v2 的 3D（用 OpenCascade，不自研）；
+3. 渲染需要 GPU（v2 的 WebGPU 渲染）。
 
-**Why.** "This relation holds" must mean *identically*, not *numerically close*. A tolerance-based kernel cannot distinguish "proved" from "supported", which is the entire point of the project.
+届时按"先测量、再优化"的规矩走：先出预测卡（假设 / 预期数值 / 判定阈值），再对照基线，**不接受只报一个漂亮倍数**。
 
-**Alternatives.** *Custom rational + quadratic-extension field*: much faster, but `simplify_to_zero` is where symbolic correctness lives — that is the part not to reinvent.
+### 关于 Tauri
 
-**Open sub-question.** Whether a rational-only fast path should be added for operator-heavy pipelines (geometry of a full construction can generate deep expressions). Deferred to M3.
+**结论：v1 不用，记为 v2 备选。**
 
-## D3 — Kernel data model
+- Tauri 壳本身只有 ~5–15MB，但**只要内核是 Python，整体体积就由 Python + SymPy 决定**（venv 装完 80–150MB，打包后 40–80MB）。**Tauri 在这个架构下省不了体积**，却要额外背上：Rust 工具链、Rust↔Python 进程桥接、Windows 构建与签名负担，以及 AI 实现时的第三套规范。
+- 若将来确实需要桌面壳，正确形态是**纯壳 + Python sidecar**：Rust 只做窗口、文件对话框、托盘与 IPC，**不碰几何逻辑**，内核仍是独立的 Python 进程。
 
-**Recommended.** The construction graph of spec §3.1: nodes with `role: free | derived`, explicit `op` + `args` for derived nodes, relations as claims under test, styles separate from geometry.
+### 体积账（"软件要小"的正确解法）
 
-**Why.** It is the minimal representation that (a) is serializable, (b) is diffable, (c) is the natural intermediate language for an LLM to read and write, and (d) matches the construction-graph formulation used in the research literature (GeoGen, FormalGeo, TongGeometry) without importing their complexity.
+| 形态 | 首次下载 | 安装 | 离线 |
+|---|---|---|---|
+| 浏览器（Pyodide 跑内核） | ~10–20MB（含 wasm runtime） | 无 | 首次加载后可离线 |
+| 本地 MCP | Python + sympy（已有 Python 者仅 +~30MB） | `pipx`/`uvx` 一条命令 | 完全离线 |
 
-**Alternatives.** *GeoGebra `.ggb` XML as the interchange format*: free interoperability, but the format is tied to a GUI application's semantics, does not carry a verification record, and would drag in licence and complexity questions. Keeping `.ggb` as an **export** target is still worthwhile.
+已核实：**Pyodide 内置包清单包含 sympy 1.14.0**（pyodide.org 内置包列表），因此"浏览器内精确符号几何"是现成可行路径，不是设想。
 
-## D4 — MCP tool contract
+---
 
-**Recommended.** The eight tools of spec §11.1, with the resources of §11.2, JSON-only responses, and actionable errors.
+## D2 —— 精确算术实现（默认采用）
 
-**Why.** The tool contract *is* the product's agent interface; it is the part other people will build against. It also forces the kernel to expose capabilities at a granularity that is meaningful to a planner rather than to a GUI.
+**结论。** 所有几何量用 SymPy 表达式，统一封装在 `Field` 协议（`add`/`sub`/`mul`/`div`/`sqrt`/`simplify_to_zero`/`to_float`）之后；内核中禁止浮点字面量，由 lint + AST 测试拦截。
 
-**Alternatives.** *A single `geo_do` tool with a free-form instruction string*: smaller surface, but unauditable and untestable. *HTTP API + separate MCP wrapper*: two contracts to keep in sync.
+**理由。** "这条关系成立"必须意味着**恒等**而不是"数值接近"。基于容差的内核无法区分 `proved` 与 `supported`，那整个项目的立论就没了。
 
-**Open sub-question.** Whether `geo_propose` (LLM-facing problem proposal) belongs in the kernel or in a separate agent service. Currently excluded from the kernel: the kernel should not contain a model.
+**备选。** 自研"有理数 + 二次扩域"域：数值更快，但 `simplify_to_zero` 恰恰是符号正确性所在，不该重造。
 
-## D5 — v1 scope
+**待观察。** 长构造链上的表达式膨胀。届时可加"仅有理数快路径"，但必须在 `Field` 协议内实现，不影响算子层。
 
-**Recommended.** Plane geometry only; Tier-A operators (16) and Tier-B judges (8) of spec §5.2 / §6.2; solid geometry and conics explicitly deferred.
+---
 
-**Why.** Every additional geometry domain multiplies the degeneracy catalogue and the oracle battery. Scope creep here is the classic way an open-source geometry tool ends at 40% forever.
+## D3 —— 内核数据模型（默认采用）
 
-**Alternatives.** *Ship 3D early*: a different product, needs a CAD kernel (OpenCascade), and serves a different audience (high-school solid geometry), which is explicitly not the target.
+**结论。** spec §3.1 的构造图：节点带 `role: free | derived`，派生节点显式声明 `op` + `args`，关系作为待验断言，样式与几何分离。
 
-## D6 — Competition figure style
+**理由。** 这是同时满足四条要求的最小表示：(a) 可序列化；(b) 可 diff；(c) 天然是 LLM 读写友好的中间语言；(d) 与研究界的"构造图"表述同源（GeoGen / FormalGeo / TongGeometry），但不引入其复杂度。
 
-**Recommended.** Spec §9.2, with concrete numeric values confirmed by the domain owner (a competition-experienced reader). Values still to be fixed:
+**备选。** 以 GeoGebra `.ggb` XML 作交换格式：互通性好，但格式绑死在一个 GUI 应用的心智模型上、承载不了验证记录，还牵涉许可与复杂度。**`.ggb` 仍可作为导出目标保留。**
 
-| Attribute | Spec's placeholder | Needs |
+---
+
+## D4 —— MCP 工具契约（默认采用）
+
+**结论。** spec §11.1 的十个工具 + §11.2 的资源；响应纯 JSON；错误可执行；**内核不含任何模型**。
+
+**理由。** 工具契约就是产品面向 Agent 的接口，也是别人将来基于它做二次开发的东西。同时它倒逼内核以"对规划者有意义"的粒度暴露能力，而不是以"对 GUI 有意义"的粒度。
+
+**备选。** 单个 `geo_do`（自由文本指令）：接口面小，但不可审计、不可测。HTTP API + 独立 MCP 包装：两套契约要同步。
+
+**推论（重要）。** 因为内核不含模型，所以"自然语言 → DSL"这步由**客户端或外部 Agent** 完成；内核只提供 `geo_apply_dsl`（确定性解析）。这与 D7 的双通道设计一致。
+
+---
+
+## D5 —— v1 范围（默认采用）
+
+**结论。** 仅平面几何；Tier-A 算子 16 个、判定器 8 个；立体几何与圆锥曲线明确推迟。
+
+**理由。** 每多一个几何分支，退化目录与对拍电池就翻一倍。这是开源几何工具"永远停在 40%"的经典死法。
+
+**备选。** 提前上 3D：那是另一个产品（要 CAD 内核），服务的是高中立体几何人群，而目标用户不含他们。
+
+---
+
+## D6 —— 竞赛图规范（待定）
+
+**结论。** spec §10.2 的框架已定；**具体数值必须由域主（竞赛经验者）给出**，不由 AI 猜。
+
+待填表：
+
+| 属性 | 规范占位 | 需要 |
 |---|---|---|
-| Stroke width (figure) | ≈ 0.4 pt | exact value |
-| Stroke width (auxiliary/dashed) | thinner | exact value |
-| Point radius | 0.8–1.0 pt | exact value |
-| Label font / size | Times, ≈ 10 pt | exact value + italic policy |
-| Label placement | outside the figure, no overlap | placement rules |
-| Reserved labels | `O I H G D E F P Q R M N` | confirm list |
-| Circle / segment notation | `⊙O`, `AB` | confirm |
-| Figure caption | not inside the image | confirm |
+| 图形线宽 | ≈ 0.4 pt | 确切值 |
+| 辅助线线宽/样式 | 更细、虚线 | 确切值 |
+| 点半径 | 0.8–1.0 pt | 确切值 |
+| 标注字体/字号 | Times，≈ 10 pt | 确切值 + 斜体使用规则 |
+| 标注位置 | 图形外侧、不压线 | 位置规则细则 |
+| 保留标号表 | `O I H G D E F P Q R M N` | 确认清单 |
+| 圆/线段记号 | `⊙O`、`AB` | 确认 |
+| 图注位置 | 不画进图内 | 确认 |
+| 点是实心还是空心（派生点） | 部分空心 | 确认 |
 
-**Why.** This is the moat that no generic tool reproduces, and the part an LLM will guess wrong every time. It must be written down exactly, not paraphrased.
+**理由。** 这是海外通用工具复制不了的护城河，也是 LLM 每次都会猜错的部分，必须写死而不是描述。
 
-## D7 — Interaction paradigm
+---
 
-**Recommended.** Chat-first: the user states an intent ("construct a triangle where the bisector meets the circumcircle at an equidistant point"), the agent calls the kernel, the figure appears, and the user can then **drag** free points and see the verification status update live. Direct manipulation remains available at all times; the canvas is never modal.
+## D7 —— 交互范式（已定）
 
-**Why.** Problem authoring is intent-driven (slow by hand, fast by delegation), but the human must be able to correct the machine's guess by dragging — that correction loop is where the user's own taste enters.
+**结论。** **双通道**，汇入同一个构造图：
 
-**Alternatives.** *Form-first* (fill in a structured form): precise but slow and hostile to exploratory work. *Canvas-first with an AI side panel*: keeps the old workflow and bolts AI onto it; that is the "GeoGebra + chat box" outcome we want to avoid.
+1. **手绘/交互通道**：直接拖点、点选工具 → 构造图。用于微调构型、试算、探索。
+2. **text2graph 通道**：自然语言 →（AI 翻译或人工）→ **中文几何 DSL** → 构造图。用于从零起题、把题面翻译成图、Agent 批量出题。
 
-**Open sub-question.** Whether the first release needs multi-user/classroom features at all (the recommendation: none — a teacher can open a file).
+两条通道之后的验证、退化检测、渲染、出题**完全一致**。
 
-## D8 — Repository, license, language
+**关于"能不能用固定算法解决"**：能，而且必须这样分层。
 
-**Recommended.** Public repository `github.com/ycl-berserk/geobench`, MIT licence (already in the repository), **English as the canonical language** for code, spec, and README, with a Chinese README (`README.zh-CN.md`) for the domestic audience of teachers and students.
+- **DSL → 构造图：确定性。** 递归下降解析器，毫秒级、离线、零 API 成本、逐条可单测。
+- **自然语言 → DSL：模型。** 但产物**必须过解析器校验**；解析失败时错误带精确行列，供 Agent 重试（与 `geogebra-mcp` 的错误驱动循环同构）。
 
-**Why.** The repository is the proof artefact for an AI-collaboration workflow; English reaches the wider contributor pool and matches the international research vocabulary (`operator`, `judge`, `verdict`, `degenerate`), while the Chinese README serves the actual users of the tool.
+**为什么不是纯手绘、也不是纯对话**：纯手绘慢（构造一题图要几十次点击）；纯对话不可信（模型会"看起来对"地错）。DSL 恰好是中间那个**既能被模型可靠产出、又能被确定性校验**的表示。
 
-**Alternatives.** *Chinese-first*: friendlier for the immediate audience, but raises the barrier for external contributors and for AI tools operating on the spec. *Single bilingual README*: drifts out of sync.
+**备选。** 表单优先：精确但慢，压制探索。画布优先 + AI 侧栏：等于"GeoGebra + 聊天框"，不推荐。
+
+---
+
+## D8 —— 仓库与语言（已定）
+
+**结论。** 公开仓库 `github.com/ycl-berserk/geobench`；MIT；**中文为正本**，README 提供英文版 `README.en.md`，spec 的英文版作为**可选**产物（best-effort，可能滞后，不承诺同步）。
+
+**理由。** 仓库是 AI 协作流程的证明物。中文正本服务真实用户与国内贡献者，也贴合竞赛术语本身是中文这一事实；英文版保证外部贡献者与 Agent 工具链的可达性。双份全文同步成本高、易漂移，因此只对 README 做双语，对 spec 只做"可选的英文快照"。
+
+**备选。** 英文正本：外部友好但与用户语言错位。全文双语：维护成本翻倍。
+
+---
+
+## D9 —— 几何 DSL 自研（已定）
+
+**结论。** 自研受限中文几何 DSL，作为手绘与文字通道的公共中间表示（spec §9）。
+
+**理由。** 已检索中文几何构造 DSL 方向，**未找到可直接复用的开源实现**，因此自研。自研的额外好处：DSL 本身就是中文竞赛术语到构造算子的映射表，这层映射是护城河的一部分。
+
+**风险与对策。** DSL 覆盖面不足 → 用"受限子集 + AI 翻译 + 人工兜底"三层兜底，并在 §9.3 的映射表里显式列出未覆盖项，而不是假装全覆盖。
+
+---
+
+## D10 —— 交付形态（已定）
+
+**结论。** **浏览器优先**：内核与前端打包为静态站点，Pyodide 可选在浏览器内跑内核（零安装）；**本地 MCP** 作为第二条通道，服务 Agent。二者共用同一份内核代码，**同一份 DSL 在两处必须产生逐字节相同的构造图**（这条本身就是一条回归测试）。
+
+**理由。** 目标用户是老师与学生，**零安装的网页**是分发成本最低的形态；MCP 通道服务 Agent 与"证明 AI 使用能力"的目标。双模式共用一份代码还顺带验证了内核的跨环境一致性。
+
+**备选。** 桌面应用（Tauri/Electron）：见 D1 关于 Tauri 的分析，v1 不做。

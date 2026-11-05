@@ -1,60 +1,60 @@
-# Evaluation harness
+# 评测框架
 
-The benchmark measures **validity**, not taste. Every number in this repository must be reproducible: a report states the kernel version, the fixture/seed set, and the exact command.
+Benchmark 衡量的是**有效性**，不是品味。仓库里的任何一个数字都必须可复现：报告要写清内核版本、夹具/种子集，以及**确切的命令**。
 
-## Tiers
+## 分层
 
-### Tier 1 — operator correctness
+### 第一层 —— 算子正确性
 
-Does the kernel compute the right thing?
+内核算得对吗？
 
-- Metric `oracle_agreement`: fraction of operator outputs that match the oracle implementation exactly (symbolic equality after canonicalisation).
-- Metric `construct_success`: fraction of attempted constructions that complete without a kernel error.
-- Fixture set: `tests/oracle/fixtures/*.json` (≥ 20 configurations per operator, ≥ 3 degenerate).
+- `oracle_agreement`：算子输出与对拍基准**逐项符号相等**的比例。
+- `construct_success`：尝试的构造中无内核错误完成的比例。
+- 夹具：`tests/oracle/fixtures/*.json`（每个算子 ≥ 20 组构型，其中 ≥ 3 组退化）。
 
-### Tier 2 — judge correctness
+### 第二层 —— 判定正确性
 
-Does the kernel judge correctly?
+内核判得对吗？
 
-- Metric `verify_precision`: fraction of `proved` verdicts that survive adversarial re-sampling with different free points.
-- Metric `refute_precision`: fraction of `refuted` verdicts that are backed by an explicit counterexample configuration (the spec requires this; a refutation without a witness is a failure).
-- Required test shape: every judge has one positive case and one counterexample case (spec §6.3).
+- `verify_precision`：`proved` 结论在**对抗性重采样**（换一组自由点取值）下仍然成立的比例。
+- `refute_precision`：`refuted` 结论中**附带了具体反例构型**的比例（规格要求；没有见证的反例不算反例）。
+- 必备测试形态：每个判定器一条正例、一条反例（spec §6.3）。
 
-### Tier 3 — problem generation
+### 第三层 —— 出题有效性
 
-Do generated problems hold up?
+生成的题站得住吗？
 
-- Metric `problem_validity`: fraction of generated problems whose goal is `proved` **and** whose degeneracy report is clean.
-- Metric `degenerate_rate`: fraction of generated configurations flagged by at least one detector.
-- Metric `variant_diversity`: mean pairwise dissimilarity across variants of one construction family (distance between normalised free-point placements).
-- Human rubric (0–2 per dimension, reported separately, never merged into the automated metrics): *is this a good competition problem?* — non-trivial, non-degenerate, has a discoverable idea, figures cleanly.
-- Report generator prompts and seeds; the model, its version, and the sampling temperature used.
+- `problem_validity`：目标为 `proved` **且**退化报告干净的自动出题比例。
+- `degenerate_rate`：被至少一个检测器标记的生成构型比例。
+- `variant_diversity`：同一构造族内各变体之间的平均差异度（自由点归一化摆放之间的距离）。
+- **人工评分**（每维 0–2 分，单独报告，**不与自动指标合并**）：*这算不算一道好竞赛题？*—— 非平凡、不退化、有可发现的巧思、图干净。
+- 报告必须记录生成用的提示词与种子、模型及其版本、采样温度。
 
-## Thresholds (proposed — confirm before the first benchmark run)
+## 阈值（提案，首次跑基准前确认）
 
-| Metric | Threshold | Rationale |
+| 指标 | 阈值 | 理由 |
 |---|---|---|
-| `oracle_agreement` | = 1.0 | Any mismatch means an operator is wrong; there is no "mostly right" |
-| `verify_precision` | ≥ 0.98 | Below this, the kernel is not trustworthy enough for a teacher to rely on |
-| `refute_precision` | = 1.0 | A refutation without a witness is not a refutation |
-| `degenerate_rate` | ≤ 0.05 on curated families | Above this the sampler is producing junk configurations |
-| `problem_validity` | ≥ 0.90 | The headline number of the project |
+| `oracle_agreement` | = 1.0 | 任何一处不一致都说明算子错了，没有"基本正确" |
+| `verify_precision` | ≥ 0.98 | 低于此值，内核不值得老师信任 |
+| `refute_precision` | = 1.0 | 没有见证的反例不是反例 |
+| `degenerate_rate` | ≤ 0.05（精选构型族上） | 超过说明采样器在产生垃圾构型 |
+| `problem_validity` | ≥ 0.90 | 这是项目的门面数字 |
 
-## Dataset provenance policy
+## 数据来源政策
 
-- **No verbatim reproduction of copyrighted problem text.** Problem statements are re-typed and paraphrased from public sources, or authored from scratch, and each file records its `provenance` (`source`, `license`, `notes`).
-- Self-authored problems are released under `CC0-1.0`.
-- Benchmark fixtures for Tier 1 and 2 are synthetic (randomly generated configurations), so no third-party content is involved.
-- A benchmark set that includes third-party problem text must ship with an explicit licence note per item.
+- **不逐字复制受版权保护的题面。** 题面来自公开来源时，做改写与转述；或自行命题。每个题库文件记录 `provenance`（`source`、`license`、`notes`）。
+- 自行命题的题目以 `CC0-1.0` 发布。
+- 第一、二层的夹具是**合成**的（随机生成构型），不涉及第三方内容。
+- 若某份基准集收录了第三方题面，必须逐题附许可说明。
 
-## Reports
+## 报告
 
-`evals/reports/<YYYY-MM-DD>-<kernel-version>.md`, containing:
+`evals/reports/<YYYY-MM-DD>-<内核版本>.md`，包含：
 
-1. environment (OS, Python, SymPy version, model and version if an LLM was involved),
-2. the exact command,
-3. the metrics table with raw counts, not only percentages,
-4. a list of failures with the minimal reproducing case,
-5. the git commit under test.
+1. 环境（操作系统、Python、SymPy 版本；若涉及 LLM，附模型与版本）；
+2. 确切命令；
+3. 指标表——给**原始计数**，不只给百分比；
+4. 失败清单，每条附最小复现用例；
+5. 被测的 git commit。
 
-Reports are committed; a metric quoted in the README must point at a report file.
+报告入库；README 里引用的任何数字都必须指向某个报告文件。

@@ -1,49 +1,49 @@
-# Prompt template — implement one operator
+# Prompt 模板 —— 实现单个算子
 
-Used by the agent that implements a single operator task. Fill the placeholders; do not edit the rules.
+供实现单个算子任务的 Agent 使用。填好占位符即可；**规则部分不要改**。
 
 ---
 
-You are implementing **one operator** of the geobench geometry kernel.
+你正在实现 geobench 几何内核的**一个算子**。
 
-**Operator id**: `<op.id>` — e.g. `point.foot`
-**Task file**: `tasks/<T0XX>.md` — read it first, in full.
-**Spec section**: `docs/spec.md` §<X.Y> — read it verbatim; the excerpt below is a copy, the file is the truth.
-
-```
-<PASTE THE RELEVANT SPEC SECTION HERE VERBATIM>
-```
-
-### Hard rules
-
-1. **No floats.** The kernel must contain no floating-point literals and no float arithmetic on geometric quantities. A `Field` protocol exists for this (`src/geobench/field.py`); use it. If an exact result is impossible, raise a typed error — never return an approximation.
-2. **Do not invent public API.** Use the existing registry, `Field`, and error types. If you believe the spec needs to change, stop and say so in your report instead of changing it.
-3. **Tests first.** Write the test file before the implementation. Include: ≥ 3 normal cases, ≥ 2 degenerate cases asserting a typed error, and one exact-value assertion with a hand-derived expected result.
-4. **Declare degeneracy.** Fill in `degenerate_when` in the operator contract (`spec.md` §5.1). Every situation in which the operator is undefined or ambiguous must appear there — including ambiguous intersection indices.
-5. **Ambiguity is an error, not a guess.** If the operator can return several results (e.g. two intersections), the choice must be an explicit argument. Never pick "the first one" silently.
-6. **Stay in your layer.** Touch only the files your task lists. Refactors are separate tasks.
-7. **Do not weaken a test to make it pass.** If a test is wrong, fix the test only with a written justification in your report.
-
-### Deliver
-
-- The implementation, the tests, and the registry entry.
-- A one-line oracle note: what independent implementation will cross-check this operator (see `tasks/T002-oracle-harness.md`).
-
-### Report format
+**算子 id**：`<op.id>` —— 例如 `point.foot`
+**任务文件**：`tasks/<T0XX>.md` —— 先完整读一遍。
+**规格章节**：`docs/spec.md` §<X.Y> —— 以文件为准，下面是原文摘抄。
 
 ```
-Files changed:
-  - <path> — <one line>
+<把相关规格章节原文粘在这里>
+```
 
-Commands run and their output:
+### 硬规则
+
+1. **禁止浮点。** 内核不得出现浮点字面量，几何量上不得做浮点运算。精确算术走 `Field` 协议（`src/geobench/field.py`）。若精确结果不可得，**抛类型化错误**——绝不返回近似值。
+2. **不许自造 API。** 沿用既有注册表、`Field` 与错误类型。若你认为规格需要修改，**停下来在报告里说明**，而不是擅自改。
+3. **先写测试。** 先写测试文件，再写实现。至少包含：≥ 3 个常规用例、≥ 2 个退化用例（断言类型化错误）、1 个用手算推导出的精确值断言。
+4. **声明退化条件。** 填好算子契约（spec §5.1）里的 `degenerate_when`。算子无定义或歧义的每一种情况都要列出来——**包括交点序号歧义**。
+5. **歧义即错误，不得猜。** 若算子可能返回多个结果（如两个交点），选择必须是显式参数。绝不默默"取第一个"。
+6. **只动你这一层。** 只改任务文件列出的文件。重构是独立任务。
+7. **不许为了让测试通过而弱化测试。** 若测试本身写错，必须在报告里写明理由才可改测试。
+
+### 交付
+
+- 实现、测试、注册表条目。
+- 一行对拍说明：这个算子将被哪个独立实现交叉验证（见 `tasks/T002-oracle-harness.md`）。
+
+### 报告格式
+
+```
+改动文件：
+  - <路径> — <一句话说明>
+
+执行的命令与真实输出：
   $ pytest tests/unit/test_op_foot.py -q
   ...
 
-Known limitations / spec ambiguities found:
-  - <...>   (or "none")
+已知限制 / 发现的规格歧义：
+  - <...>   （若无则写 "none"）
 
-Degenerate cases handled:
-  - <condition> → <error type>
+已处理的退化情形：
+  - <条件> → <错误类型>
 ```
 
-Do not claim success without pasting the actual command output.
+**没有粘贴真实命令输出，就不要宣称成功。**

@@ -1,115 +1,121 @@
-# AI workflow
+# AI 实现流程
 
-**Principle: the model writes the code, the human writes the specification and adjudicates the truth.**
+**原则：模型写代码，人写规格并裁定真伪。**
 
-This document is not a style guide. It is the mechanism that makes the project's central claim credible — that geometry software can be produced by AI agents under a human-owned contract — and it doubles as one of the project's proof artefacts.
+本文不是风格指南，而是让项目的核心主张变得可信的机制——"几何软件可以在人的契约约束下由 AI Agent 生产"——它同时也是项目本身的**证明材料之一**。
 
 ---
 
-## 1. Why this shape
+## 1. 为什么是这个形态
 
-Geometry kernel code has a property that is unusual and useful: **almost every line is checkable**. An operator either computes the right point or it does not; a judge either proves the relation or it does not. This makes it unusually well suited to a workflow where a model does the typing and a machine does the judging:
+几何内核的代码有一个罕见而好用的性质：**几乎每一行都可判定**。一个算子要么算出正确的点，要么没有；一个判定器要么证明关系成立，要么没有。这让"模型负责打字、机器负责裁判"的分工格外成立：
 
-- A human-written spec is unambiguous in a way a human-written *implementation* rarely is.
-- An AI-generated implementation is cheap to produce and cheap to discard.
-- The expensive part — deciding what is true — is exactly the part that can be automated *deterministically* inside the kernel.
+- 人写的**规格**比人写的**实现**更无歧义；
+- AI 生成的实现**产出便宜、丢弃也便宜**；
+- 真正贵的部分——判定什么是真的——恰好可以在内核里**确定性地**自动化。
 
-So the human's scarce attention goes to: scope, semantics, taste (what a good competition figure looks like), and the adjudication of edge cases that the spec did not anticipate.
+于是人的稀缺注意力集中在：**范围、语义、品味（什么样的图算竞赛图）、以及规格没预料到的边界情况**。
 
-## 2. Roles
+## 2. 分工
 
-| Owned by the human (domain owner) | Owned by the agent |
+| 人（域主）负责 | Agent 负责 |
 |---|---|
-| `spec.md` — semantics, operator/judge contracts, verdict meanings | Implement operators, judges, tools, tests |
-| Scope decisions (D5), style values (D6) | Property-based and counterexample test batteries |
-| The "what makes a good competition figure" judgement | Oracle cross-checks against independent implementations |
-| Accepting or rejecting a task | CI configuration, packaging, docs drafts |
-| The final "is this a valid problem" call | Refactoring within the constraints of a task |
+| `spec.md`——语义、算子/判定器契约、结论含义 | 实现算子、判定器、工具与测试 |
+| 范围决策（D5）、图规范数值（D6） | 属性化测试与反例测试组 |
+| "什么算一道好竞赛题"的判断 | 与独立实现的对拍 |
+| 接受或拒绝一个任务 | CI 配置、打包、文档草稿 |
+| 最终的"这题到底成不成立" | 在任务约束内的重构 |
 
-The human does **not** review code style. Linting and typing are gates, not review items.
+人**不**审查代码风格。lint 与类型检查是门禁，不是评审项。
 
-## 3. Task lifecycle
+## 3. 任务生命周期
 
 ```
- proposed ──▶ specced ──▶ implemented ──▶ gated ──▶ accepted ──▶ merged
-   │            │             │            │           │
-   │            │             │            │           └─ human: verdict semantics,
-   │            │             │            │              taste, edge cases
-   │            │             │            └─ CI: lint · types · unit · oracle ·
-   │            │             │               property · degeneracy · no-float
-   │            │             └─ agent produced code + tests
-   │            └─ task file has machine-checkable acceptance criteria
-   └─ idea, from the human or from the open-issues list
+ 提案 ──▶ 已规格化 ──▶ 已实现 ──▶ 门禁通过 ──▶ 已接受 ──▶ 合并
+   │         │            │           │           │
+   │         │            │           │           └─ 人：结论语义、
+   │         │            │           │              品味、边界情况
+   │         │            │           └─ CI：lint · types · unit · oracle ·
+   │         │            │              property · degeneracy · no-float ·
+   │         │            │              contract
+   │         │            └─ Agent 产出代码 + 测试
+   │         └─ 任务文件里的验收标准是**可执行的命令**
+   └─ 想法，来自人或来自 issue 列表
 ```
 
-A task never enters `implemented` without a task file in [`../tasks/`](../tasks/) whose acceptance criteria are **commands that can be executed** (not prose).
+没有任务文件（验收标准是可执行命令）的任务，不进入"已实现"。
 
-## 4. Task grain
+## 4. 任务粒度
 
-One task = one unit of behaviour + its tests + its oracle. Concretely, a task implements **one operator**, **one judge**, **one MCP tool**, or **one piece of infrastructure** — not "the geometry module".
+一个任务 = 一个行为单元 + 它的测试 + 它的对拍。具体地，一个任务实现**一个算子**、**一个判定器**、**一个 MCP 工具**，或**一块基础设施**——不是"几何模块"。
 
-- Target size: ≤ 300 changed lines including tests. A larger change is split.
-- No opportunistic refactoring inside a feature task. Refactors are their own tasks, so a failure can be attributed.
-- A task touches at most one layer of the kernel (see `spec.md` §1.1 ordering: model → operators → judges → solving → rendering → server).
+- 目标规模：含测试 ≤ 300 行改动。超出就拆。
+- **功能任务里不做顺手重构。** 重构单独立任务，这样失败可归因。
+- 一个任务最多触碰内核的一层（层次顺序见 spec §14 的验收：模型 → 算子 → 判定器 → 求解 → 渲染 → 服务端）。
 
-## 5. Gates (all in CI, all blocking)
+## 5. 门禁（全部在 CI，全部阻塞）
 
-| Gate | Command | What it protects |
+| 门禁 | 命令 | 保护什么 |
 |---|---|---|
-| lint | `ruff check .` | style, banned patterns, **float literals in the kernel** |
-| types | `mypy src` | contract drift |
-| unit | `pytest tests/unit -q` | behaviour |
-| oracle | `pytest tests/oracle -q` | operator correctness against an independent implementation |
-| property | `pytest tests/property -q` | identity-level correctness over random inputs |
-| degeneracy | `pytest tests/degeneracy -q` | edge-case handling |
-| no-float | `pytest tests/no_float -q` | the exactness invariant of `spec.md` §4 |
-| contract | `pytest tests/contract -q` | the public API matches `spec.md` |
+| lint | `ruff check .` | 风格、禁用模式、**内核中的浮点字面量** |
+| types | `mypy src` | 契约漂移 |
+| unit | `pytest tests/unit -q` | 行为 |
+| oracle | `pytest tests/oracle -q` | 算子对独立实现的正确性 |
+| property | `pytest tests/property -q` | 随机输入下的恒等式级正确性 |
+| degeneracy | `pytest tests/degeneracy -q` | 边界情形处理 |
+| no-float | `pytest tests/no_float -q` | spec §4 的精确性不变式 |
+| contract | `pytest tests/contract -q` | 公开 API 与 spec 一致 |
 
-Additional rules:
+附加规则：
 
-- Every judge needs **one positive and one counterexample test**. A judge that cannot refute a mutated figure does not ship.
-- Every operator needs oracle coverage over ≥ 20 configurations, ≥ 3 of them degenerate. The harness prints a coverage table; an operator with no oracle row is a CI failure.
-- A `proved` verdict must be re-checkable: `geo_verify` responses carry the reduced expression and the assumptions.
+- 每个判定器必须有一条**正例**与一条**反例**测试。给不出反例的判定器不上线。
+- 每个算子必须有 ≥ 20 组对拍构型，其中 ≥ 3 组退化；对拍框架会打印覆盖表，**没有对拍行的算子即 CI 失败**。
+- `proved` 结论必须可复查：`geo_verify` 的响应要带归约后的表达式与所用假设。
 
-## 6. The failure protocol — the part that matters
+## 6. 失败协议——真正重要的那一节
 
-Every rejected agent output is recorded, not deleted. `tasks/<task-id>.failures.md` accumulates:
+**每一次被拒的 Agent 产出都要留档，不许删除。** `tasks/<任务号>.failures.md` 累积记录：
 
 ```markdown
-### F2 — 2026-11-08 · sympy simplification returned a non-zero remainder
-- **Task**: T004 point.foot
-- **Symptom**: `verify` returned `undecided` for a right angle that is obviously true.
-- **Root cause**: the agent assumed `simplify()` normalises trig identities; it does not.
-- **Fix**: use `trigsimp` + `simplify` and compare against `0` after `cancel`.
-- **Gate that should have caught it**: the oracle battery (a right-triangle fixture was missing).
-- **Action**: added the fixture to `tests/oracle/fixtures/right_triangle.json`.
+### F2 — 2026-11-08 · sympy 化简返回了非零余项
+- **任务**：T004 point.foot
+- **症状**：一个显然为直角的判定返回了 `undecided`。
+- **根因**：Agent 假设 `simplify()` 会归一化三角恒等式；它不会。
+- **修法**：改用 `trigsimp` + `simplify`，再 `cancel` 后与 `0` 比较。
+- **本该拦住它的门禁**：对拍电池（缺了直角三角形这一组夹具）。
+- **动作**：向 `tests/oracle/fixtures/right_triangle.json` 补入该夹具。
 ```
 
-This log is the honest evidence of AI-assisted engineering: it shows what failed, why, and which gate was tightened afterwards. A repository with only successful outputs proves nothing about the process.
+这份日志是 AI 辅助工程的**诚实证据**：它展示了什么坏了、为什么坏、以及事后收紧了哪道门禁。只有成功记录的仓库，对流程本身什么都证明不了。
 
-## 7. Prompting rules
+## 7. Prompt 规则
 
-Templates live in [`../prompts/`](../prompts/). The rules they encode:
+模板在 [`../prompts/`](../prompts/)，模板里固化的规则：
 
-1. **Quote the spec verbatim.** The agent is given the relevant section of `spec.md`, not a paraphrase of it.
-2. **No invented APIs.** The agent must use existing registry/interface patterns and may not add public API beyond the task's scope. Adding public API is a spec change first.
-3. **Tests before code.** The agent writes the failing test (including the counterexample for judges) before the implementation.
-4. **No floats.** Stated explicitly, because it is the invariant agents break most often.
-5. **No silent approximations.** If an exact computation is not possible, the operator must raise a typed error — never return a float and hope.
-6. **Ambiguity is an error, not a guess.** Intersection indices, arc choices, and "the" circle must be explicit; if the spec does not say, the agent asks instead of choosing.
-7. **Report, do not claim.** The agent's final message contains the files changed, the exact commands run with their output, and known limitations.
+1. **原文引用规格。** 给 Agent 的是 `spec.md` 的相关章节原文，不是转述。
+2. **不许自造 API。** 必须沿用既有注册表/接口模式；新增公开 API 要先改规格。
+3. **先写测试。** Agent 先写会失败的测试（判定器还要写反例），再写实现。
+4. **禁止浮点。** 明确写出，因为这是 Agent 最常破坏的不变式。
+5. **禁止静默近似。** 精确计算做不到时，抛类型化错误——绝不返回浮点数碰运气。
+6. **歧义即错误，不得猜。** 交点序号、弧的选择、"那个"圆，都必须显式；规格没说就问，不许默认。
+7. **只报告，不宣称。** 最终回复必须包含：改了哪些文件、跑了哪些命令及其真实输出、已知限制。
 
-## 8. Measuring the workflow itself
+## 8. 度量流程本身
 
-The workflow is instrumented like any other part of the project, because its quality is part of the claim:
+流程与代码一样被度量，因为它的质量是项目主张的一部分：
 
-- **Acceptance rate** per task type (operator / judge / tool / infrastructure).
-- **Iterations to green** per task (median and p90).
-- **Gate hit histogram** — which gate rejects most often (this tells us where the spec is underspecified).
-- **Regressions introduced** by agent tasks.
+- **接受率**：按任务类型（算子 / 判定器 / 工具 / 基础设施）分别统计。
+- **到达绿色的迭代次数**：中位数与 p90。
+- **门禁命中直方图**：哪道门禁拒得最多（这直接告诉我们规格哪里写得不够）。
+- **Agent 任务引入的回归数**。
 
-These numbers are reported in `docs/ai-workflow.md` (this file) at each milestone, and the raw data lives in `evals/reports/`.
+这些数字在每个里程碑写回本文，原始数据放在 `evals/reports/`。
 
-## 9. Tools
+## 9. 工具链
 
-The kernel is driven through the MCP server (`spec.md` §11), from any MCP client — the human uses one for interactive work, and agents use the same interface. There is no privileged path for the agent: **if the agent can call it, the human can call it**, and everything the agent does is recorded in the figure state and reproducible from the problem file.
+内核通过 MCP 服务端（spec §11）暴露，任意 MCP 客户端均可驱动——人用它做交互，Agent 用它做批处理。**没有给 Agent 的特权路径：Agent 能调的，人也能调**，Agent 的每一步都记录在图形状态里，并可由题库文件复现。
+
+## 10. 两处特别提醒
+
+- **DSL 解析器（spec §9）是确定性代码**，不允许 Agent 用启发式"差不多能解析"的方式实现。解析失败必须精确报错；宁可少支持一种句式，也不能给出错误的几何。
+- **AI 负责翻译，解析器负责拒绝。** text2graph 通道的可靠性来自这条分工，不来自模型更聪明。
