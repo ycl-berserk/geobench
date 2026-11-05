@@ -2,9 +2,44 @@
 
 **A deterministic plane-geometry kernel with an agent interface (MCP), for authoring competition-grade geometry problems.**
 
-> **Status: pre-alpha (charter stage).** No working kernel yet. The contract that the implementation must satisfy is [`docs/spec.md`](docs/spec.md) (Chinese, canonical); the process that produces the implementation is [`docs/ai-workflow.md`](docs/ai-workflow.md) (Chinese).
+> **Status: alpha.** The kernel decides, the DSL parses, the MCP server answers. Implemented so far: the construction graph, exact arithmetic, 14 operators (every one of them cross-checked against an independent implementation), 9 judges, competition-style SVG rendering, the **Chinese geometry DSL** (a deterministic parser) and the **MCP server** (`geo_state` / `geo_construct` / `geo_evaluate`).
+>
+> Not implemented yet: constraint solving, the full degeneracy catalogue, the renderer service, the interactive front end, and the remaining MCP tools.
+>
+> The contract is [`docs/spec.md`](docs/spec.md) (Chinese, canonical); the DSL grammar is [`docs/dsl-spec.md`](docs/dsl-spec.md) (Chinese); the process is [`docs/ai-workflow.md`](docs/ai-workflow.md) (Chinese).
 >
 > 中文版（正本）：[README.md](README.md)
+
+---
+
+## What you can do right now
+
+```bash
+pip install -e ".[dev]"
+python scripts/demo.py        # build → judge → render → export a problem file
+python scripts/dsl_demo.py    # Chinese DSL → construction graph → judge → render → round trip
+geobench-mcp                  # start an MCP server over stdio for any agent to connect to
+```
+
+The demo script builds a triangle (circumcircle, midpoint, foot of an altitude, circumcentre) and then judges its claims one by one. All three come back `proved` in the **identity** scope — meaning "true for every admissible placement of the free points", not "true of this one picture". That distinction is the whole point of the project, and the line between this and "AI draws a picture".
+
+Outputs: `examples/demo-figure.svg` (drop straight into LaTeX or Word), `examples/demo-figure.png`, and `examples/demo-problem.json` (with the judgement records).
+
+### As an MCP server
+
+```bash
+geobench-mcp        # stdio transport; point an MCP client at this command
+```
+
+Three tools are exposed (the contract is [`docs/spec.md`](docs/spec.md) §11):
+
+| Tool | What it does |
+|---|---|
+| `geo_state` | read back the whole construction graph, a validation summary and the degeneracy report |
+| `geo_construct` | apply a batch of constructions (`dry-run` previews them); the batch is atomic — if anything fails, nothing changes |
+| `geo_evaluate` | evaluate `Angle(B,A,C)` / `Distance(A,B)` / `Area(A,B,C)`, returning both the **exact** value and a display approximation |
+
+Every response carries `status ∈ {ok, error, degraded}`. `error` means *"your request is wrong — fix it"*; `degraded` means *"your request was fine, but this configuration is degenerate"*. Those need different next steps, so the kernel reports them separately.
 
 ---
 
@@ -73,12 +108,18 @@ Both paths converge on the *same* construction graph; validation, degeneracy che
 
 ```
 docs/spec.md          the contract: model, DSL, operators, judges, MCP schemas, evals
-docs/decisions.md     decision log D1–D10 with rationale and alternatives
+docs/dsl-spec.md      the Chinese geometry DSL grammar (notation, statements, gap list)
+docs/decisions.md     decision log D1–D15 with rationale and alternatives
 docs/ai-workflow.md   how the implementation is produced by AI agents, and gated
 tasks/                one task per unit of work, each with machine-checkable acceptance
 prompts/              prompt templates used to drive implementation
 evals/                benchmark definition, metrics, dataset provenance policy
-src/geobench/         the kernel and server (not started yet)
+examples/             demo artefacts: SVG / PNG / problem files
+scripts/              demos and fixture generation
+src/geobench/         the kernel and the MCP server
+tests/oracle/         the oracle harness and its fixtures
+tests/contract/       the live interface against the specification
+tests/integration/    a real process, a real client, a real protocol
 ```
 
 ## Benchmarks
@@ -101,14 +142,24 @@ git clone https://github.com/ycl-berserk/geobench.git
 cd geobench
 python -m venv .venv && . .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
-pytest -q                 # unit + oracle + property + degeneracy suites
+pytest -q                 # unit + oracle + property + contract + integration
+python scripts/demo.py    # end-to-end demo
 ```
-
-As of the charter stage the test suites do not exist yet; the commands above are the contract the implementation must satisfy.
 
 ## Roadmap
 
-Task-flow driven, no fixed dates (see [`tasks/`](tasks/README.md)): kernel skeleton → oracle harness → judges → MCP server → Chinese geometry DSL → renderer → end-to-end problem generation → benchmark.
+Task-flow driven, no fixed dates (see [`tasks/`](tasks/README.md)):
+
+- [x] **M0 charter** — spec, decisions, process, task format
+- [x] **M1 kernel skeleton** — construction graph, symbolic + placement coordinates, exact arithmetic, operator registry
+- [x] **M2 oracle harness** — 14 operators × 380+ fixtures, all cross-validated
+- [x] **M3 judges** — 9 judges, two scopes, counterexample tests
+- [x] **M4 renderer** — competition-figure preset + SVG (TikZ to come)
+- [x] **M5 DSL** — Chinese geometry DSL grammar, recursive-descent parser, round trip
+- [x] **M6 MCP server** — `geo_state` / `geo_construct` / `geo_evaluate`
+- [ ] **M7 degeneracy detectors** — the nine of spec §7
+- [ ] **M8 automatic problem generation** — variant sampling, constraint solving, an LLM in the loop
+- [ ] **M9 benchmark** — the evaluation framework and a public report
 
 ## Contributing
 

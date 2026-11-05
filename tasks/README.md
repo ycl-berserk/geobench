@@ -39,7 +39,7 @@
 |---|---|---|---|---|
 | [T001](T001-kernel-skeleton.md) | 内核骨架：构造图、精确数域、算子注册表 | 模型 / 基础设施 | 已实现（门禁本地通过） | — |
 | [T002](T002-oracle-harness.md) | 对拍框架与夹具格式 | 基础设施 | 已实现（14 算子 / 380+ 夹具全绿） | T001 |
-| [T003](T003-mcp-server-core.md) | MCP 服务端核心：`geo_state` / `geo_construct` / `geo_evaluate` | 服务端 | 提案 | T001 |
+| [T003](T003-mcp-server-core.md) | MCP 服务端核心：`geo_state` / `geo_construct` / `geo_evaluate` | 服务端 | 已实现（契约 16 + 端到端 8 全绿） | T001 |
 | [T004](T004-dsl-parser.md) | 中文几何 DSL：语法、递归下降解析器、DSL↔构造图 | DSL | 已实现（20 单测 + 2 属性测试） | T001 |
 | [T005](T005-text2graph.md) | text2graph 通道：自然语言→DSL 的翻译接口与题面生成 | DSL / 服务端 | 提案 | T004 |
 | [T006](T006-operators-batch1.md) | 第一批算子（点/线/线段/圆共 13 个）+ 对拍 | 算子 | 已实现（对拍全绿） | T002 |

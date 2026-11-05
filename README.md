@@ -2,10 +2,10 @@
 
 **面向竞赛级平面几何命题的确定性几何内核 + Agent 接口（MCP）。**
 
-> **状态：alpha（内核已可判定，内核尚未接入 MCP / DSL）**。
-> 已实现：构造图、精确算术、13 个算子（全部经独立实现对拍）、9 个判定器、竞赛图规范 SVG 渲染。
-> 未实现：中文几何 DSL、MCP 服务端、约束求解、退化检测器、交互前端。
-> 实现的契约在 [`docs/spec.md`](docs/spec.md)，生产方式在 [`docs/ai-workflow.md`](docs/ai-workflow.md)，决策记录在 [`docs/decisions.md`](docs/decisions.md)。
+> **状态：alpha（内核已可判定，DSL 与 MCP 服务端已就位）**。
+> 已实现：构造图、精确算术、14 个算子（全部经独立实现对拍）、9 个判定器、竞赛图规范 SVG 渲染、**中文几何 DSL（确定性解析器）**、**MCP 服务端（`geo_state` / `geo_construct` / `geo_evaluate`）**。
+> 未实现：约束求解、退化检测器全目录、渲染服务、交互前端、其余 MCP 工具。
+> 实现的契约在 [`docs/spec.md`](docs/spec.md)，DSL 语法在 [`docs/dsl-spec.md`](docs/dsl-spec.md)，生产方式在 [`docs/ai-workflow.md`](docs/ai-workflow.md)，决策记录在 [`docs/decisions.md`](docs/decisions.md)。
 >
 > English version: [README.en.md](README.en.md)
 
@@ -16,6 +16,8 @@
 ```bash
 pip install -e ".[dev]"
 python scripts/demo.py        # 造图 → 判定 → 渲染 → 出题库文件
+python scripts/dsl_demo.py    # 中文 DSL → 构造图 → 判定 → 渲染 → 往返
+geobench-mcp                  # 起一个 MCP 服务端（stdio），任意 Agent 可直接连
 ```
 
 演示脚本会构造一个三角形（外接圆 + 中点 + 垂足 + 外心），然后逐条判定它的命题：
@@ -30,6 +32,22 @@ python scripts/demo.py        # 造图 → 判定 → 渲染 → 出题库文件
 三条都是 **identity 作用域**下的 `proved` —— 意思是"对自由点的任意合法摆放都成立"，而不是"这张图上恰好成立"。这正是竞赛命题需要的判断，也是这个项目与"AI 画图"的分界线。
 
 产物：`examples/demo-figure.svg`（可直接进 LaTeX/Word）、`examples/demo-figure.png`、`examples/demo-problem.json`（含判定记录）。
+
+### 作为 MCP 服务端
+
+```bash
+geobench-mcp        # stdio 传输；客户端配置里填这个命令即可
+```
+
+暴露三个工具（契约见 [`docs/spec.md`](docs/spec.md) §11）：
+
+| 工具 | 作用 |
+|---|---|
+| `geo_state` | 读回整张构造图 + 校验摘要 + 退化报告 |
+| `geo_construct` | 批量施加构造（`dry-run` 可预览）；整批原子提交，失败则一张图都不改 |
+| `geo_evaluate` | 求 `Angle(B,A,C)` / `Distance(A,B)` / `Area(A,B,C)`，同时给出**精确值**与显示近似值 |
+
+每个响应都带 `status ∈ {ok, error, degraded}`：**`error` 是"你写错了，改"**，**`degraded` 是"你写对了，但这个构型退化"**——两者的下一步完全不同，所以内核把它们分开报。
 
 ---
 
@@ -98,7 +116,8 @@ python scripts/demo.py        # 造图 → 判定 → 渲染 → 出题库文件
 
 ```
 docs/spec.md          契约：数据模型、DSL、算子、判定器、MCP schema、题库格式、评测
-docs/decisions.md     决策记录 D1–D13，含理由、备选、结论
+docs/dsl-spec.md      中文几何 DSL 的语法规格（记号、语句、缺口清单）
+docs/decisions.md     决策记录 D1–D15，含理由、备选、结论
 docs/ai-workflow.md   实现由 Agent 生产的过程与门禁
 docs/configurations.md 典型构型库（人写的品味资产，AI 替代不了的那部分）
 tasks/                任务制：每个任务一份，验收标准必须机器可判
@@ -108,6 +127,8 @@ examples/             演示产物：SVG / PNG / 题库文件
 scripts/              演示与夹具生成
 src/geobench/         内核
 tests/oracle/         对拍框架与夹具
+tests/contract/       线上接口与 spec 一致性
+tests/integration/    真进程、真客户端、真协议
 ```
 
 ## Benchmark
@@ -140,11 +161,11 @@ python scripts/demo.py    # 端到端演示
 
 - [x] **M0 立项**：spec、决策、流程、任务格式
 - [x] **M1 内核骨架**：构造图、符号+摆放双坐标、精确算术、算子注册表
-- [x] **M2 对拍框架**：13 个算子 × 340+ 组夹具，全部与独立实现交叉验证
+- [x] **M2 对拍框架**：14 个算子 × 380+ 组夹具，全部与独立实现交叉验证
 - [x] **M3 判定器**：9 个判定器，双作用域，含反例测试
 - [x] **M4 渲染**：竞赛图规范预设 + SVG（TikZ 待做）
-- [ ] **M5 DSL**：中文几何 DSL 语法、递归下降解析器、DSL↔构造图
-- [ ] **M6 MCP 服务端**：工具契约与资源
+- [x] **M5 DSL**：中文几何 DSL 语法、递归下降解析器、DSL↔构造图
+- [x] **M6 MCP 服务端**：`geo_state` / `geo_construct` / `geo_evaluate`（其余工具待做）
 - [ ] **M7 退化检测器**：spec §7 的九条
 - [ ] **M8 自动出题**：变体采样 + 约束求解接 LLM，端到端 demo
 - [ ] **M9 Benchmark**：评测框架与公开报告

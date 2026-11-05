@@ -60,11 +60,13 @@
 | lint | `ruff check .` | 风格、禁用模式、**内核中的浮点字面量** |
 | types | `mypy src` | 契约漂移 |
 | unit | `pytest tests/unit -q` | 行为 |
+| unit/dsl | `pytest tests/unit/dsl -q` | DSL 解析与往返 |
 | oracle | `pytest tests/oracle -q` | 算子对独立实现的正确性 |
 | property | `pytest tests/property -q` | 随机输入下的恒等式级正确性 |
 | degeneracy | `pytest tests/degeneracy -q` | 边界情形处理 |
 | no-float | `pytest tests/no_float -q` | spec §4 的精确性不变式 |
 | contract | `pytest tests/contract -q` | 公开 API 与 spec 一致 |
+| integration | `pytest tests/integration -q` | **真的从外面进来**：真进程、真客户端、真协议 |
 
 附加规则：
 
@@ -147,3 +149,13 @@ Python 的 `str.isalpha()` 对汉字返回 **True**。任何"以字母开头即�
 ### 11.4 一个变量不要兼职两件事
 
 解析器里曾用 `index` 同时充当"游标"和"是否找到关系词"的标志位，于是"找到关系词后 index 推到末尾"与"index 超界"这两个条件永远同时成立。**状态用独立变量表达**，不要用位置推断。
+
+### 11.5 每道门禁都有盲区，记下来
+
+- **`no_float` 只拦浮点*字面量***，拦不住 `float(x)` 这样的**调用**。T003 里就出现过一次：用 `float(text)` 去判断"这个参数是不是数字字面量"。门禁是绿的，规矩被破坏了。
+  → **补法**：这类地方要靠**代码走查 + 契约测试**补，不能指望门禁。
+- **`unit` 拦不住字符串里的错字**。语法错误是响亮的失败；字符串常量里的一个错字是安静的失败——门禁不会红，图却画错了。
+  → **补法**：`tests/unit/test_encoding.py` 之外，**渲染结果要有肉眼可查的样例**（`examples/` 下的产物）。
+- **门禁只覆盖已经写下来的规则**。规格没写的边界，测试再多也拦不住。
+
+**原则：门禁是下限，不是上限。** 门禁能挡住"写错"，挡不住"想错"。所以每道门禁旁边都记着它的盲区，新任务开工时先看这张表。
