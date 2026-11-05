@@ -18,7 +18,7 @@ from typing import cast
 import sympy as sp
 from sympy import Expr
 
-from geobench.errors import OpNotImplementedError, StateError
+from geobench.errors import DegenerateError, OpNotImplementedError, StateError
 from geobench.field import FIELD
 from geobench.model import Figure, Node
 from geobench.operators import OpContext
@@ -95,8 +95,29 @@ def evaluate_figure(figure: Figure, registry: OperatorRegistry) -> Figure:
             coords = result["coords"]
             assert isinstance(coords, tuple)
             node.coords = (str(coords[0]), str(coords[1]))
-            node.placement = _numeric_pair(coords, subs)
+            placement = _numeric_pair(coords, subs)
+            _check_finite(node_id, node.op, placement)
+            node.placement = placement
     return figure
+
+
+def _check_finite(node_id: str, op: str, placement: tuple[str, str]) -> None:
+    """Reject a placement that is not a finite number.
+
+    A free point is a *symbol*, so the operators cannot tell that three
+    points are collinear: their determinant is not identically zero, only
+    zero under this particular placement. The symptom is a division by
+    zero, and the result is ``zoo`` or ``nan``.
+
+    Catching it here is what lets the server answer "degraded" instead of
+    quietly drawing a point at infinity.
+    """
+    for value in placement:
+        if FIELD.coerce(value).is_finite is False:
+            raise DegenerateError(
+                f"node {node_id!r} (operator {op!r}) has no finite value under the "
+                "current placement; the configuration is degenerate"
+            )
 
 
 def _numeric_pair(

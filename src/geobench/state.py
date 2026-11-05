@@ -11,7 +11,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from geobench.errors import RegistryError, StateError
+from geobench.errors import (
+    ArgumentCountError,
+    ArgumentTypeError,
+    GeobenchError,
+    RegistryError,
+    StateError,
+    UnknownNodeError,
+)
 from geobench.model import (
     DERIVED,
     FREE,
@@ -21,6 +28,10 @@ from geobench.model import (
     Relation,
 )
 from geobench.registry import OperatorRegistry
+
+# The argument types of an operator that name a node. The remaining types
+# ("scalar", "selector") are literals carried in the argument itself.
+_NODE_ARG_TYPES = frozenset({"point", "line", "circle", "segment"})
 
 
 @dataclass
@@ -45,6 +56,21 @@ class ApplyResult:
     removed: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    exceptions: list[GeobenchError] = field(default_factory=list)
+    """The failures behind ``errors``, kept as typed exceptions.
+
+    The strings in ``errors`` are for humans; the exceptions carry the
+    machine-readable parts (which operator, which argument index, which
+    node id, which legal ids) that the MCP layer turns into structured
+    error objects.
+    """
+    figure: Figure | None = None
+    """The figure as it stands after the batch.
+
+    In ``dry_run`` mode this is the *would-be* figure and the store still
+    holds the old one; in ``apply`` mode it is the figure that was
+    committed.
+    """
 
     @property
     def ok(self) -> bool:
@@ -93,18 +119,38 @@ class FigureStore:
         for index, request in enumerate(requests):
             try:
                 outcome = self._apply_one(working, request)
-            except (StateError, RegistryError, ValueError) as exc:
+            except (StateError, RegistryError) as exc:
                 result.errors.append(f"op[{index}] {request.op}: {exc}")
+                result.exceptions.append(exc)
+                continue
+            except ValueError as exc:
+                error = StateError(str(exc))
+                result.errors.append(f"op[{index}] {request.op}: {error}")
+                result.exceptions.append(error)
                 continue
             result.created.extend(outcome[0])
             result.updated.extend(outcome[1])
             result.removed.extend(outcome[2])
             result.warnings.extend(outcome[3])
 
+        result.figure = working
         if not dry_run and result.ok:
             self._figures[figure_id] = working
             self._history[figure_id].append(snapshot)
         return result
+
+    def set_figure(self, figure_id: str, figure: Figure) -> None:
+        """Replace a figure wholesale.
+
+        The server uses this to commit the *evaluated* form of a figure --
+        the one whose derived nodes carry their computed coordinates -- after
+        the evaluation pass has succeeded. The undo history is untouched:
+        the history holds the states to restore, not the states that were
+        committed.
+        """
+        self._figures[figure_id] = figure
+        self._history.setdefault(figure_id, [])
+        self._counters.setdefault(figure_id, 0)
 
     def _apply_one(
         self, figure: Figure, request: OpRequest
@@ -116,15 +162,11 @@ class FigureStore:
 
         spec = self.registry.lookup(request.op)
         if len(request.args) != len(spec.args):
-            raise StateError(
-                f"operator {spec.id!r} takes {len(spec.args)} arguments, "
-                f"got {len(request.args)}"
-            )
+            raise ArgumentCountError(spec.id, len(spec.args), len(request.args))
 
         node_id = request.id or self._next_id(figure)
-        for arg, arg_spec in zip(request.args, spec.args, strict=True):
-            if arg_spec.type == "point" and arg not in figure.nodes:
-                raise StateError(f"unknown node id {arg!r}")
+        for index, (arg, arg_spec) in enumerate(zip(request.args, spec.args, strict=True)):
+            self._check_argument(figure, spec.id, index, arg, arg_spec.type)
 
         node = Node(
             id=node_id,
@@ -143,11 +185,30 @@ class FigureStore:
             )
         return [node_id], [], [], warnings
 
+    def _check_argument(
+        self, figure: Figure, op: str, index: int, arg: Any, expected: str
+    ) -> None:
+        """Check one argument against the operator's contract.
+
+        The error says which operator, which argument, and what the legal
+        node ids are -- an agent can act on that without a second round trip
+        to ask what the figure contains.
+        """
+        if expected not in _NODE_ARG_TYPES:
+            # A literal argument: a radius, an intersection selector.
+            return
+        node_id = str(arg)
+        if node_id not in figure.nodes:
+            raise UnknownNodeError(node_id, list(figure.nodes), op=op, index=index)
+        node = figure.nodes[node_id]
+        if node.kind != expected:
+            raise ArgumentTypeError(op, index, expected, node_id)
+
     def _apply_free_point(
         self, figure: Figure, request: OpRequest
     ) -> tuple[list[str], list[str], list[str], list[str]]:
         if len(request.args) != 2:
-            raise StateError("point.free takes exactly 2 arguments (x, y)")
+            raise ArgumentCountError("point.free", 2, len(request.args))
         node_id = request.id or self._next_id(figure)
         # A free point carries both a symbolic coordinate (what the judges see)
         # and a numeric placement (what the renderer draws). See spec 3.2.
@@ -161,7 +222,7 @@ class FigureStore:
         self, figure: Figure, request: OpRequest
     ) -> tuple[list[str], list[str], list[str], list[str]]:
         if len(request.args) < 2:
-            raise StateError("relation.add takes at least 2 arguments (kind, [args])")
+            raise ArgumentCountError("relation.add", 2, len(request.args))
         kind = str(request.args[0])
         args = [str(a) for a in request.args[1]]
         relation_id = request.id or f"r{len(figure.relations) + 1}"

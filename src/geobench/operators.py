@@ -16,10 +16,16 @@ from typing import cast
 import sympy as sp
 from sympy import Expr
 
-from geobench.errors import OpNotImplementedError, StateError
+from geobench.errors import (
+    AmbiguousIntersectionError,
+    ArgumentTypeError,
+    DegenerateError,
+    OpNotImplementedError,
+    StateError,
+)
 from geobench.field import FIELD
 from geobench.model import Figure, Node
-from geobench.registry import ArgSpec, OpSpec
+from geobench.registry import ArgSpec, OperatorRegistry, OpSpec
 
 # -- representation -------------------------------------------------------
 
@@ -134,7 +140,7 @@ def op_midpoint(ctx: OpContext, args: list[str]) -> dict[str, object]:
     (x1, y1) = ctx.point(args[0])
     (x2, y2) = ctx.point(args[1])
     if x1 == x2 and y1 == y2:
-        raise StateError("midpoint of two identical points is degenerate")
+        raise DegenerateError("midpoint of two identical points is degenerate")
     return {"kind": "point", "coords": ((x1 + x2) / 2, (y1 + y2) / 2)}
 
 
@@ -154,7 +160,7 @@ def op_foot(ctx: OpContext, args: list[str]) -> dict[str, object]:
     a, b, c = ctx.as_line(args[1])
     denom = a * a + b * b
     if denom == 0:
-        raise StateError("cannot project onto a degenerate line")
+        raise DegenerateError("cannot project onto a degenerate line")
     t = (a * px + b * py + c) / denom
     return {"kind": "point", "coords": (px - a * t, py - b * t)}
 
@@ -164,7 +170,7 @@ def op_intersect_lines(ctx: OpContext, args: list[str]) -> dict[str, object]:
     a2, b2, c2 = ctx.as_line(args[1])
     det = a1 * b2 - a2 * b1
     if det == 0:
-        raise StateError("lines are parallel or coincident; no unique intersection")
+        raise DegenerateError("lines are parallel or coincident; no unique intersection")
     x = (b1 * c2 - b2 * c1) / det
     y = (c1 * a2 - c2 * a1) / det
     return {"kind": "point", "coords": (x, y)}
@@ -199,12 +205,12 @@ def op_intersect_line_circle(ctx: OpContext, args: list[str]) -> dict[str, objec
     quad_b = 2 * (fx * dx + fy * dy)
     quad_c = fx * fx + fy * fy - r2
     if quad_a == 0:
-        raise StateError("degenerate line")
+        raise DegenerateError("degenerate line")
     disc = quad_b * quad_b - 4 * quad_a * quad_c
     if disc == 0:
-        raise StateError("the line is tangent to the circle; there is no second point")
+        raise DegenerateError("the line is tangent to the circle; there is no second point")
     if disc.is_number and disc < 0:
-        raise StateError("the line does not meet the circle")
+        raise DegenerateError("the line does not meet the circle")
     root = sp.sqrt(disc)
     t_plus = (-quad_b + root) / (2 * quad_a)
     t_minus = (-quad_b - root) / (2 * quad_a)
@@ -215,12 +221,16 @@ def op_intersect_line_circle(ctx: OpContext, args: list[str]) -> dict[str, objec
 
     if isinstance(selector, int):
         if selector not in (0, 1):
-            raise StateError("the intersection index must be 0 or 1")
+            raise ArgumentTypeError(
+                "point.intersect_line_circle", 2, "0, 1 or 'other'", selector
+            )
         x, y = points[selector]
         return {"kind": "point", "coords": (x, y)}
 
     if selector != "other":
-        raise StateError(f"unknown intersection selector {selector!r}")
+        raise ArgumentTypeError(
+            "point.intersect_line_circle", 2, "0, 1 or 'other'", selector
+        )
 
     # "Other": find the line's own point that lies on the circle, and take
     # the other intersection.
@@ -234,17 +244,17 @@ def op_intersect_line_circle(ctx: OpContext, args: list[str]) -> dict[str, objec
         on = (candidate[0] - cx) ** 2 + (candidate[1] - cy) ** 2 - r2
         if FIELD.simplify_to_zero(on):
             if reference is not None:
-                raise StateError("both intersections coincide with known points on the line")
+                raise DegenerateError("both intersections coincide with known points on the line")
             reference = candidate
     if reference is None:
-        raise StateError(
+        raise AmbiguousIntersectionError(
             "no point of the line is known to lie on the circle; "
             "the 'other intersection' is ambiguous"
         )
     # The parameter of the reference point along D.
     t_ref = ((reference[0] - p0x) * dx + (reference[1] - p0y) * dy) / quad_a
     if t_ref == 0:
-        raise StateError("the reference point is the base point of the parameterisation")
+        raise DegenerateError("the reference point is the base point of the parameterisation")
     t_other = (quad_c / quad_a) / t_ref
     return {
         "kind": "point",
@@ -258,7 +268,7 @@ def op_circumcenter(ctx: OpContext, args: list[str]) -> dict[str, object]:
     (x3, y3) = ctx.point(args[2])
     det = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))
     if det == 0:
-        raise StateError("the three points are collinear; no circumcircle")
+        raise DegenerateError("the three points are collinear; no circumcircle")
     s1 = x1 * x1 + y1 * y1
     s2 = x2 * x2 + y2 * y2
     s3 = x3 * x3 + y3 * y3
@@ -273,14 +283,14 @@ def op_incenter(ctx: OpContext, args: list[str]) -> dict[str, object]:
     cx, cy = ctx.point(args[2])
     area2 = (bx - ax) * (cy - ay) - (cx - ax) * (by - ay)
     if area2 == 0:
-        raise StateError("the three points are collinear; no incenter")
+        raise DegenerateError("the three points are collinear; no incenter")
     # Side lengths opposite each vertex.
     a_len = sp.sqrt((bx - cx) ** 2 + (by - cy) ** 2)
     b_len = sp.sqrt((cx - ax) ** 2 + (cy - ay) ** 2)
     c_len = sp.sqrt((ax - bx) ** 2 + (ay - by) ** 2)
     total = a_len + b_len + c_len
     if total == 0:
-        raise StateError("degenerate triangle; no incenter")
+        raise DegenerateError("degenerate triangle; no incenter")
     x = (a_len * ax + b_len * bx + c_len * cx) / total
     y = (a_len * ay + b_len * by + c_len * cy) / total
     return {"kind": "point", "coords": (x, y)}
@@ -317,7 +327,7 @@ def op_segment_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
     a = ctx.point(args[0])
     b = ctx.point(args[1])
     if a == b:
-        raise StateError("a segment needs two distinct endpoints")
+        raise DegenerateError("a segment needs two distinct endpoints")
     return {"kind": "segment", "segment": (a[0], a[1], b[0], b[1])}
 
 
@@ -332,7 +342,7 @@ def op_circle_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
     cx, cy = ctx.point(args[0])
     r2 = FIELD.coerce(args[1])
     if r2 <= 0:
-        raise StateError("a circle needs a positive squared radius")
+        raise DegenerateError("a circle needs a positive squared radius")
     return {"kind": "circle", "circle": (cx, cy, r2)}
 
 
@@ -500,10 +510,10 @@ def builtin_registry() -> tuple[OpSpec, ...]:
     return tuple(spec for spec, _ in _BUILTINS)
 
 
-def register_builtins(registry: object) -> None:
+def register_builtins(registry: OperatorRegistry) -> None:
     """Register every built-in operator into an OperatorRegistry."""
     for spec, impl in _BUILTINS:
-        registry.register(spec, impl)  # type: ignore[attr-defined]
+        registry.register(spec, impl)
 
 
 def node_symbols(node_id: str) -> tuple[sp.Symbol, sp.Symbol]:

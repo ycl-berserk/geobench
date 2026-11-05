@@ -56,8 +56,9 @@ jobs:
   #   no_float    -> T001
   #   oracle      -> T002, T006
   #   unit/dsl    -> T004
-  #   contract    -> T003
   #   property    -> T004
+  #   contract    -> T003
+  #   integration -> T003
   #   degeneracy  -> T006
   gates:
     runs-on: ubuntu-latest
@@ -77,3 +78,7 @@ jobs:
         run: pytest tests/property -q
       - name: no-float
         run: pytest tests/no_float -q
+      - name: contract
+        run: pytest tests/contract -q
+      - name: integration
+        run: pytest tests/integration -q
