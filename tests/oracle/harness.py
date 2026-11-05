@@ -139,7 +139,7 @@ def _build_figure(fixture: Fixture) -> Figure:
             ids = spec.split(":")[1].split(",")
             coefficients = _line_coefficients(figure, ids[0], ids[1])
             node_id = f"_l{index}"
-            figure.add_node(Node(id=node_id, kind="line", role="free", op="line.free"))
+            figure.add_node(Node(id=node_id, kind="line", role="free", op="line.free", args=ids))
             figure.nodes[node_id].cache["line"] = coefficients
             fixture.args[index] = node_id
         elif spec.startswith("circle:"):
@@ -147,7 +147,9 @@ def _build_figure(fixture: Fixture) -> Figure:
             points = [_sympy_point(figure, node_id) for node_id in ids]
             circle = sp.Circle(*points)
             node_id = f"_c{index}"
-            figure.add_node(Node(id=node_id, kind="circle", role="free", op="circle.through"))
+            figure.add_node(
+                Node(id=node_id, kind="circle", role="free", op="circle.through", args=ids)
+            )
             figure.nodes[node_id].cache["circle"] = (
                 circle.center.x,
                 circle.center.y,
@@ -217,6 +219,27 @@ def _expressions_equal(left: Expr, right: Expr) -> bool:
         return bool(sp.radsimp(sp.simplify(difference)) == 0)
     except Exception:  # pragma: no cover - sympy internal failure
         return False
+
+
+# Operators whose result is one of several roots: the kernel picks one by a
+# convention, so the oracle returns the whole set and the harness checks
+# membership rather than position.
+SET_COMPARISON = {"point.intersect_line_circle"}
+
+
+def _compare_set(kernel_value: Any, oracle_value: Any) -> str | None:
+    """The kernel's point must be one of the oracle's points."""
+    kernel_parts = list(kernel_value) if isinstance(kernel_value, tuple) else [kernel_value]
+    if len(kernel_parts) != 2:
+        return f"expected a point, got {len(kernel_parts)} components"
+    kx, ky = FIELD.coerce(kernel_parts[0]), FIELD.coerce(kernel_parts[1])
+    for ox, oy in oracle_value:
+        if _expressions_equal(kx, FIELD.coerce(ox)) and _expressions_equal(ky, FIELD.coerce(oy)):
+            return None
+    return (
+        f"the kernel's point is not one of the oracle's intersections: "
+        f"kernel=({sp.sstr(kx)}, {sp.sstr(ky)})"
+    )
 
 
 def _compare(kind: str, kernel_value: Any, oracle_value: Any) -> str | None:
@@ -290,7 +313,10 @@ def check_operator(
             ),
         )
         kind = str(kernel_result.get("kind", "point"))
-        detail = _compare(kind, kernel_value, oracle_result)
+        if op_id in SET_COMPARISON:
+            detail = _compare_set(kernel_value, oracle_result)
+        else:
+            detail = _compare(kind, kernel_value, oracle_result)
         if detail is not None:
             mismatches.append(Mismatch(op_id, index, detail))
     return mismatches
