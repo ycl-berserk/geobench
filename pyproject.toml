@@ -64,9 +64,14 @@ warn_unreachable = true
 mypy_path = "src"
 packages = ["geobench"]
 
+[[tool.mypy.overrides]]
+module = ["sympy", "sympy.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
+pythonpath = ["src"]
 addopts = "-ra --strict-markers"
 markers = [
   "oracle: cross-checked against an independent implementation",

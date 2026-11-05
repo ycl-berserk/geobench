@@ -37,7 +37,7 @@
 
 | ID | 标题 | 层 | 状态 | 依赖 |
 |---|---|---|---|---|
-| [T001](T001-kernel-skeleton.md) | 内核骨架：构造图、精确数域、算子注册表 | 模型 / 基础设施 | 提案 | — |
+| [T001](T001-kernel-skeleton.md) | 内核骨架：构造图、精确数域、算子注册表 | 模型 / 基础设施 | 已实现（门禁本地通过） | — |
 | [T002](T002-oracle-harness.md) | 对拍框架与夹具格式 | 基础设施 | 提案 | T001 |
 | [T003](T003-mcp-server-core.md) | MCP 服务端核心：`geo_state` / `geo_construct` / `geo_evaluate` | 服务端 | 提案 | T001 |
 | [T004](T004-dsl-parser.md) | 中文几何 DSL：语法、递归下降解析器、DSL↔构造图 | DSL | 提案 | T001 |
