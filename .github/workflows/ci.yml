@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: ruff
+        run: ruff check .
+
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: mypy
+        run: mypy src
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]"
+      - name: pytest
+        run: pytest -q
+
+  # Placeholder until the kernel exists. The task gates in docs/ai-workflow.md §5
+  # are the target state of this job.
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: unit
+        run: pytest tests/unit -q
+        continue-on-error: true
+      - name: oracle
+        run: pytest tests/oracle -q
+        continue-on-error: true
+      - name: property
+        run: pytest tests/property -q
+        continue-on-error: true
+      - name: degeneracy
+        run: pytest tests/degeneracy -q
+        continue-on-error: true
+      - name: no-float
+        run: pytest tests/no_float -q
+        continue-on-error: true
+      - name: contract
+        run: pytest tests/contract -q
+        continue-on-error: true
