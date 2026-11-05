@@ -52,9 +52,9 @@ jobs:
 
   # The gate list in docs/ai-workflow.md section 5 maps one-to-one onto test
   # suites. A suite is added here when the task that owns it lands.
-  #   unit        -> T001
+  #   unit        -> T001, T006, T007, T008
   #   no_float    -> T001
-  #   oracle      -> T002
+  #   oracle      -> T002, T006
   #   unit/dsl    -> T004
   #   contract    -> T003
   #   property    -> T004
@@ -69,5 +69,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: unit
         run: pytest tests/unit -q
+      - name: oracle
+        run: pytest tests/oracle -q
       - name: no-float
         run: pytest tests/no_float -q
