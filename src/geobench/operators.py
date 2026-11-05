@@ -79,6 +79,33 @@ class OpContext:
             )
         return cast(tuple[Expr, Expr, Expr, Expr], data)
 
+    def as_line(self, node_id: str) -> LineCoeffs:
+        """The supporting line of a line *or* a segment.
+
+        Competition figures draw segments, but the operations that need a
+        line (a foot, an intersection) work on the supporting line. Resolving
+        here keeps the operators uniform and avoids inserting extra nodes
+        into the figure.
+        """
+        node = self.figure.node(node_id)
+        if node.kind == "line":
+            return self.line(node_id)
+        if node.kind == "segment":
+            x1, y1, x2, y2 = self.segment(node_id)
+            return _line_through((x1, y1), (x2, y2))
+        raise StateError(f"node {node_id!r} is neither a line nor a segment")
+
+    def line_points(self, node_id: str) -> list[tuple[Expr, Expr]]:
+        """The points a line-like node was built from, if any."""
+        node = self.figure.node(node_id)
+        points: list[tuple[Expr, Expr]] = []
+        for arg in node.args:
+            try:
+                points.append(self.point(arg))
+            except StateError:
+                continue
+        return points
+
 
 OpImpl = Callable[[OpContext, list[str]], dict[str, object]]
 
@@ -124,7 +151,7 @@ def op_centroid(ctx: OpContext, args: list[str]) -> dict[str, object]:
 
 def op_foot(ctx: OpContext, args: list[str]) -> dict[str, object]:
     px, py = ctx.point(args[0])
-    a, b, c = ctx.line(args[1])
+    a, b, c = ctx.as_line(args[1])
     denom = a * a + b * b
     if denom == 0:
         raise StateError("cannot project onto a degenerate line")
@@ -133,14 +160,96 @@ def op_foot(ctx: OpContext, args: list[str]) -> dict[str, object]:
 
 
 def op_intersect_lines(ctx: OpContext, args: list[str]) -> dict[str, object]:
-    a1, b1, c1 = ctx.line(args[0])
-    a2, b2, c2 = ctx.line(args[1])
+    a1, b1, c1 = ctx.as_line(args[0])
+    a2, b2, c2 = ctx.as_line(args[1])
     det = a1 * b2 - a2 * b1
     if det == 0:
         raise StateError("lines are parallel or coincident; no unique intersection")
     x = (b1 * c2 - b2 * c1) / det
     y = (c1 * a2 - c2 * a1) / det
     return {"kind": "point", "coords": (x, y)}
+
+
+def op_intersect_line_circle(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """One intersection of a line and a circle.
+
+    The selector is either an index (``0`` or ``1``) or the word ``other``,
+    meaning "the intersection different from the point of the line that is
+    already known to lie on the circle" -- the Chinese "另一交点".
+
+    The two roots are ordered by the sign of the square root in the quadratic
+    formula, which is an *algebraic* ordering: it needs no comparison
+    between symbolic expressions, so it stays decidable.
+    """
+    a, b, c = ctx.as_line(args[0])
+    cx, cy, r2 = ctx.circle(args[1])
+    selector: object = args[2]
+    if isinstance(selector, str) and selector.isdigit():
+        selector = int(selector)
+
+    # Parameterise the line: P(t) = P0 + t * D.
+    if b != 0:
+        p0x, p0y = sp.Integer(0), -c / b
+    else:
+        p0x, p0y = -c / a, sp.Integer(0)
+    dx, dy = b, -a
+
+    fx, fy = p0x - cx, p0y - cy
+    quad_a = dx * dx + dy * dy
+    quad_b = 2 * (fx * dx + fy * dy)
+    quad_c = fx * fx + fy * fy - r2
+    if quad_a == 0:
+        raise StateError("degenerate line")
+    disc = quad_b * quad_b - 4 * quad_a * quad_c
+    if disc == 0:
+        raise StateError("the line is tangent to the circle; there is no second point")
+    if disc.is_number and disc < 0:
+        raise StateError("the line does not meet the circle")
+    root = sp.sqrt(disc)
+    t_plus = (-quad_b + root) / (2 * quad_a)
+    t_minus = (-quad_b - root) / (2 * quad_a)
+    points = [
+        (p0x + t_plus * dx, p0y + t_plus * dy),
+        (p0x + t_minus * dx, p0y + t_minus * dy),
+    ]
+
+    if isinstance(selector, int):
+        if selector not in (0, 1):
+            raise StateError("the intersection index must be 0 or 1")
+        x, y = points[selector]
+        return {"kind": "point", "coords": (x, y)}
+
+    if selector != "other":
+        raise StateError(f"unknown intersection selector {selector!r}")
+
+    # "Other": find the line's own point that lies on the circle, and take
+    # the other intersection.
+    #
+    # This is done algebraically rather than by comparing the two roots. The
+    # quadratic's roots satisfy t1 * t2 = c/a, so once the parameter of the
+    # known point is known, the other one follows by division -- no square
+    # root, and therefore no slow symbolic comparison.
+    reference: tuple[Expr, Expr] | None = None
+    for candidate in ctx.line_points(args[0]):
+        on = (candidate[0] - cx) ** 2 + (candidate[1] - cy) ** 2 - r2
+        if FIELD.simplify_to_zero(on):
+            if reference is not None:
+                raise StateError("both intersections coincide with known points on the line")
+            reference = candidate
+    if reference is None:
+        raise StateError(
+            "no point of the line is known to lie on the circle; "
+            "the 'other intersection' is ambiguous"
+        )
+    # The parameter of the reference point along D.
+    t_ref = ((reference[0] - p0x) * dx + (reference[1] - p0y) * dy) / quad_a
+    if t_ref == 0:
+        raise StateError("the reference point is the base point of the parameterisation")
+    t_other = (quad_c / quad_a) / t_ref
+    return {
+        "kind": "point",
+        "coords": (p0x + t_other * dx, p0y + t_other * dy),
+    }
 
 
 def op_circumcenter(ctx: OpContext, args: list[str]) -> dict[str, object]:
@@ -335,6 +444,21 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="sympy.geometry:Line.parallel_line",
         ),
         op_parallel_through,
+    ),
+    (
+        OpSpec(
+            id="point.intersect_line_circle",
+            kind="point",
+            args=(
+                ArgSpec("line", "line"),
+                ArgSpec("circle", "circle"),
+                ArgSpec("selector", "selector"),
+            ),
+            returns="point",
+            degenerate_when=("line tangent to circle",),
+            oracle="sympy.geometry:Line.intersection",
+        ),
+        op_intersect_line_circle,
     ),
     (
         OpSpec(

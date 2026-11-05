@@ -240,10 +240,15 @@ class Figure:
             if not node.args:
                 raise ModelError(f"derived node {node.id!r} must have arguments")
         for arg in node.args:
-            if arg not in self.nodes:
-                raise ModelError(
-                    f"node {node.id!r} references unknown node id {arg!r}"
-                )
+            if arg in self.nodes:
+                continue
+            if _is_literal(arg):
+                # A numeric argument is a literal (a radius, a scale), not a
+                # reference to another node.
+                continue
+            raise ModelError(
+                f"node {node.id!r} references unknown node id {arg!r}"
+            )
 
     def validate(self) -> None:
         """Structural validation: shapes, references, acyclicity."""
@@ -391,3 +396,31 @@ def iter_points(figure: Figure) -> Iterable[Node]:
     for node in figure.nodes.values():
         if node.kind == POINT:
             yield node
+
+
+_DIGITS = frozenset("0123456789")
+
+
+def _is_literal(text: str) -> bool:
+    """Is this argument a literal rather than a node reference?
+
+    Numeric literals (a radius, a scale) and the intersection selector
+    ``other`` are literals; everything else must name a node.
+
+    The numeric test is deliberately textual and strict: the kernel is
+    exact, so only a plain decimal is a literal. ``1e5``, ``nan`` and
+    ``inf`` are not -- and ``float()`` is not used to decide, because
+    parsing a float to ask "is this a number?" would be exactly the
+    inexactness this project forbids.
+    """
+    if text == "other":
+        return True
+    body = text[1:] if text[:1] in {"+", "-"} else text
+    if not body:
+        return False
+    whole, _, fraction = body.partition(".")
+    if whole and not _DIGITS.issuperset(whole):
+        return False
+    if fraction and not _DIGITS.issuperset(fraction):
+        return False
+    return bool(whole or fraction)

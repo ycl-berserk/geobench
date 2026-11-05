@@ -159,6 +159,44 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
         for _ in range(DEGENERATE):
             pts = _points(rng, 3)
             add(pts, ["C", "line:A,A"], "degenerate", "error", "degenerate line")
+    elif op_id == "point.intersect_line_circle":
+        # The line AB is a chord of the circle through A, B, C, so it meets
+        # the circle exactly in A and B -- two intersections, always.
+        for _ in range(TARGET):
+            pts = _non_degenerate_triangle(rng)
+            add(pts, ["line:A,B", "circle:A,B,C", "0"], "normal", "value", "first root")
+            add(pts, ["line:A,B", "circle:A,B,C", "1"], "normal", "value", "second root")
+        # A line through one point of the circle and one point off it: the
+        # 'other intersection' is then well defined.
+        for _ in range(DEGENERATE):
+            pts = _non_degenerate_triangle(rng)
+            ax, ay = (int(v) for v in pts["A"])
+            pts["E"] = (str(ax + 1), str(ay + 4))
+            add(
+                pts,
+                ["line:A,E", "circle:A,B,C", "other"],
+                "normal",
+                "value",
+                "the intersection other than A",
+            )
+        # Tangent and disjoint lines: the operator must refuse both.
+        for offset in range(DEGENERATE):
+            pts = {
+                "A": ("0", "0"),
+                "B": ("2", "0"),
+                "C": ("1", "1"),
+                "E": ("0", str(2 + offset)),
+                "F": ("0", str(4 + offset)),
+                "G": ("1", str(4 + offset)),
+            }
+            add(pts, ["line:A,E", "circle:A,B,C", "0"], "degenerate", "error", "tangent line")
+            add(
+                pts,
+                ["line:F,G", "circle:A,B,C", "0"],
+                "degenerate",
+                "error",
+                "line misses the circle",
+            )
     elif op_id == "segment.free":
         for _ in range(TARGET):
             pts = _distinct_pair(rng)
@@ -192,6 +230,7 @@ OPERATORS = [
     "point.centroid",
     "point.foot",
     "point.intersect_lines",
+    "point.intersect_line_circle",
     "point.circumcenter",
     "point.incenter",
     "point.orthocenter",

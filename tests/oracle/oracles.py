@@ -135,11 +135,30 @@ def oracle_segment_free(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any,
     return segment.p1.x, segment.p1.y, segment.p2.x, segment.p2.y
 
 
+def oracle_intersect_line_circle(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """The intersections of a line and a circle.
+
+    The kernel orders the two roots by the sign of the square root in the
+    quadratic formula -- an algebraic convention that no independent
+    implementation would guess. So this oracle returns the *set* of
+    intersections and the harness checks membership, which checks the
+    mathematics rather than the convention.
+    """
+    line = _line(ctx, args[0])
+    cx, cy, r2 = ctx.circle(args[1])
+    circle = sp.Circle(sp.Point(cx, cy), sp.sqrt(r2))
+    points = [p for p in line.intersection(circle) if isinstance(p, sp.Point)]
+    if len(points) != 2:
+        raise ValueError("the line and the circle do not meet in two points")
+    return tuple((p.x, p.y) for p in points)
+
+
 ORACLES = {
     "point.midpoint": oracle_midpoint,
     "point.centroid": oracle_centroid,
     "point.foot": oracle_foot,
     "point.intersect_lines": oracle_intersect_lines,
+    "point.intersect_line_circle": oracle_intersect_line_circle,
     "point.circumcenter": oracle_circumcenter,
     "point.incenter": oracle_incenter,
     "point.orthocenter": oracle_orthocenter,

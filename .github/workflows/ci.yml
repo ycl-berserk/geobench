@@ -69,7 +69,11 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: unit
         run: pytest tests/unit -q
+      - name: unit/dsl
+        run: pytest tests/unit/dsl -q
       - name: oracle
         run: pytest tests/oracle -q
+      - name: property
+        run: pytest tests/property -q
       - name: no-float
         run: pytest tests/no_float -q
