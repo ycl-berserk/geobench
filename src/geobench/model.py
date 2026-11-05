@@ -17,12 +17,13 @@ from geobench.field import FIELD
 
 POINT = "point"
 LINE = "line"
+SEGMENT = "segment"
 CIRCLE = "circle"
 
 FREE = "free"
 DERIVED = "derived"
 
-_KINDS = (POINT, LINE, CIRCLE)
+_KINDS = (POINT, LINE, SEGMENT, CIRCLE)
 _ROLES = (FREE, DERIVED)
 
 
@@ -72,6 +73,12 @@ class Node:
     ``role == FREE`` nodes carry exact coordinates and are the only source of
     variation. ``role == DERIVED`` nodes carry an operator and its arguments;
     their coordinates are a cache, recomputed by the kernel after every change.
+
+    Coordinates are **symbolic** (docs/spec.md section 3.2): a free point's
+    ``coords`` may be expressions in symbols such as ``x_A``/``y_A``, which is
+    what lets a judge decide a relation *identically* rather than on one
+    sample. ``placement`` holds the numeric exact values used for drawing and
+    for sampling.
     """
 
     id: str
@@ -80,8 +87,10 @@ class Node:
     op: str | None = None
     args: list[str] = field(default_factory=list)
     coords: tuple[str, str] | None = None
+    placement: tuple[str, str] | None = None
     label: str | None = None
     style: Style = field(default_factory=Style)
+    cache: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -91,6 +100,7 @@ class Node:
             "op": self.op,
             "args": list(self.args),
             "coords": list(self.coords) if self.coords is not None else None,
+            "placement": list(self.placement) if self.placement is not None else None,
             "label": self.label,
             "style": self.style.to_dict(),
         }
@@ -101,6 +111,10 @@ class Node:
         coords: tuple[str, str] | None = None
         if raw_coords is not None:
             coords = (str(raw_coords[0]), str(raw_coords[1]))
+        raw_placement = data.get("placement")
+        placement: tuple[str, str] | None = None
+        if raw_placement is not None:
+            placement = (str(raw_placement[0]), str(raw_placement[1]))
         return cls(
             id=str(data["id"]),
             kind=str(data["kind"]),
@@ -108,6 +122,7 @@ class Node:
             op=data.get("op"),
             args=[str(a) for a in data.get("args", [])],
             coords=coords,
+            placement=placement,
             label=data.get("label"),
             style=Style.from_dict(dict(data.get("style", {}))),
         )
@@ -207,12 +222,18 @@ class Figure:
                 f"node {node.id!r} has unknown role {node.role!r}; expected one of {_ROLES}"
             )
         if node.role == FREE:
-            if node.kind != POINT:
-                raise ModelError(f"free node {node.id!r} must be a point")
-            if node.coords is None:
-                raise ModelError(f"free point {node.id!r} needs exact coordinates")
-            for value in node.coords:
-                FIELD.coerce(value)
+            if node.kind == POINT:
+                if node.coords is None:
+                    raise ModelError(f"free point {node.id!r} needs exact coordinates")
+                for value in node.coords:
+                    FIELD.coerce(value)
+            else:
+                # A free line or circle is given directly by its exact equation;
+                # the coefficients live in the node cache after evaluation.
+                if not node.op:
+                    raise ModelError(
+                        f"free {node.kind} {node.id!r} must name the operator that defines it"
+                    )
         else:
             if not node.op:
                 raise ModelError(f"derived node {node.id!r} must name an operator")
@@ -338,9 +359,18 @@ class Figure:
     def example(cls) -> Figure:
         """A small, fully valid figure used by the test suites."""
         figure = cls(id="fig_example")
-        figure.add_node(Node(id="A", kind=POINT, role=FREE, coords=("0", "0"), label="A"))
-        figure.add_node(Node(id="B", kind=POINT, role=FREE, coords=("4", "0"), label="B"))
-        figure.add_node(Node(id="C", kind=POINT, role=FREE, coords=("1", "3"), label="C"))
+        figure.add_node(
+            Node(id="A", kind=POINT, role=FREE, coords=("x_A", "y_A"),
+                 placement=("0", "0"), label="A")
+        )
+        figure.add_node(
+            Node(id="B", kind=POINT, role=FREE, coords=("x_B", "y_B"),
+                 placement=("4", "0"), label="B")
+        )
+        figure.add_node(
+            Node(id="C", kind=POINT, role=FREE, coords=("x_C", "y_C"),
+                 placement=("1", "3"), label="C")
+        )
         figure.add_node(
             Node(id="M", kind=POINT, role=DERIVED, op="point.midpoint", args=["A", "B"], label="M")
         )

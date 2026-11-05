@@ -25,7 +25,11 @@ def test_free_point_is_created() -> None:
     result = store.apply("f1", [OpRequest(op="point.free", args=["0", "0"], id="A")])
     assert result.ok
     assert result.created == ["A"]
-    assert store.figure("f1").node("A").coords == ("0", "0")
+    node = store.figure("f1").node("A")
+    # A free point carries a symbolic coordinate (what the judges see) and a
+    # numeric placement (what the renderer draws).
+    assert node.coords == ("x_A", "y_A")
+    assert node.placement == ("0", "0")
 
 
 def test_derived_point_without_implementation_is_a_warning_not_a_silent_lie() -> None:

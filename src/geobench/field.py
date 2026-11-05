@@ -49,7 +49,18 @@ class Field(Protocol):
 
 
 class SympyField:
-    """SymPy-backed implementation of :class:`Field`."""
+    """SymPy-backed implementation of :class:`Field`.
+
+    ``identity_budget_ops`` bounds the size of an expression the kernel is
+    willing to reduce symbolically. Expressions over free symbols grow
+    quickly, and an unbudgeted reduction can take unbounded time; the budget
+    turns "too big to prove" into a cheap, honest answer, and the judge then
+    falls back to sampling.
+    """
+
+    def __init__(self, identity_budget_ops: int = 20000, expand_budget_ops: int = 400) -> None:
+        self.identity_budget_ops = identity_budget_ops
+        self.expand_budget_ops = expand_budget_ops
 
     def coerce(self, value: ExprLike) -> Expr:
         if isinstance(value, bool):
@@ -99,20 +110,55 @@ class SympyField:
         ``supported`` in the judge vocabulary means "holds in the samples but
         is not an identity"; this method is the boundary between the two, so
         it must never answer True on a numerical coincidence.
+
+        The reduction is *budgeted*. Expressions over free symbols grow fast
+        -- the determinant that decides four points to be concyclic already
+        reaches thousands of terms -- and an unbudgeted ``simplify`` on such
+        an expression does not finish. So the cheap exact reductions run
+        first, and anything too large is reported as "not proved" rather than
+        stalling the caller. The judge then falls back to sampling, which is
+        decisive for refutation.
         """
         expr = self.coerce(value)
         if expr == 0:
             return True
-        candidates = (
-            sp.simplify(expr),
+        if expr.is_number:
+            return bool(expr == 0)
+        if sp.count_ops(expr) > self.identity_budget_ops:
+            return False
+        return self._reduce_to_zero(expr)
+
+    def _reduce_to_zero(self, expr: Expr) -> bool:
+        """Exact reductions, cheapest first.
+
+        The order matters: clearing denominators and testing the numerator as
+        a polynomial is far cheaper than asking sympy to ``simplify`` a
+        rational function, whose default heuristics expand eagerly.
+        """
+        symbols = sorted(expr.free_symbols, key=str)
+        if symbols:
+            try:
+                numerator, _ = sp.fraction(sp.together(expr))
+            except Exception:  # pragma: no cover - sympy internal failure
+                numerator = expr
+            if sp.count_ops(numerator) <= self.identity_budget_ops:
+                try:
+                    if sp.Poly(numerator, *symbols, domain=sp.QQ).is_zero:
+                        return True
+                except Exception:  # pragma: no cover - fall through to the next method
+                    pass
+        for candidate in (
             sp.trigsimp(expr),
             sp.radsimp(expr),
-            sp.cancel(sp.together(expr)),
-            sp.simplify(sp.trigsimp(sp.expand(expr))),
-        )
-        for candidate in candidates:
+        ):
             if candidate == 0:
                 return True
+        if sp.count_ops(expr) <= self.expand_budget_ops:
+            try:
+                if sp.simplify(expr) == 0:
+                    return True
+            except Exception:  # pragma: no cover - sympy internal failure
+                pass
         try:
             verdict = expr.equals(0)
         except Exception:  # pragma: no cover - sympy internal failure

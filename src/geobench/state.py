@@ -149,8 +149,11 @@ class FigureStore:
         if len(request.args) != 2:
             raise StateError("point.free takes exactly 2 arguments (x, y)")
         node_id = request.id or self._next_id(figure)
-        coords = (str(request.args[0]), str(request.args[1]))
-        node = Node(id=node_id, kind=POINT, role=FREE, coords=coords)
+        # A free point carries both a symbolic coordinate (what the judges see)
+        # and a numeric placement (what the renderer draws). See spec 3.2.
+        placement = (str(request.args[0]), str(request.args[1]))
+        coords = (f"x_{node_id}", f"y_{node_id}")
+        node = Node(id=node_id, kind=POINT, role=FREE, coords=coords, placement=placement)
         figure.add_node(node)
         return [node_id], [], [], []
 

@@ -38,14 +38,16 @@
 | ID | 标题 | 层 | 状态 | 依赖 |
 |---|---|---|---|---|
 | [T001](T001-kernel-skeleton.md) | 内核骨架：构造图、精确数域、算子注册表 | 模型 / 基础设施 | 已实现（门禁本地通过） | — |
-| [T002](T002-oracle-harness.md) | 对拍框架与夹具格式 | 基础设施 | 提案 | T001 |
+| [T002](T002-oracle-harness.md) | 对拍框架与夹具格式 | 基础设施 | 已实现（12 算子 / 340+ 夹具全绿） | T001 |
 | [T003](T003-mcp-server-core.md) | MCP 服务端核心：`geo_state` / `geo_construct` / `geo_evaluate` | 服务端 | 提案 | T001 |
 | [T004](T004-dsl-parser.md) | 中文几何 DSL：语法、递归下降解析器、DSL↔构造图 | DSL | 提案 | T001 |
 | [T005](T005-text2graph.md) | text2graph 通道：自然语言→DSL 的翻译接口与题面生成 | DSL / 服务端 | 提案 | T004 |
-| T006 | Tier-A 算子第一批（`midpoint` `foot` `intersect_lines` `circumcenter` …） | 算子 | 提案 | T002 |
-| T007 | 第一批判定器（`collinear` `perpendicular` `concyclic`） | 判定器 | 提案 | T006 |
-| T008 | 竞赛图规范预设 + SVG/TikZ 渲染器 | 渲染 | 提案 | T001 |
+| [T006](T006-operators-batch1.md) | 第一批算子（点/线/线段/圆共 13 个）+ 对拍 | 算子 | 已实现（对拍全绿） | T002 |
+| [T007](T007-judges-batch1.md) | 第一批判定器（9 个，含反例测试） | 判定器 | 已实现 | T006 |
+| [T008](T008-renderer.md) | 竞赛图规范预设 + SVG 渲染器（TikZ 约定） | 渲染 | 已实现（SVG；TikZ 待做） | T001 |
 | T009 | `geo_solve` 与 `geo_variants` | 求解 | 提案 | T006, T007 |
 | T010 | 题库文件格式与导出器 | 基础设施 | 提案 | T008 |
 | T011 | 评测框架（`evals/`） | 基础设施 | 提案 | T007, T009 |
 | T012 | 英文版 spec 快照（best-effort） | 文档 | 提案 | — |
+| T013 | 退化检测器（§7 九条）落地 | 判定器 | 提案 | T006 |
+| T014 | TikZ 导出 | 渲染 | 提案 | T008 |

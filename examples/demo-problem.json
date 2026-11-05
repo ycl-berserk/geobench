@@ -1,0 +1,378 @@
+{
+  "id": "geo-2026-0001",
+  "version": 1,
+  "statement": {
+    "zh": "如图，在△ABC 中，M 是 AB 的中点，D 是 A 到 BC 的垂足，O 是△ABC 的外心。"
+  },
+  "figure": {
+    "version": "1.0",
+    "id": "geo-2026-0001",
+    "nodes": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "free",
+        "op": null,
+        "args": [],
+        "coords": [
+          "x_A",
+          "y_A"
+        ],
+        "placement": [
+          "0",
+          "0"
+        ],
+        "label": "A",
+        "style": {
+          "visible": true,
+          "color": "#000000",
+          "line_width": null,
+          "line_style": "solid",
+          "point_size": null,
+          "fill": null,
+          "label": null,
+          "label_pos": null
+        }
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "free",
+        "op": null,
+        "args": [],
+        "coords": [
+          "x_B",
+          "y_B"
+        ],
+        "placement": [
+          "6",
+          "0"
+        ],
+        "label": "B",
+        "style": {
+          "visible": true,
+          "color": "#000000",
+          "line_width": null,
+          "line_style": "solid",
+          "point_size": null,
+          "fill": null,
+          "label": null,
+          "label_pos": null
+        }
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "free",
+        "op": null,
+        "args": [],
+        "coords": [
+          "x_C",
+          "y_C"
+        ],
+        "placement": [
+          "2",
+          "4"
+        ],
+        "label": "C",
+        "style": {
+          "visible": true,
+          "color": "#000000",
+          "line_width": null,
+          "line_style": "solid",
+          "point_size": null,
+          "fill": null,
+          "label": null,
+          "label_pos": null
+        }
+      },
+      {
+        "id": "sAB",
+        "kind": "segment",
+        "role": "derived",
+        "op": "segment.free",
+        "args": [
+          "A",
+          "B"
+        ],
+        "coords": null,
+        "placement": null,
+        "label": null,
+        "style": {
+          "visible": true,
+          "color": "#000000",
+          "line_width": null,
+          "line_style": "solid",
+          "point_size": null,
+          "fill": null,
+          "label": null,
+          "label_pos": null
+        }
+      },
+      {
+        "id": "sBC",
+        "kind": "segment",
+        "role": "derived",
+        "op": "segment.free",
+        "args": [
+          "B",
+          "C"
+        ],
+        "coords": null,
+        "placement": null,
+        "label": null,
+        "style": {
+          "visible": true,
+          "color": "#000000",
+          "line_width": null,
+          "line_style": "solid",
+          "point_size": null,
+          "fill": null,
+          "label": null,
+          "label_pos": null
+        }
+      },
+      {
+        "id": "sCA",
+        "kind": "segment",
+        "role": "derived",
+        "op": "segment.free",
+        "args": [
+          "C",
+          "A"
+        ],
+        "coords": null,
+        "placement": null,
+        "label": null,
+        "style": {
+          "visible": true,
+          "color": "#000000",
+          "line_width": null,
+          "line_style": "solid",
+          "point_size": null,
+          "fill": null,
+          "label": null,
+          "label_pos": null
+        }
+      },
+      {
+        "id": "lBC",
+        "kind": "line",
+        "role": "derived",
+        "op": "line.free",
+        "args": [
+          "B",
+          "C"
+        ],
+        "coords": null,
+        "placement": null,
+        "label": "BC",
+        "style": {
+          "visible": true,
+          "color": "#000000",
+          "line_width": null,
+          "line_style": "dashed",
+          "point_size": null,
+          "fill": null,
+          "label": null,
+          "label_pos": null
+        }
+      },
+      {
+        "id": "M",
+        "kind": "point",
+        "role": "derived",
+        "op": "point.midpoint",
+        "args": [
+          "A",
+          "B"
+        ],
+        "coords": [
+          "x_A/2 + x_B/2",
+          "y_A/2 + y_B/2"
+        ],
+        "placement": [
+          "3",
+          "0"
+        ],
+        "label": "M",
+        "style": {
+          "visible": true,
+          "color": "#000000",
+          "line_width": null,
+          "line_style": "solid",
+          "point_size": null,
+          "fill": null,
+          "label": null,
+          "label_pos": null
+        }
+      },
+      {
+        "id": "D",
+        "kind": "point",
+        "role": "derived",
+        "op": "point.foot",
+        "args": [
+          "A",
+          "lBC"
+        ],
+        "coords": [
+          "x_A - (y_B - y_C)*(x_A*(y_B - y_C) + x_B*y_C - x_C*y_B + y_A*(-x_B + x_C))/((-x_B + x_C)**2 + (y_B - y_C)**2)",
+          "y_A - (-x_B + x_C)*(x_A*(y_B - y_C) + x_B*y_C - x_C*y_B + y_A*(-x_B + x_C))/((-x_B + x_C)**2 + (y_B - y_C)**2)"
+        ],
+        "placement": [
+          "3",
+          "3"
+        ],
+        "label": "D",
+        "style": {
+          "visible": true,
+          "color": "#000000",
+          "line_width": null,
+          "line_style": "solid",
+          "point_size": null,
+          "fill": null,
+          "label": null,
+          "label_pos": null
+        }
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "derived",
+        "op": "point.circumcenter",
+        "args": [
+          "A",
+          "B",
+          "C"
+        ],
+        "coords": [
+          "((x_A**2 + y_A**2)*(y_B - y_C) + (x_B**2 + y_B**2)*(-y_A + y_C) + (x_C**2 + y_C**2)*(y_A - y_B))/(2*x_A*(y_B - y_C) + 2*x_B*(-y_A + y_C) + 2*x_C*(y_A - y_B))",
+          "((-x_A + x_B)*(x_C**2 + y_C**2) + (x_A - x_C)*(x_B**2 + y_B**2) + (x_A**2 + y_A**2)*(-x_B + x_C))/(2*x_A*(y_B - y_C) + 2*x_B*(-y_A + y_C) + 2*x_C*(y_A - y_B))"
+        ],
+        "placement": [
+          "3",
+          "1"
+        ],
+        "label": "O",
+        "style": {
+          "visible": true,
+          "color": "#000000",
+          "line_width": null,
+          "line_style": "solid",
+          "point_size": null,
+          "fill": null,
+          "label": null,
+          "label_pos": null
+        }
+      },
+      {
+        "id": "c1",
+        "kind": "circle",
+        "role": "derived",
+        "op": "circle.through",
+        "args": [
+          "A",
+          "B",
+          "C"
+        ],
+        "coords": null,
+        "placement": null,
+        "label": "⊙O",
+        "style": {
+          "visible": true,
+          "color": "#000000",
+          "line_width": null,
+          "line_style": "solid",
+          "point_size": null,
+          "fill": null,
+          "label": null,
+          "label_pos": null
+        }
+      }
+    ],
+    "relations": [
+      {
+        "id": "r1",
+        "kind": "midpoint_of",
+        "args": [
+          "M",
+          "A",
+          "B"
+        ],
+        "expected": true
+      },
+      {
+        "id": "r2",
+        "kind": "equal_length",
+        "args": [
+          "O",
+          "A",
+          "O",
+          "B"
+        ],
+        "expected": true
+      },
+      {
+        "id": "r3",
+        "kind": "collinear",
+        "args": [
+          "A",
+          "M",
+          "B"
+        ],
+        "expected": true
+      }
+    ],
+    "meta": {}
+  },
+  "givens": [
+    "M 为 AB 中点",
+    "AD ⊥ BC"
+  ],
+  "goal": "证明：OA = OB = OC",
+  "verification": [
+    {
+      "relation": "midpoint_of",
+      "args": [
+        "M",
+        "A",
+        "B"
+      ],
+      "verdict": "proved",
+      "scope": "identity",
+      "evidence": "the expression reduces to 0 identically: 0"
+    },
+    {
+      "relation": "equal_length",
+      "args": [
+        "O",
+        "A",
+        "O",
+        "B"
+      ],
+      "verdict": "proved",
+      "scope": "identity",
+      "evidence": "the expression reduces to 0 identically: (-x_A + ((x_A**2 + y_A**2)*(y_B - y_C) + (x_B**2 + y_B**2)*(-y_A + y_C) + (x_C**2 + y_C**2)*(y_A - y_B))/(2*x_A*(y_B - y_C) + 2*x_B*(-y_A + y_C) + 2*x_C*(y_A - y_B)))**2 - (-x_B + ((x_A**2 + y_A**2)*("
+    },
+    {
+      "relation": "collinear",
+      "args": [
+        "A",
+        "M",
+        "B"
+      ],
+      "verdict": "proved",
+      "scope": "identity",
+      "evidence": "the expression reduces to 0 identically: -(-x_A + x_B)*(-y_A/2 + y_B/2) + (-x_A/2 + x_B/2)*(-y_A + y_B)"
+    }
+  ],
+  "degeneracy": {
+    "status": "clean",
+    "reports": []
+  },
+  "provenance": {
+    "source": "self-authored",
+    "license": "CC0-1.0"
+  }
+}

@@ -2,9 +2,34 @@
 
 **面向竞赛级平面几何命题的确定性几何内核 + Agent 接口（MCP）。**
 
-> **状态：pre-alpha（立项阶段）**。内核尚未实现。实现的契约在 [`docs/spec.md`](docs/spec.md)，实现的生产方式在 [`docs/ai-workflow.md`](docs/ai-workflow.md)，决策记录在 [`docs/decisions.md`](docs/decisions.md)。
+> **状态：alpha（内核已可判定，内核尚未接入 MCP / DSL）**。
+> 已实现：构造图、精确算术、13 个算子（全部经独立实现对拍）、9 个判定器、竞赛图规范 SVG 渲染。
+> 未实现：中文几何 DSL、MCP 服务端、约束求解、退化检测器、交互前端。
+> 实现的契约在 [`docs/spec.md`](docs/spec.md)，生产方式在 [`docs/ai-workflow.md`](docs/ai-workflow.md)，决策记录在 [`docs/decisions.md`](docs/decisions.md)。
 >
 > English version: [README.en.md](README.en.md)
+
+---
+
+## 现在能做什么
+
+```bash
+pip install -e ".[dev]"
+python scripts/demo.py        # 造图 → 判定 → 渲染 → 出题库文件
+```
+
+演示脚本会构造一个三角形（外接圆 + 中点 + 垂足 + 外心），然后逐条判定它的命题：
+
+```
+== 判定 ==
+  midpoint_of(M, A, B)          -> proved
+  equal_length(O, A, O, B)      -> proved
+  collinear(A, M, B)            -> proved
+```
+
+三条都是 **identity 作用域**下的 `proved` —— 意思是"对自由点的任意合法摆放都成立"，而不是"这张图上恰好成立"。这正是竞赛命题需要的判断，也是这个项目与"AI 画图"的分界线。
+
+产物：`examples/demo-figure.svg`（可直接进 LaTeX/Word）、`examples/demo-figure.png`、`examples/demo-problem.json`（含判定记录）。
 
 ---
 
@@ -73,12 +98,16 @@
 
 ```
 docs/spec.md          契约：数据模型、DSL、算子、判定器、MCP schema、题库格式、评测
-docs/decisions.md     决策记录 D1–D10，含理由、备选、结论
+docs/decisions.md     决策记录 D1–D13，含理由、备选、结论
 docs/ai-workflow.md   实现由 Agent 生产的过程与门禁
+docs/configurations.md 典型构型库（人写的品味资产，AI 替代不了的那部分）
 tasks/                任务制：每个任务一份，验收标准必须机器可判
 prompts/              驱动实现的 prompt 模板
 evals/                benchmark 定义、指标、数据来源政策
-src/geobench/         内核与服务端（尚未开始）
+examples/             演示产物：SVG / PNG / 题库文件
+scripts/              演示与夹具生成
+src/geobench/         内核
+tests/oracle/         对拍框架与夹具
 ```
 
 ## Benchmark
@@ -101,24 +130,24 @@ git clone https://github.com/ycl-berserk/geobench.git
 cd geobench
 python -m venv .venv && . .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
-pytest -q                 # unit + oracle + property + degeneracy 套件
+pytest -q                 # unit + oracle 套件
+python scripts/demo.py    # 端到端演示
 ```
-
-立项阶段测试套件尚未存在；以上命令即实现必须满足的契约。
 
 ## 路线图
 
 任务流推进（不设日期，见 [`tasks/`](tasks/README.md)）：
 
-- [ ] **M0 立项**：spec、决策、流程、任务格式（当前）
-- [ ] **M1 内核骨架**：构造图、精确算术、算子注册表
-- [ ] **M2 对拍框架**：算子与 SymPy / GeoGebra 交叉验证
-- [ ] **M3 判定器**：共线 / 垂直 / 共圆 / 等长 / 中点 / 角平分 / 相切 / 共点
-- [ ] **M4 MCP 服务端**：八工具 + 算子/判定器目录资源
+- [x] **M0 立项**：spec、决策、流程、任务格式
+- [x] **M1 内核骨架**：构造图、符号+摆放双坐标、精确算术、算子注册表
+- [x] **M2 对拍框架**：13 个算子 × 340+ 组夹具，全部与独立实现交叉验证
+- [x] **M3 判定器**：9 个判定器，双作用域，含反例测试
+- [x] **M4 渲染**：竞赛图规范预设 + SVG（TikZ 待做）
 - [ ] **M5 DSL**：中文几何 DSL 语法、递归下降解析器、DSL↔构造图
-- [ ] **M6 渲染**：SVG + TikZ 导出，竞赛图规范预设
-- [ ] **M7 自动出题**：变体采样 + 约束求解接 LLM，端到端 demo
-- [ ] **M8 Benchmark**：评测框架与公开报告
+- [ ] **M6 MCP 服务端**：工具契约与资源
+- [ ] **M7 退化检测器**：spec §7 的九条
+- [ ] **M8 自动出题**：变体采样 + 约束求解接 LLM，端到端 demo
+- [ ] **M9 Benchmark**：评测框架与公开报告
 
 ## 参与贡献
 

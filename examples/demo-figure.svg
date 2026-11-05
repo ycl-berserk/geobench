@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640" font-family="Times New Roman, STIX Two Text, serif" font-size="10.0">
+<line x1="64.8354" y1="405.0549" x2="575.1646" y2="405.0549" stroke="#000000" stroke-width="0.4"/>
+<line x1="575.1646" y1="405.0549" x2="234.9451" y2="64.8354" stroke="#000000" stroke-width="0.4"/>
+<line x1="234.9451" y1="64.8354" x2="64.8354" y2="405.0549" stroke="#000000" stroke-width="0.4"/>
+<line x1="640" y1="469.8903" x2="170.1097" y2="0" stroke="#000000" stroke-width="0.25" stroke-dasharray="3 2"/>
+<circle cx="320" cy="320" r="268.9671" fill="none" stroke="#000000" stroke-width="0.4"/>
+<circle cx="64.8354" cy="405.0549" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
+<circle cx="575.1646" cy="405.0549" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
+<circle cx="234.9451" cy="64.8354" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
+<circle cx="320" cy="405.0549" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
+<circle cx="320" cy="149.8903" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
+<circle cx="320" cy="320" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
+<text x="47.9044" y="413.0224" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">A</text>
+<text x="592.4103" y="412.3162" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">B</text>
+<text x="229.3638" y="46.9751" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">C</text>
+<text x="322.3209" y="423.6224" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">M</text>
+<text x="321.8619" y="131.2711" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">D</text>
+<text x="328.3683" y="336.7366" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">O</text>
+</svg>
