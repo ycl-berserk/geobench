@@ -222,6 +222,21 @@ def oracle_nearest_on_object(ctx: OpContext, args: list[str]) -> tuple[Any, Any]
     return nearest.x, nearest.y
 
 
+def oracle_circle_center_point(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any]:
+    centre = _point(ctx, args[0])
+    through = _point(ctx, args[1])
+    # sympy's Circle takes a radius, so the distance is computed first.
+    radius = centre.distance(through)
+    circle = sp.Circle(centre, radius)
+    return circle.center.x, circle.center.y, circle.radius**2
+
+
+def oracle_circle_incicle(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any]:
+    triangle = sp.Triangle(_point(ctx, args[0]), _point(ctx, args[1]), _point(ctx, args[2]))
+    circle = triangle.incircle
+    return circle.center.x, circle.center.y, circle.radius**2
+
+
 def oracle_intersect_line_circle(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
     """The intersections of a line and a circle.
 
@@ -259,5 +274,7 @@ ORACLES = {
     "point.nearest_on_object": oracle_nearest_on_object,
     "segment.free": oracle_segment_free,
     "circle.through": oracle_circle_through,
+    "circle.center_point": oracle_circle_center_point,
+    "circle.incircle": oracle_circle_incicle,
     "circle.free": oracle_circle_free,
 }

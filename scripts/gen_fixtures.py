@@ -364,6 +364,26 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
         for _ in range(DEGENERATE):
             pts = _points(rng, 3)
             add(pts, ["A", "segment:B,B"], "degenerate", "error", "zero-length segment")
+    elif op_id == "circle.center_point":
+        for _ in range(TARGET):
+            pts = _distinct_pair(rng)
+            add(pts, ["A", "B"], "normal", "value", "centre and a point on the circle")
+        for _ in range(DEGENERATE):
+            pts = _distinct_pair(rng)
+            add(
+                {"A": pts["A"], "B": pts["A"]},
+                ["A", "B"],
+                "degenerate",
+                "error",
+                "the point is the centre",
+            )
+    elif op_id == "circle.incircle":
+        for _ in range(TARGET):
+            pts = _non_degenerate_triangle(rng)
+            add(pts, ["A", "B", "C"], "normal", "value", "non-degenerate triangle")
+        for _ in range(DEGENERATE):
+            pts = _collinear_triple(rng)
+            add(pts, ["A", "B", "C"], "degenerate", "error", "collinear triple")
     else:
         raise ValueError(f"no fixture generator for {op_id!r}")
     return fixtures
@@ -389,6 +409,8 @@ OPERATORS = [
     "segment.free",
     "circle.through",
     "circle.free",
+    "circle.center_point",
+    "circle.incircle",
 ]
 
 
