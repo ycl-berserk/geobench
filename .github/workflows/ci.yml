@@ -60,6 +60,7 @@ jobs:
   #   contract    -> T003, T015
   #   integration -> T003
   #   perf        -> T016
+  #   app         -> T019
   #   degeneracy  -> T006
   gates:
     runs-on: ubuntu-latest
@@ -68,7 +69,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev,app]"
       - name: unit
         run: pytest tests/unit -q
       - name: unit/dsl
@@ -85,3 +86,5 @@ jobs:
         run: pytest tests/integration -q
       - name: perf
         run: pytest tests/perf -q
+      - name: app
+        run: pytest tests/app -q

@@ -24,8 +24,13 @@ ALLOWED_FUNCTIONS = {"to_float", "to_floats"}
 ALLOWED_MODULES = {
     "render": "the renderer draws in pixels",
     "style": "the style preset carries point sizes and line widths",
+    "primitives": "the primitives are the picture; the geometry behind them "
+    "was already computed exactly",
     "numeric": "the numeric path is the display path; it may never produce "
     "a verdict, which tests/contract asserts",
+    "canvas": "the studio's canvas draws in pixels; it reads the primitives "
+    "and never computes geometry",
+    "theme": "the theme carries point sizes and paddings",
 }
 
 

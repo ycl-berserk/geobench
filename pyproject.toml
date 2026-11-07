@@ -39,8 +39,14 @@ dev = [
 # figures. See scripts/preview.py.
 preview = ["pymupdf>=1.24"]
 
+# The desktop studio. PySide6-Essentials rather than the full PySide6:
+# it carries QtWidgets, QtGui and QtSvg, and not the browser engine the
+# studio has no use for.
+app = ["PySide6-Essentials>=6.6"]
+
 [project.scripts]
 geobench-mcp = "geobench.server:main"
+geobench-app = "geobench.app.main:main"
 
 [project.urls]
 Homepage = "https://github.com/ycl-berserk/geobench"
