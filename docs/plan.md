@@ -1,0 +1,393 @@
+# 工程总纲 —— 里程碑、任务与做法
+
+**版本 0.1 · 2026-11-07 起 · 本文是工程执行的唯一总纲。**
+
+`docs/spec.md` 说**契约是什么**（数据模型、语义、算子接口）。
+`docs/decisions.md` 说**为什么这么定**（含备选与否决理由）。
+**本文说"接下来做什么、怎么做、做到什么程度算完"**，并充当**边做边核对的清单**。
+
+本文可以随时改。改了就在文末的「变更记录」里记一行。
+
+## 怎么用这份文档
+
+- 状态标记：`[x]` 已完成 · `[~]` 进行中 · `[ ]` 未开始 · `[-]` 阻塞（后面写清阻塞原因）
+- 每个任务都有**可执行的验收命令**（见 `docs/ai-workflow.md` §5 的门禁约定）
+- 命令覆盖表（第 6 节）是**逐条推进**的：做一条勾一条
+- 每次提交代码前，回来核一遍本表；任务完成的定义是「表里勾上了 **且** 门禁是绿的」
+
+---
+
+## 1. 目标产品
+
+一个**桌面软件**，给奥赛学生 / 教练 / 初中几何老师**出题**用。
+
+左边是画板，中间是图，右边是判定：
+
+```
+┌──────────────┬──────────────────┬───────────────┐
+│ 构造步骤      │   画板            │  判定          │
+│ ① A(0,0)     │                   │  M是AB中点     │
+│ ② B(6,0)     │      ●C           │   → proved     │
+│ ③ C(2,4)     │     / \           │  （附证据）     │
+│ ④ M=中点(A,B)│    /   \          │               │
+│ ⑤ O=外心(…)  │   ●A───●B         │  ∠ABC=60°     │
+│  ↳ 拖A时,⑤重算│     ●M           │   → refuted    │
+│               │   (⊙O)           │  （附反例）     │
+└──────────────┴──────────────────┴───────────────┘
+```
+
+它与"AI 画图工具"的区别只有一条，但这条是全部价值所在：
+
+> **AI 画图工具只管画；这个软件管「判」。**
+> 它回答的不是"现在这张图里它是什么"，而是"**对一切合法摆放**它是什么"。
+
+## 2. 三条硬指标
+
+| 指标 | 内容 | 怎么验 |
+|---|---|---|
+| **覆盖面** | GeoGebra 的**全部几何命令**（不含 3D / CAS / 绘图函数 / 统计 / 表格 / 脚本 / 滑块动画），中文命令名对齐 GeoGebra | 第 6 节覆盖表逐条勾 |
+| **速度** | **交互必须和 GeoGebra 一样快**；判定没有 GeoGebra 可比 | 第 7 节性能基准，CI 卡预算 |
+| **质量** | 每个算子有对拍；判定永远精确；退化诚实降级；不许临时方案糊界面 | `docs/ai-workflow.md` §5 全部门禁 |
+
+## 3. 架构总图
+
+### 3.1 双路径求值（速度的关键）
+
+```
+                     ┌─ 精确路径 (SymPy) ── 只在"构造变了"时跑，结果缓存
+   构造图 ───────────┤
+                     └─ 数值路径 (float) ── 每次拖动都跑，微秒级
+```
+
+**为什么能拆开**：派生对象的**符号表达式不随自由点摆放变化**。中点的表达式永远是
+`(x_A + x_B)/2`，拖动 A 不会改它一个字符。
+
+推论（三条，都要成立）：
+
+1. 拖动只走数值路径 → 永不快到卡；
+2. 精确求值只在构造变化时做一次 → 判定前不需要"现算一遍"；
+3. **identity 结论与摆放无关**（这正是 D12 的定义）→ 拖动时 `proved` 仍然是 `proved`。
+
+**算子只写一遍**：数值路径用 `lambdify` 把**同一份符号表达式**编译成 float 函数，
+不另写一套数值实现。
+
+### 3.2 模块划分
+
+```
+src/geobench/
+  field.py      精确算术（SymPy）+ 预算归约          ← 不变
+  model.py      构造图（节点/关系/样式）              ← 不变
+  operators.py  算子实现（符号）                      ← 扩展覆盖面
+  evaluate.py   求值：精确路径 + 数值路径            ← T015 拆分
+  judges.py     判定器（双作用域）                    ← 扩展覆盖面
+  render.py     原语列表 + SVG 后端                  ← T018 拆分
+  primitives.py 原语列表（点/线/圆/标注）             ← T018 新增
+  dsl/          中文几何 DSL（函数式）               ← T024 重写
+  tools/        MCP 工具                              ← 已有
+  app/          PySide6 桌面应用                      ← T019+ 新增
+```
+
+### 3.3 为什么是 PySide6（而不是 Electron / Tauri）
+
+- 内核必须留在 Python（精确性不可重写），UI 也用 Python → **零 IPC**，内核调用就是函数调用。这是"快到 GeoGebra"的**前提**。
+- 一门语言 = 一套规范 = AI 能持续产出高质量代码（D1 的原话，现在更成立）。
+- **画布用 QPainter 直接画，不画 SVG**（Qt 的 SVG 渲染慢）。内核产出**一份原语列表**，`QPainter`（屏幕）与 `SVG`（导出）两个后端吃同一份 → 屏幕与导出天然一致，且都有测试保证。
+- 打包：PyInstaller → 一个 exe，老师双击即用。PySide6 是 LGPL，与 MIT 兼容。
+
+**代价（已知）**：将来 AI 对话面板在 Qt 里比在 React 里麻烦。
+**推翻条件**：做到 v3 时 Qt 的 UI 明显拖累产品（而不是"我更熟 React"）。界面层与内核层的边界从一开始就划清，换 UI 不动内核。
+
+## 4. 里程碑
+
+| | 名称 | 产出 | 依赖 |
+|---|---|---|---|
+| **M-A** | 内核提速与分层 | 精确/数值双路径、性能门禁、判定缓存 | — |
+| **M-B** | 画板 v1 | 能开窗、拖点、构造、看判定的完整软件 | M-A |
+| **M-C** | 覆盖面 | GeoGebra 几何命令全量 + 中文名 + DSL 重写 | M-B |
+| **M-D** | 兼容与成稿 | `.ggb` 导入导出、题库格式、卷面导出 | M-C |
+| **M-E** | AI 与生态 | 应用内 AI（NL→DSL）、接别的 MCP | M-D |
+
+**M-A + M-B 做完，就是一个真正能用的软件**（命令少但完整）。之后 M-C 是纯增量。
+
+## 5. 任务清单
+
+> 任务的正式定义在 `tasks/<id>.md`；本表是总纲里的索引。任务文件的验收标准必须是可执行命令。
+
+### M-A 内核提速与分层
+
+| ID | 任务 | 层 | 验收 | 状态 |
+|---|---|---|---|---|
+| T015 | 求值分层：精确路径（缓存）+ 数值路径（lambdify 编译） | 算子 | `pytest tests/unit/test_evaluate.py -q` | `[ ]` |
+| T016 | 性能基准套件与 CI 预算门禁 | 基础设施 | `pytest tests/perf -q` | `[ ]` |
+| T017 | 判定的摆放不变性 + 结论缓存 | 判定器 | `pytest tests/unit/test_judges.py -q` | `[ ]` |
+| T018 | 原语列表 + QPainter/SVG 双后端 | 渲染 | `pytest tests/unit/test_primitives.py -q` | `[ ]` |
+
+**T015 做法要点**
+- `evaluate_exact(figure)`：产出符号表达式，按"构造版本号"缓存；构造变了才失效。
+- `evaluate_numeric(figure)`：对每个节点用 `lambdify` 编译（缓存编译结果），按当前自由点数值求值。
+- 数值路径**不得**产生任何判定结论；`no_float` 门禁需为该模块开一个**明确命名**的例外，并加一条测试断言"判定器不 import 数值路径"。
+- 数值路径遇 ZeroDivisionError / nan → 该节点标 `undefined`（GeoGebra 语义）。
+
+**T018 做法要点**
+- `primitives.py` 产出 `Point/Segment/Line/Circle/Label` 五种原语，带屏幕无关的图形坐标。
+- `render.py` 的 SVG 后端改为消费原语列表；`app/` 的 QPainter 后端也消费它。
+- 测试断言：两个后端产出的原语集合**逐条相等**（屏幕与导出一致）。
+
+### M-B 画板 v1
+
+| ID | 任务 | 层 | 验收 | 状态 |
+|---|---|---|---|---|
+| T019 | 画布：缩放 / 平移 / 命中测试 / 拖点 | 渲染 | `pytest tests/app/test_canvas.py -q` | `[ ]` |
+| T020 | 构造步骤表（Construction Protocol 式） | 渲染 | `pytest tests/app/test_steps.py -q` | `[ ]` |
+| T021 | 工具栏（表格驱动，每算子一行） | 渲染 | `pytest tests/app/test_toolbar.py -q` | `[ ]` |
+| T022 | 判定面板：结论 + 证据 + 反例 | 渲染 | `pytest tests/app/test_judgepanel.py -q` | `[ ]` |
+| T023 | 退化标记：undefined 节点变灰，图形不崩 | 判定器 | `pytest tests/unit/test_evaluate.py -q` | `[ ]` |
+
+**T019 做法要点**
+- 画布用 `QGraphicsView`；图元用 `QGraphicsItem` 自绘（不逐帧重建 SVG）。
+- 拖点：**每帧只走数值路径**；松手才触发判定（判定可能慢，不能绑在拖动上）。
+- 缩放/平移是视图变换，不改图形坐标。
+
+**T020 做法要点**（借鉴 GeoGebra Construction Protocol）
+- 步骤表 = 构造的有序投影：每步一行（名字、构造式、定义）。
+- 拖动时标出"哪些步骤被重算"。
+- 步骤可编辑/可删除；删除时级联失效下游（内核已有依赖检查）。
+
+**T021 做法要点**
+- 工具栏**由算子注册表生成**：算子声明「需要几个点/线/圆」「产出什么」「图标名」，UI 不为每个工具写代码。
+- 交互模型同 GeoGebra：点工具 → 点参数 → 出结果。
+
+### M-C 覆盖面
+
+| ID | 任务 | 层 | 验收 | 状态 |
+|---|---|---|---|---|
+| T024 | DSL 改函数式 + GeoGebra 中文命令名 | DSL | `pytest tests/unit/dsl -q` | `[ ]` |
+| T025 | GeoGebra 几何命令总表与算子映射 | 算子 | `pytest tests/contract -q` | `[ ]` |
+| T026 | 点族算子补齐 | 算子 | `pytest tests/oracle -q` | `[ ]` |
+| T027 | 线族算子补齐 | 算子 | `pytest tests/oracle -q` | `[ ]` |
+| T028 | 圆与弧扇形族 | 算子 | `pytest tests/oracle -q` | `[ ]` |
+| T029 | 多边形族 | 算子 | `pytest tests/oracle -q` | `[ ]` |
+| T030 | 变换族（平移/旋转/位似/镜像） | 算子 | `pytest tests/oracle -q` | `[ ]` |
+| T031 | 轨迹 / 包络 / 参数曲线 | 算子 | `pytest tests/oracle -q` | `[ ]` |
+| T032 | 圆锥曲线族 | 算子 | `pytest tests/oracle -q` | `[ ]` |
+| T033 | 判定器补齐（20+） | 判定器 | `pytest tests/unit/test_judges.py -q` | `[ ]` |
+
+**T024 做法要点**
+- 语法：`名称(参数, ...)`，与 GeoGebra 中文命令名一致。例：`中点(A,B)`、`中垂线(A,B)`、`外接圆(A,B,C)`、`垂直(A,l)`、`交点(l,c)`、`共线(A,B,C)`。
+- 句子式（`BC 上 A 的垂足`）**废弃**。理由：老师已经在 GeoGebra 里打函数式；解析器大幅简化；命令↔算子一一对应。
+- 解析必须**仍然严格**：不认识的命令报错并给行列，不猜。
+- 每个命令的中文名以 GeoGebra 手册为准，**存疑的一律核对后再写**。
+
+**T026–T032 做法要点**
+- 每个算子一个任务，模板固定：实现 → 对拍夹具（≥20 组，含 ≥3 组退化）→ DSL 映射 → 工具栏条目 → 覆盖表勾选。
+- 语义微妙的命令（角平分线的内外两条、轨迹的参数化、切线的选取）**必须逐条对着 GeoGebra 手册核**，不能凭印象。
+- 对拍用 SymPy 的独立实现；GeoGebra 本体不作为 oracle（它也是数值内核，不能当精确真值）。
+
+### M-D 兼容与成稿
+
+| ID | 任务 | 层 | 验收 | 状态 |
+|---|---|---|---|---|
+| T034 | `.ggb` 导入（GeoGebra XML） | 基础设施 | `pytest tests/unit/test_ggb.py -q` | `[ ]` |
+| T035 | `.ggb` 导出 | 基础设施 | `pytest tests/unit/test_ggb.py -q` | `[ ]` |
+| T036 | 题库文件格式 v1 + 成稿导出 | 基础设施 | `pytest tests/unit/test_problemfile.py -q` | `[ ]` |
+| T037 | TikZ 导出 | 渲染 | `pytest tests/unit/test_render.py -q` | `[ ]` |
+
+### M-E AI 与生态
+
+| ID | 任务 | 层 | 验收 | 状态 |
+|---|---|---|---|---|
+| T038 | 应用内 AI 面板（NL → DSL） | 服务端 | `pytest tests/app/test_ai.py -q` | `[ ]` |
+| T039 | 接其它 MCP 服务器（工具并入 AI） | 服务端 | `pytest tests/integration -q` | `[ ]` |
+
+## 6. 命令覆盖表
+
+> **逐条推进，做一条勾一条。** 中文名以 GeoGebra 手册为准；标「?」的是尚未核对的，落地前必须核。
+> 状态：`[x]` 已实现并对拍 · `[~]` 进行中 · `[ ]` 未开始
+
+### 6.1 点
+
+| GeoGebra | 中文 | 我们的算子 | 状态 |
+|---|---|---|---|
+| `Point(x,y)` | 点 | `point.free` | `[x]` |
+| `Midpoint(A,B)` | 中点 | `point.midpoint` | `[x]` |
+| `Barycenter(A,B,C)` | 重心 | `point.centroid` | `[x]` |
+| `Circumcenter(A,B,C)` | 外心 | `point.circumcenter` | `[x]` |
+| `Incenter(A,B,C)` | 内心 | `point.incenter` | `[x]` |
+| `Orthocenter(A,B,C)` | 垂心 | `point.orthocenter` | `[x]` |
+| `Intersect(l1,l2)` | 相交 | `point.intersect_lines` | `[x]` |
+| `Intersect(l,c)` | 相交 | `point.intersect_line_circle` | `[x]` |
+| `Intersect(c1,c2)` | 相交 | `point.intersect_circles` | `[ ]` |
+| `PointIn(c,A)` | 点在 | `point.on_circle` | `[ ]` |
+| `NearestPoint(A,o)` | 最近点 | `point.nearest_on_object` | `[ ]` |
+| `AffineRatio(A,B,C,r)` | 仿射比 | `point.affine_ratio` | `[ ]` |
+| `Vertex(poly,i)` | 顶点 | `point.polygon_vertex` | `[ ]` |
+| `PointInRegion(A,poly)` | 点在区域内 | `point.in_region` | `[ ]` |
+| `IntersectPath(path,A)` | 路径交点 | `point.intersect_path` | `[ ]` |
+| `Mirror(A,l)` / `Rotate` / `Translate` / `Dilate` | 镜像 / 旋转 / 平移 / 位似 | 见 6.6 | `[ ]` |
+
+### 6.2 线、线段、射线
+
+| GeoGebra | 中文 | 我们的算子 | 状态 |
+|---|---|---|---|
+| `Line(A,B)` | 直线 | `line.free` | `[x]` |
+| `Segment(A,B)` | 线段 | `segment.free` | `[x]` |
+| `Perpendicular(A,l)` | 垂直 | `line.perpendicular_through` | `[x]` |
+| `Parallel(A,l)` | 平行 | `line.parallel_through` | `[x]` |
+| `PerpendicularBisector(A,B)` | 中垂线 | `line.perpendicular_bisector` | `[ ]` |
+| `AngleBisector(A,B,C)` | 角平分线 | `line.angle_bisector` | `[ ]` |
+| `Tangent(A,c)` | 切线 | `line.tangent` | `[ ]` |
+| `Ray(A,B)` | 射线 | `ray.free` | `[ ]` |
+| `Bisector(A,B,C)` | 二等分线 ? | `line.angle_bisector`（别名） | `[ ]` |
+| `Trilinear(A,B,C)` | 中线 ? | `line.median` | `[ ]` |
+| `Polar(A,c)` | 极线 | `line.polar` | `[ ]` |
+
+### 6.3 圆、弧、扇形
+
+| GeoGebra | 中文 | 我们的算子 | 状态 |
+|---|---|---|---|
+| `Circle(A,r)` | 圆周（圆心+半径） | `circle.free` | `[x]` |
+| `Circle(A,B)` | 圆周（圆心+点） | `circle.center_point` | `[ ]` |
+| `Circle(A,B,C)` | 圆周（三点） | `circle.through` | `[x]` |
+| `Circumcircle(A,B,C)` | 外接圆 | `circle.circumcircle` | `[ ]` |
+| `Incircle(A,B,C)` | 内切圆 | `circle.incircle` | `[ ]` |
+| `Arc(c,A,B)` | 弧 | `arc.free` | `[ ]` |
+| `CircularArc(A,B,C)` | 圆弧 | `arc.three_points` | `[ ]` |
+| `CircularSector(A,B,C)` | 圆扇形 | `sector.circular` | `[ ]` |
+| `Sector(A,B,r)` | 扇形 | `sector.free` | `[ ]` |
+| `Semicircle(A,B)` | 半圆 | `sector.semicircle` | `[ ]` |
+| `ConcentricCircle(c,r)` | 同心圆 | `circle.concentric` | `[ ]` |
+| `OsculatingCircle(c,A)` | 密切圆 | `circle.osculating` | `[ ]` |
+
+### 6.4 多边形与折线
+
+| GeoGebra | 中文 | 我们的算子 | 状态 |
+|---|---|---|---|
+| `Polygon(A,B,C)` | 多边形 | `polygon.free` | `[ ]` |
+| `RegularPolygon(A,B,n)` | 正多边形 | `polygon.regular` | `[ ]` |
+| `RigidPolygon(A,B,C)` | 刚性多边形 | `polygon.rigid` | `[ ]` |
+| `PolyLine(A,B,C)` | 折线 | `polyline.free` | `[ ]` |
+| `Vertex(poly,i)` | 顶点 | 见 6.1 | `[ ]` |
+
+### 6.5 测量与关系（判定器）
+
+| GeoGebra | 中文 | 我们的判定器 | 状态 |
+|---|---|---|---|
+| `Distance(A,B)` | 距离 | `equal_length` / `distance` | `[x]` |
+| `Length(o)` | 长度 | `equal_length` | `[x]` |
+| `Area(poly)` | 面积 | `area_equal` | `[ ]` |
+| `Perimeter(poly)` | 周长 | `perimeter_equal` | `[ ]` |
+| `Angle(A,B,C)` | 角度 | `angle_equal` | `[ ]` |
+| `Radius(c)` | 半径 | `radius_equal` | `[ ]` |
+| `Slope(l)` | 斜率 | `slope_equal` | `[ ]` |
+| `AreCollinear(A,B,C)` | 共线 | `collinear` | `[x]` |
+| `AreConcyclic(A,B,C,D)` | 共圆 | `concyclic` | `[x]` |
+| `AreConcurrent(l1,l2,l3)` | 共点 | `concurrent` | `[ ]` |
+| `AreEqual(o1,o2)` | 相等 | `equal_length` | `[x]` |
+| `AreCongruent(o1,o2)` | 全等 | `congruent` | `[ ]` |
+| `AreParallel(l1,l2)` | 平行 | `parallel` | `[ ]` |
+| `ArePerpendicular(l1,l2)` | 垂直 | `perpendicular` | `[x]` |
+| `IsTangent(l,c)` | 相切 | `tangent` | `[ ]` |
+| `SimpleRatio` / `DoubleRatio` | 单比 / 双比 | `ratio_equal` | `[ ]` |
+
+### 6.6 变换
+
+| GeoGebra | 中文 | 我们的算子 | 状态 |
+|---|---|---|---|
+| `Translate(o,v)` | 平移 | `transform.translate` | `[ ]` |
+| `Rotate(o,θ,P)` | 旋转 | `transform.rotate` | `[ ]` |
+| `Dilate(o,k,P)` | 位似 | `transform.dilate` | `[ ]` |
+| `Mirror(o,l)` | 镜像 | `transform.mirror` | `[ ]` |
+| `Reflect(o,l)` | 反射 | `transform.reflect` | `[ ]` |
+
+### 6.7 轨迹与曲线
+
+| GeoGebra | 中文 | 我们的算子 | 状态 |
+|---|---|---|---|
+| `Locus(f,t)` | 轨迹 | `locus.free` | `[ ]` |
+| `Envelope(f)` | 包络 | `locus.envelope` | `[ ]` |
+| `Curve(t,a,b)` | 参数曲线 | `curve.parametric` | `[ ]` |
+| `TriangleCurve(a,b,c)` | 三角函数曲线 ? | — | `[ ]`（或不做） |
+
+### 6.8 圆锥曲线
+
+| GeoGebra | 中文 | 我们的算子 | 状态 |
+|---|---|---|---|
+| `Ellipse(A,B,C)` | 椭圆 | `conic.ellipse` | `[ ]` |
+| `Parabola(A,B)` | 抛物线 | `conic.parabola` | `[ ]` |
+| `Hyperbola(A,B,C)` | 双曲线 | `conic.hyperbola` | `[ ]` |
+| `Conic(A,B,C,D,E)` | 二次曲线 | `conic.five_points` | `[ ]` |
+| `Directrix(c)` | 准线 | `conic.directrix` | `[ ]` |
+| `Focus(c)` | 焦点 | `conic.focus` | `[ ]` |
+| `Axes(c)` | 轴 | `conic.axes` | `[ ]` |
+| `Eccentricity(c)` | 离心率 | `conic.eccentricity` | `[ ]` |
+| `Polar(l,c)` | 极线 | 见 6.2 | `[ ]` |
+
+### 6.9 明确不做
+
+3D · CAS · 函数绘图 · 统计 · 表格 · 脚本 · 滑块与动画 · 列表运算 · 向量矩阵。
+
+理由：不是"几何内容"，且不在 D5（v1 = 平面几何）范围内。
+
+## 7. 性能基准
+
+> "和 GeoGebra 看齐"的可测定义。CI 里跑，卡预算（`pytest tests/perf -q`）。
+
+| 场景 | 目标 | 备注 |
+|---|---|---|
+| 拖动一帧（200 对象） | p99 ≤ 16 ms | 只走数值路径 |
+| 新增一个构造 | ≤ 50 ms | 精确求值只做一次 |
+| 整图重绘 | ≤ 8 ms | 原语列表 → QPainter |
+| 判定判假（refuted） | ≤ 50 ms | 先采样后符号 |
+| 判定判真（proved，常见） | ≤ 2 s | 异步 + 进度 + 缓存 |
+| 判定判真（难例） | ≤ 15 s | 允许，但要给进度 |
+| 冷启动到可交互 | ≤ 2 s | — |
+
+**基准机**：固定一台机器，基准数据记在 `evals/reports/`。不报"快了几倍"，只报**达标 / 不达标**。
+
+## 8. 风险与对策
+
+| 风险 | 影响 | 对策 |
+|---|---|---|
+| 覆盖面铺开后，新增算子找不到统一模板 | 质量下滑 | T025 固化模板；每个算子一个任务 |
+| 语义微妙的命令（角平分线内外、轨迹参数化、切线选取）实现错 | 结论错 | 必须逐条对 GeoGebra 手册核；对拍用 SymPy 独立实现 |
+| 精确路径在长构造链上超时 | 判定不可用 | 预算 + 诚实降级（D13）；判定异步化 |
+| 数值路径与精确路径结果不一致 | 用户看到错的图 | 两条路径的差值必须有测试盯着；数值只用于显示 |
+| Qt 的 UI 迭代速度不够快 | 画板做得慢 | 界面层与内核层边界清晰；必要时换 UI 不动内核 |
+| 范围过大做不完 | 项目半途而废 | 里程碑切分保证 M-B 之后就是完整可用产品 |
+
+## 9. 决策索引
+
+| ID | 决策 | 状态 |
+|---|---|---|
+| D1 | Python 内核（SymPy）+ 原生 Python MCP；不引入 Rust/C++ | 已定 |
+| D2 | SymPy 表达式 + `Field` 协议；预算归约 | 已定 |
+| D3 | 构造图 | 已定 |
+| D4 | 内核不含模型 | 已定 |
+| D5 | v1 = 平面几何 | 已定 |
+| D6 | 竞赛图规范（TikZ + 中文卷面） | **待域主复核** |
+| D7/D9 | 双通道 + 中文几何 DSL | 已定 |
+| D8 | MIT，中文正本 | 已定 |
+| D10 | 桌面优先 + 本地 MCP 双模式 | 已定（D16 修订） |
+| D11 | 符号坐标 + 数值摆放 | 已定 |
+| D12 | identity / instance 双作用域 | 已定 |
+| D13 | 先采样后符号；超预算诚实降级 | 已定 |
+| D14 | "另一交点"用韦达之和 | 已定 |
+| D15 | 三态响应 + 类型化错误 | 已定 |
+| **D16** | **桌面外壳用 PySide6，单进程单语言；D1/D10 的"浏览器前端"作废** | 已定 |
+| **D17** | **覆盖面 = GeoGebra 全部几何命令；DSL 改函数式 + 中文名对齐** | 已定 |
+| **D18** | **性能：精确/数值双路径；交互与 GeoGebra 看齐，判定有预算** | 已定 |
+| **D19** | **借鉴 GeoGebra：Construction Protocol、undefined 语义、`.ggb` 兼容** | 已定 |
+| **D20** | **原语列表 + QPainter/SVG 双后端** | 已定 |
+
+## 10. 当前状态快照
+
+- 内核：14 个算子、9 个判定器、DSL（句子式）、MCP 三工具
+- 测试：282 通过；ruff / mypy --strict 干净；CI 绿
+- 画板：**未开始**
+- 下一步：**T015（求值分层）**
+
+## 11. 变更记录
+
+| 日期 | 变更 |
+|---|---|
+| 2026-11-07 | 初稿。确立覆盖面 / 速度 / 质量三条硬指标；M-A…M-E 里程碑；任务清单；命令覆盖表；性能基准表；D16–D20。 |
