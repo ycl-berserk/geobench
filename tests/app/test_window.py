@@ -12,11 +12,14 @@ import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-pytest.importorskip("PySide6", reason="the studio needs PySide6")
-
-from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import QApplication
+try:
+    from PySide6.QtCore import QPointF, Qt
+    from PySide6.QtGui import QMouseEvent
+    from PySide6.QtWidgets import QApplication
+except ImportError as exc:  # pragma: no cover - depends on the machine
+    # Qt needs system libraries that some machines do not have. Skipping
+    # is honest; a vacuous pass would not be.
+    pytest.skip(f"Qt is not usable on this machine: {exc}", allow_module_level=True)
 
 from geobench.app.canvas import FigureCanvas
 from geobench.app.controller import StudioController
