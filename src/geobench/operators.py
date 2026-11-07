@@ -347,6 +347,63 @@ def op_line_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {"kind": "line", "line": _line_through(ctx.point(args[0]), ctx.point(args[1]))}
 
 
+def op_perpendicular_bisector(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The perpendicular bisector of a segment (中垂线).
+
+    The bisector's *normal* is the segment's direction, and it passes
+    through the midpoint -- which is all it takes, and needs no square
+    root.
+    """
+    (x1, y1) = ctx.point(args[0])
+    (x2, y2) = ctx.point(args[1])
+    if x1 == x2 and y1 == y2:
+        raise DegenerateError("a segment needs two distinct endpoints")
+    dx, dy = x2 - x1, y2 - y1
+    mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+    return {"kind": "line", "line": _line_from_normal((mx, my), (dx, dy))}
+
+
+def op_angle_bisector(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The internal bisector of the angle ABC (角平分线).
+
+    The bisector's direction is the sum of the two unit vectors along
+    the sides. Clearing the common denominator |BA|*|BC| leaves the
+    direction alone, so the square roots of the side lengths are the
+    only irrationality involved.
+    """
+    (ax, ay) = ctx.point(args[0])
+    (bx, by) = ctx.point(args[1])
+    (cx, cy) = ctx.point(args[2])
+    u_len = sp.sqrt((ax - bx) ** 2 + (ay - by) ** 2)
+    v_len = sp.sqrt((cx - bx) ** 2 + (cy - by) ** 2)
+    if u_len == 0 or v_len == 0:
+        raise DegenerateError("the angle needs two sides of non-zero length")
+    dx = v_len * (ax - bx) + u_len * (cx - bx)
+    dy = v_len * (ay - by) + u_len * (cy - by)
+    return {"kind": "line", "line": _line_from_normal((bx, by), (dy, -dx))}
+
+
+def op_tangent(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The tangent to a circle at a point on it (切线).
+
+    The tangent at a point of a circle is perpendicular to the radius
+    there. The point must actually lie on the circle; that cannot be
+    checked on symbols alone, so the condition is published and checked
+    at each placement (the point may be on the circle for some
+    placements and off it for others).
+    """
+    (px, py) = ctx.point(args[0])
+    cx, cy, r2 = ctx.circle(args[1])
+    nx, ny = px - cx, py - cy
+    if nx == 0 and ny == 0:
+        raise DegenerateError("the tangent is undefined at the centre of the circle")
+    return {
+        "kind": "line",
+        "line": _line_from_normal((px, py), (nx, ny)),
+        "must_be_zero": {"point_on_circle": nx * nx + ny * ny - r2},
+    }
+
+
 def op_segment_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
     """A segment between two points -- what a competition figure actually draws."""
     a = ctx.point(args[0])
@@ -457,8 +514,44 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             returns="line",
             degenerate_when=("a == b",),
             oracle="sympy.geometry:Line",
+        ),        op_line_free,
+    ),
+    (
+        OpSpec(
+            id="line.perpendicular_bisector",
+            kind="line",
+            args=(ArgSpec("a", "point"), ArgSpec("b", "point")),
+            returns="line",
+            degenerate_when=("a == b",),
+            oracle="sympy.geometry:Segment.perpendicular_bisector",
         ),
-        op_line_free,
+        op_perpendicular_bisector,
+    ),
+    (
+        OpSpec(
+            id="line.angle_bisector",
+            kind="line",
+            args=(
+                ArgSpec("a", "point"),
+                ArgSpec("b", "point"),
+                ArgSpec("c", "point"),
+            ),
+            returns="line",
+            degenerate_when=("a == b", "b == c"),
+            oracle="sympy.geometry:Triangle.incenter (the bisector passes through it)",
+        ),
+        op_angle_bisector,
+    ),
+    (
+        OpSpec(
+            id="line.tangent",
+            kind="line",
+            args=(ArgSpec("p", "point"), ArgSpec("circle", "circle")),
+            returns="line",
+            degenerate_when=("p is the centre of the circle",),
+            oracle="sympy.geometry:Circle.tangent_lines",
+        ),
+        op_tangent,
     ),
     (
         OpSpec(

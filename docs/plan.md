@@ -164,7 +164,7 @@ src/geobench/
 | T024 | DSL 改函数式 + GeoGebra 中文命令名 | DSL | `pytest tests/unit/dsl -q` | `[x]` |
 | T025 | GeoGebra 几何命令总表与算子映射 | 算子 | `pytest tests/unit/test_commands.py -q` | `[x]` |
 | T026 | 点族算子补齐 | 算子 | `pytest tests/oracle -q` | `[ ]` |
-| T027 | 线族算子补齐 | 算子 | `pytest tests/oracle -q` | `[ ]` |
+| T027 | 线族算子补齐 | 算子 | `pytest tests/oracle -q` | `[x]` |
 | T028 | 圆与弧扇形族 | 算子 | `pytest tests/oracle -q` | `[ ]` |
 | T029 | 多边形族 | 算子 | `pytest tests/oracle -q` | `[ ]` |
 | T030 | 变换族（平移/旋转/位似/镜像） | 算子 | `pytest tests/oracle -q` | `[ ]` |
@@ -238,9 +238,9 @@ src/geobench/
 | `Line` | 直线 | `line.free` | `[x]` |
 | `Perpendicular` | 垂直 | `line.perpendicular_through` | `[x]` |
 | `Parallel` | 平行 | `line.parallel_through` | `[x]` |
-| `PerpendicularBisector` | 中垂线 | `line.perpendicular_bisector` | `[ ]` |
-| `AngleBisector` | 角平分线 | `line.angle_bisector` | `[ ]` |
-| `Tangent` | 切线 | `line.tangent` | `[ ]` |
+| `PerpendicularBisector` | 中垂线 | `line.perpendicular_bisector` | `[x]` |
+| `AngleBisector` | 角平分线 | `line.angle_bisector` | `[x]` |
+| `Tangent` | 切线 | `line.tangent` | `[x]` |
 | `Polar` | 极线 | `line.polar` | `[ ]` |
 | `Ray` | 射线 | `ray.free` | `[ ]` |
 | `Segment` | 线段 | `segment.free` | `[x]` |
@@ -407,15 +407,15 @@ src/geobench/
 
 ## 10. 当前状态快照
 
-- 内核：14 个算子、9 个判定器、MCP 三工具
-- 命令表：**77 条** GeoGebra 几何命令已登记（`src/geobench/commands.py`），**18 条已实现**；覆盖表由它生成
+- 内核：**17 个算子**、9 个判定器、MCP 三工具
+- 命令表：**77 条** GeoGebra 几何命令已登记（`src/geobench/commands.py`），**21 条已实现**；覆盖表由它生成
 - 求值：**已分层**（T015）—— 精确路径增量缓存，数值路径编译执行
 - 性能：**已有 CI 预算门禁**（T016）；**结论缓存**（T017）
 - 渲染：**原语列表 + 双后端**（T018）—— 屏幕与导出吃同一份
 - 画板：**能开窗了**（T019–T022）—— 拖点 · 工具栏构造 · 构造步骤表 · 判定面板
 - DSL：**函数式 + 中英文命令名**（T024）—— `M = 中点(A,B)`，`M=Midpoint(A,B)` 同样成立
-- 测试：385 通过；ruff / mypy --strict 干净；CI 绿
-- 下一步：**M-C 的算子补齐**（T026–T032：点族 / 线族 / 圆弧扇形 / 多边形 / 变换 / 轨迹 / 圆锥曲线），每族一个任务
+- 测试：400 通过；ruff / mypy --strict 干净；CI 绿
+- 下一步：**M-C 的算子补齐**（T026 点族 · T028 圆弧扇形 · T029 多边形 · T030 变换 · T031 轨迹 · T032 圆锥曲线）
 
 ## 11. 变更记录
 
