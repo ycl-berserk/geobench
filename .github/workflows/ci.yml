@@ -100,3 +100,5 @@ jobs:
         run: pytest tests/perf -q
       - name: app
         run: pytest tests/app -q
+      - name: the coverage table is up to date
+        run: python scripts/gen_coverage.py --check

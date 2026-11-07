@@ -22,12 +22,12 @@ def _script(
     return (
         f"点 A({ax},{ay}) B({bx},{by}) C({cx},{cy})\n"
         "△ABC\n"
-        "⊙O = 过 A B C\n"
-        "D = BC 上 A 的垂足\n"
-        "M = AB 中点\n"
-        "I = △ABC 的内心\n"
-        "断言 M A B 共线\n"
-        "断言 AB = AC\n"
+        "O = 外接圆(A,B,C)\n"
+        "D = 垂足(A,BC)\n"
+        "M = 中点(A,B)\n"
+        "I = 内心(A,B,C)\n"
+        "断言 共线(M,A,B)\n"
+        "断言 相等(AB,AC)\n"
     )
 
 
@@ -67,7 +67,7 @@ def test_round_trip_is_stable_on_repetition(
     ax: str, ay: str, bx: str, by: str
 ) -> None:
     """Rendering the DSL back out twice gives the same text."""
-    source = f"点 A({ax},{ay}) B({bx},{by})\nE = AB 中点\n"
+    source = f"点 A({ax},{ay}) B({bx},{by})\nE = 中点(A,B)\n"
     figure = parse_dsl(source)
     once = to_dsl(figure)
     twice = to_dsl(parse_dsl(once))

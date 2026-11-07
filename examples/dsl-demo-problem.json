@@ -22,7 +22,7 @@
           "0",
           "0"
         ],
-        "label": "A",
+        "label": null,
         "style": {
           "visible": true,
           "color": "#000000",
@@ -48,7 +48,7 @@
           "6",
           "0"
         ],
-        "label": "B",
+        "label": null,
         "style": {
           "visible": true,
           "color": "#000000",
@@ -74,7 +74,7 @@
           "2",
           "4"
         ],
-        "label": "C",
+        "label": null,
         "style": {
           "visible": true,
           "color": "#000000",
@@ -196,7 +196,7 @@
           "3",
           "3"
         ],
-        "label": "D",
+        "label": null,
         "style": {
           "visible": true,
           "color": "#000000",
@@ -225,7 +225,7 @@
           "3",
           "0"
         ],
-        "label": "M",
+        "label": null,
         "style": {
           "visible": true,
           "color": "#000000",
@@ -255,7 +255,7 @@
           "2.40764085275",
           "1.4880038797"
         ],
-        "label": "I",
+        "label": null,
         "style": {
           "visible": true,
           "color": "#000000",
@@ -269,9 +269,9 @@
       },
       {
         "id": "AD",
-        "kind": "line",
+        "kind": "segment",
         "role": "derived",
-        "op": "line.free",
+        "op": "segment.free",
         "args": [
           "A",
           "D"
@@ -308,7 +308,7 @@
           "4",
           "4"
         ],
-        "label": "P",
+        "label": null,
         "style": {
           "visible": true,
           "color": "#000000",
@@ -330,7 +330,7 @@
           "A",
           "B"
         ],
-        "expected": true
+        "expected": null
       },
       {
         "id": "r2",
@@ -341,12 +341,12 @@
           "A",
           "C"
         ],
-        "expected": true
+        "expected": null
       }
     ],
     "meta": {}
   },
-  "dsl": "点 A(0,0) B(6,0) C(2,4)\n△ABC\n⊙O = 过 A B C\nD = BC 上 A 的垂足\nM = AB 中点\nI = △ABC 的内心\nP = AD 与 ⊙O 的另一交点\n断言 M A B 共线\n断言 AB = AC\n",
+  "dsl": "点 A(0,0) B(6,0) C(2,4)\n△ABC\nO = 外接圆(A,B,C)\nD = 垂足(A,BC)\nM = 中点(A,B)\nI = 内心(A,B,C)\nP = 交点(AD,O,另一交点)\n断言 共线(M,A,B)\n断言 相等(AB,AC)\n",
   "verification": [
     {
       "relation": "collinear",

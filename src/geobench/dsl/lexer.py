@@ -3,6 +3,19 @@
 Line-oriented: one statement per line. The lexer is deliberately small and
 predictable, because the parser's error messages are only useful if the token
 positions are exact.
+
+Two things here are worth knowing.
+
+**Chinese words are lexed whole.** A command name is a Chinese word
+(``中点``, ``外接圆``), so ``中点(A,B)`` must reach the parser as one
+identifier, not as two characters. A run of Chinese characters is
+therefore lexed as a single token.
+
+**Only the statement heads are keywords.** ``点`` and ``断言`` introduce a
+statement; everything else is a *name*, resolved against the command
+table (:mod:`geobench.commands`). That is what lets a command be called
+by its Chinese name or by GeoGebra's English one without the lexer
+knowing about either.
 """
 
 from __future__ import annotations
@@ -38,37 +51,8 @@ class Token:
         return self.kind is TokenKind.PUNCT and self.text in marks
 
 
-KEYWORDS = frozenset(
-    {
-        "点",
-        "线段",
-        "直线",
-        "圆",
-        "过",
-        "以",
-        "为圆心",
-        "半径",
-        "中点",
-        "垂足",
-        "垂线",
-        "平行线",
-        "交点",
-        "另一交点",
-        "上",
-        "与",
-        "共线",
-        "共圆",
-        "垂直",
-        "平行",
-        "相等",
-        "的",
-        "内心",
-        "外心",
-        "垂心",
-        "重心",
-        "断言",
-    }
-)
+#: The statement heads. Everything else is a name.
+KEYWORDS = frozenset({"点", "断言"})
 
 SYMBOLS = frozenset({"⊥", "∥", "∩", "≠", "⊙", "△"})
 
@@ -123,6 +107,16 @@ def tokenize_line(text: str, line_number: int) -> list[Token]:
                 index += 1
             while index < length and text[index].isdigit():
                 index += 1
+            # A decimal such as 2.5.
+            if (
+                index < length
+                and text[index] == "."
+                and index + 1 < length
+                and text[index + 1].isdigit()
+            ):
+                index += 1
+                while index < length and text[index].isdigit():
+                    index += 1
             # A fraction such as 1/2.
             if index < length and text[index] == "/" and index + 1 < length and text[index + 1].isdigit():
                 index += 1
@@ -132,23 +126,34 @@ def tokenize_line(text: str, line_number: int) -> list[Token]:
                 Token(TokenKind.NUMBER, text[start:index], _span(line_number, start + 1, index - start))
             )
             continue
-        # Chinese characters must be matched against the keywords *before* the
-        # identifier branch: Python reports them as alphabetic, so "点" would
-        # otherwise be lexed as a name.
         if _is_cjk(char):
-            matched = None
-            for keyword in _KEYWORD_ORDER:
-                if text.startswith(keyword, index):
-                    matched = keyword
-                    break
-            if matched is not None:
-                index += len(matched)
+            # A run of Chinese characters is one word: a command name, an
+            # object name or a selector.
+            start = index
+            while index < length and _is_cjk(text[index]):
+                index += 1
+            run = text[start:index]
+            head = _statement_head(run)
+            if head is not None:
                 tokens.append(
-                    Token(TokenKind.KEYWORD, matched, _span(line_number, index - len(matched) + 1, len(matched)))
+                    Token(TokenKind.KEYWORD, head, _span(line_number, start + 1, len(head)))
                 )
-                continue
-            index += 1
-            tokens.append(Token(TokenKind.IDENT, char, _span(line_number, index)))
+                rest = run[len(head) :]
+                tokens.append(
+                    Token(
+                        TokenKind.IDENT,
+                        rest,
+                        _span(line_number, start + len(head) + 1, len(rest)),
+                    )
+                )
+            elif run in KEYWORDS:
+                tokens.append(
+                    Token(TokenKind.KEYWORD, run, _span(line_number, start + 1, len(run)))
+                )
+            else:
+                tokens.append(
+                    Token(TokenKind.IDENT, run, _span(line_number, start + 1, len(run)))
+                )
             continue
         if char.isalpha() or char == "_":
             start = index
@@ -157,24 +162,24 @@ def tokenize_line(text: str, line_number: int) -> list[Token]:
             word = text[start:index]
             tokens.append(Token(TokenKind.IDENT, word, _span(line_number, start + 1, index - start)))
             continue
-        # Chinese characters: keywords or object names.
-        start = index
-        matched = None
-        for keyword in _KEYWORD_ORDER:
-            if text.startswith(keyword, index):
-                matched = keyword
-                break
-        if matched is not None:
-            index += len(matched)
-            tokens.append(
-                Token(TokenKind.KEYWORD, matched, _span(line_number, start + 1, len(matched)))
-            )
-            continue
-        # A single Chinese character that is not a keyword is an object name.
+        # Anything else: keep it as a symbol so that the parser can say
+        # where it did not expect it, rather than dropping it silently.
+        tokens.append(Token(TokenKind.SYMBOL, char, _span(line_number, index + 1)))
         index += 1
-        tokens.append(Token(TokenKind.IDENT, text[start:index], _span(line_number, start + 1)))
-        continue
     return tokens
+
+
+def _statement_head(run: str) -> str | None:
+    """The statement keyword a Chinese run begins with, if any.
+
+    ``断言共线(A,B)`` is one run; the head is ``断言`` and the rest is
+    the command name. Splitting here means the author need not put a
+    space between them.
+    """
+    for keyword in _KEYWORD_ORDER:
+        if run.startswith(keyword) and len(run) > len(keyword):
+            return keyword
+    return None
 
 def tokenize(source: str) -> list[Line]:
     """Tokenize the whole source into lines of tokens."""

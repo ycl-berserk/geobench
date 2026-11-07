@@ -3,7 +3,7 @@
 <line x1="575.1646" y1="405.0549" x2="234.9451" y2="64.8354" stroke="#000000" stroke-width="0.4"/>
 <line x1="234.9451" y1="64.8354" x2="64.8354" y2="405.0549" stroke="#000000" stroke-width="0.4"/>
 <circle cx="320" cy="320" r="268.9671" fill="none" stroke="#000000" stroke-width="0.4"/>
-<line x1="-0" y1="469.8903" x2="469.8903" y2="0" stroke="#000000" stroke-width="0.4"/>
+<line x1="64.8354" y1="405.0549" x2="320" y2="149.8903" stroke="#000000" stroke-width="0.4"/>
 <circle cx="64.8354" cy="405.0549" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
 <circle cx="575.1646" cy="405.0549" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
 <circle cx="234.9451" cy="64.8354" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
