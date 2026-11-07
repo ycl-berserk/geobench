@@ -252,8 +252,8 @@
           "(y_A*sqrt((x_B - x_C)**2 + (y_B - y_C)**2) + y_B*sqrt((-x_A + x_C)**2 + (-y_A + y_C)**2) + y_C*sqrt((x_A - x_B)**2 + (y_A - y_B)**2))/(sqrt((-x_A + x_C)**2 + (-y_A + y_C)**2) + sqrt((x_A - x_B)**2 + (y_A - y_B)**2) + sqrt((x_B - x_C)**2 + (y_B - y_C)**2))"
         ],
         "placement": [
-          "6*(1 + sqrt(5))/(sqrt(5) + 2*sqrt(2) + 3)",
-          "12/(sqrt(5) + 2*sqrt(2) + 3)"
+          "2.40764085275",
+          "1.4880038797"
         ],
         "label": "I",
         "style": {
