@@ -491,6 +491,7 @@ _KIND_BY_COMMAND: dict[str, str] = {
     "circle.free": CIRCLE,
     "circle.center_point": CIRCLE,
     "circle.through": CIRCLE,
+    "circle.incircle": CIRCLE,
 }
 
 

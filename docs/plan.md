@@ -165,7 +165,8 @@ src/geobench/
 | T025 | GeoGebra 几何命令总表与算子映射 | 算子 | `pytest tests/unit/test_commands.py -q` | `[x]` |
 | T026 | 点族算子补齐 | 算子 | `pytest tests/oracle -q` | `[x]` |
 | T027 | 线族算子补齐 | 算子 | `pytest tests/oracle -q` | `[x]` |
-| T028 | 圆与弧扇形族 | 算子 | `pytest tests/oracle -q` | `[ ]` |
+| T028 | 圆族（圆心一点 · 内切圆） | 算子 | `pytest tests/oracle -q` | `[x]` |
+| T028b | 弧与扇形（要新增图元种类） | 算子 / 渲染 | `pytest tests/oracle -q` | `[ ]` |
 | T029 | 多边形族 | 算子 | `pytest tests/oracle -q` | `[ ]` |
 | T030 | 变换族（平移/旋转/位似/镜像） | 算子 | `pytest tests/oracle -q` | `[ ]` |
 | T031 | 轨迹 / 包络 / 参数曲线 | 算子 | `pytest tests/oracle -q` | `[ ]` |
@@ -250,9 +251,9 @@ src/geobench/
 | GeoGebra | 中文 | 我们的算子 | 状态 |
 |---|---|---|---|
 | `Circle` | 圆 | `circle.free` | `[x]` |
-| `Circle` | 圆 | `circle.center_point` | `[ ]` |
+| `Circle` | 圆 | `circle.center_point` | `[x]` |
 | `Circumcircle` | 外接圆 | `circle.through` | `[x]` |
-| `Incircle` | 内切圆 | `circle.incircle` | `[ ]` |
+| `Incircle` | 内切圆 | `circle.incircle` | `[x]` |
 | `Arc` | 弧 | `arc.free` | `[ ]` |
 | `CircularArc` | 圆弧 | `arc.three_points` | `[ ]` |
 | `CircularSector` | 圆扇形 | `sector.circular` | `[ ]` |
@@ -406,14 +407,14 @@ src/geobench/
 
 ## 10. 当前状态快照
 
-- 内核：**19 个算子**、9 个判定器、MCP 三工具
-- 命令表：**77 条** GeoGebra 几何命令已登记（`src/geobench/commands.py`），**23 条已实现**；覆盖表由它生成
+- 内核：**21 个算子**、9 个判定器、MCP 三工具
+- 命令表：**77 条** GeoGebra 几何命令已登记（`src/geobench/commands.py`），**25 条已实现**；覆盖表由它生成
 - 求值：**已分层**（T015）—— 精确路径增量缓存，数值路径编译执行
 - 性能：**已有 CI 预算门禁**（T016）；**结论缓存**（T017）
 - 渲染：**原语列表 + 双后端**（T018）—— 屏幕与导出吃同一份
 - 画板：**能开窗了**（T019–T022）—— 拖点 · 工具栏构造 · 构造步骤表 · 判定面板
 - DSL：**函数式 + 中英文命令名**（T024）—— `M = 中点(A,B)`，`M=Midpoint(A,B)` 同样成立
-- 测试：408 通过；ruff / mypy --strict 干净；CI 绿
+- 测试：416 通过；ruff / mypy --strict 干净；CI 绿
 - 下一步：**M-C 的算子补齐**（T026 点族 · T028 圆弧扇形 · T029 多边形 · T030 变换 · T031 轨迹 · T032 圆锥曲线）
 
 ## 11. 变更记录
@@ -426,4 +427,4 @@ src/geobench/
 | 2026-11-07 | T018 完成：原语列表 + SVG/QPainter 双后端。**T019–T022 完成：桌面工作台能开窗了**（画板 · 工具栏 · 构造步骤表 · 判定面板）。`geobench-app` 命令已可用。 |
 | 2026-11-07 | 关系选择器改掉了"取前 N 个对象"的做法 —— 那样会悄悄检查一个没人提过的断言。判定面板加了**证据栏**（完整证明 / 反例）。CI 补上 Qt 的系统库与 app 依赖。 |
 | 2026-11-07 | **T024 + T025 完成：DSL 改函数式（中英文命令名都认），命令表成为唯一真源。** §6 的覆盖表改为**生成**的（`scripts/gen_coverage.py`，CI 盯）。句子式作废。 |
-| 2026-11-07 | **T026 完成：点族补齐**（两圆交点 · 最近点）。**T027 完成：线族补齐**（中垂线 · 角平分线 · 切线）。 |
+| 2026-11-07 | **T026 完成：点族补齐**（两圆交点 · 最近点）。**T027 完成：线族补齐**（中垂线 · 角平分线 · 切线）。**T028 完成：圆族**（圆心一点 · 内切圆）；弧与扇形另立 T028b（要新增图元种类）。 |

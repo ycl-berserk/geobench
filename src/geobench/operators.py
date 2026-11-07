@@ -506,6 +506,40 @@ def op_circle_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {"kind": "circle", "circle": (cx, cy, r2)}
 
 
+def op_circle_center_point(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The circle with a given centre that passes through another point (圆心一点)."""
+    cx, cy = ctx.point(args[0])
+    px, py = ctx.point(args[1])
+    r2 = (px - cx) ** 2 + (py - cy) ** 2
+    if r2 == 0:
+        raise DegenerateError("the point is the centre, so the radius is zero")
+    return {"kind": "circle", "circle": (cx, cy, r2)}
+
+
+def op_circle_incicle(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The incircle of a triangle (内切圆).
+
+    The centre is the incentre, and the radius is the area over the
+    semi-perimeter: r = A/s. Since the area enters squared, the sign of
+    the cross product does not matter and no absolute value is needed.
+    """
+    ax, ay = ctx.point(args[0])
+    bx, by = ctx.point(args[1])
+    cx, cy = ctx.point(args[2])
+    ix, iy = cast(tuple[Expr, Expr], op_incenter(ctx, args)["coords"])
+    a_len = sp.sqrt((bx - cx) ** 2 + (by - cy) ** 2)
+    b_len = sp.sqrt((cx - ax) ** 2 + (cy - ay) ** 2)
+    c_len = sp.sqrt((ax - bx) ** 2 + (ay - by) ** 2)
+    total = a_len + b_len + c_len
+    if total == 0:
+        raise DegenerateError("degenerate triangle; no incircle")
+    # Twice the signed area of the triangle.
+    area2 = (bx - ax) * (cy - ay) - (cx - ax) * (by - ay)
+    # r = area / s = |area2| / total, so r^2 = area2^2 / total^2.
+    r2 = area2**2 / total**2
+    return {"kind": "circle", "circle": (ix, iy, r2)}
+
+
 # -- registry --------------------------------------------------------------
 
 _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
@@ -593,6 +627,28 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             degenerate_when=("a == b",),
             oracle="sympy.geometry:Line",
         ),        op_line_free,
+    ),
+    (
+        OpSpec(
+            id="circle.center_point",
+            kind="circle",
+            args=(ArgSpec("center", "point"), ArgSpec("through", "point")),
+            returns="circle",
+            degenerate_when=("the point is the centre",),
+            oracle="sympy.geometry:Circle(centre, point)",
+        ),
+        op_circle_center_point,
+    ),
+    (
+        OpSpec(
+            id="circle.incircle",
+            kind="circle",
+            args=(ArgSpec("a", "point"), ArgSpec("b", "point"), ArgSpec("c", "point")),
+            returns="circle",
+            degenerate_when=("a, b, c collinear",),
+            oracle="sympy.geometry:Triangle.incircle",
+        ),
+        op_circle_incicle,
     ),
     (
         OpSpec(
