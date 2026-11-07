@@ -1,8 +1,10 @@
 """The exactness invariant, enforced mechanically.
 
-Floating point may only appear at the render boundary. This test walks the
-AST of every kernel module and fails on any float literal that is not inside
-an explicitly allowed display helper.
+Floating point may only appear at the render boundary and in the numeric
+path -- the fast, approximate path that draws the screen and never
+produces a verdict (decision D18). This test walks the AST of every
+kernel module and fails on any float literal that is not inside an
+explicitly allowed module.
 """
 
 from __future__ import annotations
@@ -13,11 +15,22 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parents[2] / "src" / "geobench"
 
 ALLOWED_FUNCTIONS = {"to_float", "to_floats"}
-ALLOWED_MODULE_PREFIXES = ("render", "style")
+
+#: The modules where floating point is allowed, and why.
+#:
+#: Each entry is a deliberate exception with a reason. The list is
+#: short on purpose: every name in it is a place where an approximation
+#: could leak into a verdict, so each one is a thing to keep an eye on.
+ALLOWED_MODULES = {
+    "render": "the renderer draws in pixels",
+    "style": "the style preset carries point sizes and line widths",
+    "numeric": "the numeric path is the display path; it may never produce "
+    "a verdict, which tests/contract asserts",
+}
 
 
 def _is_allowed_module(path: Path) -> bool:
-    return path.stem.startswith(ALLOWED_MODULE_PREFIXES)
+    return path.stem in ALLOWED_MODULES
 
 
 def find_float_literals(source: str, allowed_functions: frozenset[str] = frozenset()) -> list[tuple[int, float]]:

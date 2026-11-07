@@ -165,6 +165,16 @@ class Figure:
     nodes: dict[str, Node] = field(default_factory=dict)
     relations: list[Relation] = field(default_factory=list)
     meta: dict[str, Any] = field(default_factory=dict)
+    runtime: dict[str, Any] = field(
+        default_factory=dict, repr=False, compare=False
+    )
+    """Scratch space for the evaluator.
+
+    Never serialised: it holds compiled functions and version counters,
+    which are only meaningful for the process that built them. The
+    *contents* are preserved across :meth:`copy`, because a copy is the
+    same construction and therefore the same cached expressions.
+    """
 
     # -- mutation ---------------------------------------------------------
 
@@ -389,7 +399,16 @@ class Figure:
         return figure
 
     def copy(self) -> Figure:
-        return Figure.from_json(self.to_json())
+        clone = Figure.from_json(self.to_json())
+        # The copy is the same construction, so the cached expressions and
+        # the compiled numeric functions are still valid for it. Keeping
+        # them is what makes an edit cheap: only the part of the graph
+        # that actually changed has to be recomputed.
+        clone.runtime = dict(self.runtime)
+        for node_id, node in self.nodes.items():
+            if node_id in clone.nodes:
+                clone.nodes[node_id].cache = dict(node.cache)
+        return clone
 
 
 def iter_points(figure: Figure) -> Iterable[Node]:

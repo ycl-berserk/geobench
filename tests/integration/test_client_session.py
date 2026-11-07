@@ -232,5 +232,9 @@ def test_a_degenerate_construction_is_reported_as_degraded() -> None:
 
     response = _with_session(work)
     assert response["status"] == "degraded"
-    assert response["errors"], "a degraded construction must say why"
-    assert response["errors"][0]["code"] == "degenerate"
+    # A degenerate configuration is not a mistake in the request, so it is
+    # reported as a warning: "error" would tell the agent to change
+    # something that is already correct.
+    assert not response["errors"], "a degenerate construction is not an error"
+    assert response["warnings"], "a degraded construction must say why"
+    assert "O" in response["warnings"][0]

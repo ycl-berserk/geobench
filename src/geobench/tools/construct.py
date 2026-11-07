@@ -17,7 +17,7 @@ from collections.abc import Callable
 from typing import Any, Literal
 
 from geobench.errors import GeobenchError
-from geobench.evaluate import evaluate_figure
+from geobench.evaluate import evaluate_figure, undefined_nodes
 from geobench.registry import OperatorRegistry
 from geobench.state import FigureStore, OpRequest
 from geobench.tools.errors import to_error_info
@@ -65,17 +65,26 @@ def make_construct_tool(
             try:
                 evaluate_figure(evaluated, registry)
             except GeobenchError as exc:
-                # The construction is legal; the geometry is not (yet)
-                # computable. The figure stays as it was built, and the
-                # reason is reported rather than swallowed.
+                # The construction is illegal: the operator refused it.
                 errors.append(to_error_info(exc))
-                warnings.append(
-                    f"the figure was constructed but could not be evaluated: {exc}"
-                )
+                warnings.append(f"the figure was constructed but could not be evaluated: {exc}")
                 status = "degraded"
             else:
                 if not dry_run:
                     store.set_figure(fid, evaluated)
+                # An object that has no value at this placement is
+                # *undefined*, not an error: the figure is still a figure
+                # (decision D19), but the caller has to know that part of
+                # it could not be computed.
+                undefined = undefined_nodes(evaluated)
+                if undefined:
+                    status = "degraded"
+                    listed = ", ".join(
+                        f"{node_id} ({reason})" for node_id, reason in undefined
+                    )
+                    warnings.append(
+                        "these objects have no value at the current placement: " + listed
+                    )
 
         return ConstructResponse(
             status=status,

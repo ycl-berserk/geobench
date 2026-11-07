@@ -8,8 +8,8 @@ These tests pin down the conventions the oracle deliberately leaves free.
 
 from __future__ import annotations
 
-from geobench.errors import AmbiguousIntersectionError, DegenerateError
-from geobench.evaluate import evaluate_figure
+from geobench.errors import AmbiguousIntersectionError
+from geobench.evaluate import evaluate_figure, undefined_nodes
 from geobench.model import CIRCLE, DERIVED, FREE, LINE, POINT, SEGMENT, Figure, Node
 from geobench.operators import register_builtins
 from geobench.registry import OperatorRegistry
@@ -168,7 +168,12 @@ def test_the_other_intersection_needs_a_known_point_on_the_circle() -> None:
 
 
 def test_a_tangent_line_has_no_second_point() -> None:
-    """A tangent line meets the circle once; there is no 'other' point."""
+    """A tangent line meets the circle once; there is no 'other' point.
+
+    GeoGebra's answer is that the object is *undefined*, not that the
+    whole construction fails -- and so is ours (decision D19). The figure
+    survives; the point does not.
+    """
     figure = Figure(id="fig_tangent")
     for name, x, y in (("A", "0", "0"), ("B", "2", "0"), ("C", "1", "1")):
         figure.add_node(
@@ -193,8 +198,9 @@ def test_a_tangent_line_has_no_second_point() -> None:
             args=["l1", "O", "other"],
         )
     )
-    try:
-        evaluate_figure(figure, _registry())
-    except DegenerateError:
-        return
-    raise AssertionError("a tangent line must be refused")
+    evaluate_figure(figure, _registry())
+    undefined = undefined_nodes(figure)
+    assert ("P", "discriminant") in undefined, (
+        f"a tangent line must leave the point undefined, got {undefined}"
+    )
+    assert figure.nodes["P"].placement is None
