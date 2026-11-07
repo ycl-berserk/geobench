@@ -264,6 +264,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         CONSTRUCTION,
         2,
         "线段的中垂线",
+        True,
     ),
     _c(
         "line.angle_bisector",
@@ -273,8 +274,9 @@ COMMANDS: tuple[CommandSpec, ...] = (
         CONSTRUCTION,
         3,
         "角的平分线",
+        True,
     ),
-    _c("line.tangent", "切线", "Tangent", "线", CONSTRUCTION, 2, "圆的切线"),
+    _c("line.tangent", "切线", "Tangent", "线", CONSTRUCTION, 2, "圆的切线", True),
     _c("line.polar", "极线", "Polar", "线", CONSTRUCTION, 2, "点的极线"),
     _c("ray.free", "射线", "Ray", "线", CONSTRUCTION, 2, "射线"),
     _c("segment.free", "线段", "Segment", "线", CONSTRUCTION, 2, "线段", True),

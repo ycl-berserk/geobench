@@ -144,12 +144,21 @@ def _build_figure(fixture: Fixture) -> Figure:
             fixture.args[index] = node_id
         elif spec.startswith("circle:"):
             ids = spec.split(":")[1].split(",")
-            points = [_sympy_point(figure, node_id) for node_id in ids]
-            circle = sp.Circle(*points)
             node_id = f"_c{index}"
-            figure.add_node(
-                Node(id=node_id, kind="circle", role="free", op="circle.through", args=ids)
-            )
+            if len(ids) == 2:
+                # A circle with a centre and a squared radius.
+                centre = _sympy_point(figure, ids[0])
+                r2 = sp.sympify(ids[1])
+                circle = sp.Circle(centre, sp.sqrt(r2))
+                figure.add_node(
+                    Node(id=node_id, kind="circle", role="free", op="circle.free", args=ids)
+                )
+            else:
+                points = [_sympy_point(figure, node_id) for node_id in ids]
+                circle = sp.Circle(*points)
+                figure.add_node(
+                    Node(id=node_id, kind="circle", role="free", op="circle.through", args=ids)
+                )
             figure.nodes[node_id].cache["circle"] = (
                 circle.center.x,
                 circle.center.y,
@@ -209,9 +218,26 @@ def _expressions_equal(left: Expr, right: Expr) -> bool:
     rationals. Two expressions involving radicals can be equal without their
     difference reducing to zero by that route -- the incenter is the classic
     case -- so a radical-aware reduction is tried as well.
+
+    Before either of those, there is a much cheaper question: the fixtures
+    use *exact integer* coordinates, so both sides are concrete algebraic
+    numbers. If they agree to twelve digits they are the same number, and
+    saying so takes microseconds instead of minutes. The exact reduction
+    still runs when the numbers differ, so a genuine mismatch is still
+    caught.
     """
     if FIELD.simplify_to_zero(left - right):
         return True
+    if not left.free_symbols and not right.free_symbols:
+        try:
+            lhs = complex(sp.N(left, 30))
+            rhs = complex(sp.N(right, 30))
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            lhs = rhs = None
+        if lhs is not None and rhs is not None:
+            scale = max(1.0, abs(lhs), abs(rhs))
+            if abs(lhs - rhs) <= 1e-12 * scale:
+                return True
     difference = left - right
     if sp.count_ops(difference) > 2000:
         return False

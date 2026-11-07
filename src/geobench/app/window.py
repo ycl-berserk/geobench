@@ -81,6 +81,20 @@ TOOLS: tuple[ToolSpec, ...] = (
     ToolSpec("incenter", "内心", "point.incenter", 3, "依次点三个点"),
     ToolSpec("orthocenter", "垂心", "point.orthocenter", 3, "依次点三个点"),
     ToolSpec("circumcircle", "外接圆", "circle.through", 3, "依次点三个点"),
+    ToolSpec(
+        "perpendicular_bisector",
+        "中垂线",
+        "line.perpendicular_bisector",
+        2,
+        "依次点两个点，作它们的中垂线",
+    ),
+    ToolSpec(
+        "angle_bisector",
+        "角平分线",
+        "line.angle_bisector",
+        3,
+        "依次点三个点，作中间那个角的内角平分线",
+    ),
 )
 
 #: The relations the window can check.

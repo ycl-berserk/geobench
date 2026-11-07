@@ -220,6 +220,65 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
         for _ in range(DEGENERATE):
             pts = _points(rng, 1)
             add(pts, ["A", "0"], "degenerate", "error", "zero radius")
+    elif op_id == "line.perpendicular_bisector":
+        for _ in range(TARGET):
+            pts = _distinct_pair(rng)
+            add(pts, ["A", "B"], "normal", "value", "two distinct endpoints")
+        # A vertical segment and a horizontal one: the bisector is then
+        # horizontal or vertical, which the coefficients must still get
+        # right (no slope anywhere).
+        add({"A": ("0", "0"), "B": ("0", "5")}, ["A", "B"], "edge", "value", "vertical segment")
+        add({"A": ("0", "0"), "B": ("5", "0")}, ["A", "B"], "edge", "value", "horizontal segment")
+        for _ in range(DEGENERATE):
+            pts = _distinct_pair(rng)
+            same = {"A": pts["A"], "B": pts["A"]}
+            add(same, ["A", "B"], "degenerate", "error", "zero-length segment")
+    elif op_id == "line.angle_bisector":
+        for _ in range(TARGET):
+            pts = _non_degenerate_triangle(rng)
+            add(pts, ["A", "B", "C"], "normal", "value", "non-degenerate triangle")
+        # A right angle: the bisector is at 45 degrees, which is where a
+        # sign error in the formula shows up first.
+        add(
+            {"A": ("0", "0"), "B": ("1", "1"), "C": ("0", "4")},
+            ["A", "B", "C"],
+            "edge",
+            "value",
+            "narrow angle",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("0", "0"), "C": ("4", "0")},
+            ["A", "B", "C"],
+            "degenerate",
+            "error",
+            "one side of the angle has zero length",
+        )
+        for _ in range(DEGENERATE):
+            pts = _distinct_pair(rng)
+            add(
+                {"A": pts["A"], "B": pts["A"], "C": pts["B"]},
+                ["A", "B", "C"],
+                "degenerate",
+                "error",
+                "the vertex coincides with one side's endpoint",
+            )
+    elif op_id == "line.tangent":
+        # The point of tangency is one of the three points the circle
+        # passes through, so it is on the circle by construction.
+        for _ in range(TARGET):
+            pts = _non_degenerate_triangle(rng)
+            add(pts, ["A", "circle:A,B,C"], "normal", "value", "tangent at a vertex")
+        # The tangent at the centre of the circle: the radius there is
+        # zero, so there is no tangent.
+        for offset in range(DEGENERATE):
+            pts = {"A": (str(offset), "0"), "B": ("4", "0"), "C": ("2", "3")}
+            add(
+                pts,
+                ["A", "circle:A,4"],
+                "degenerate",
+                "error",
+                "the point is the centre of the circle",
+            )
     else:
         raise ValueError(f"no fixture generator for {op_id!r}")
     return fixtures
@@ -237,6 +296,9 @@ OPERATORS = [
     "line.free",
     "line.perpendicular_through",
     "line.parallel_through",
+    "line.perpendicular_bisector",
+    "line.angle_bisector",
+    "line.tangent",
     "segment.free",
     "circle.through",
     "circle.free",

@@ -119,6 +119,21 @@ def test_a_relation_about_two_segments_becomes_four_points() -> None:
     assert figure.relations[0].args == ["A", "B", "A", "C"]
 
 
+def test_the_new_line_commands_are_built() -> None:
+    source = (
+        "点 A(0,0) B(6,0) C(2,4)\n"
+        "m = 中垂线(A,B)\n"
+        "b = 角平分线(A,B,C)\n"
+        "O = 外接圆(A,B,C)\n"
+        "t = 切线(A,O)\n"
+    )
+    figure = parse_dsl(source)
+    assert figure.node("m").op == "line.perpendicular_bisector"
+    assert figure.node("b").op == "line.angle_bisector"
+    assert figure.node("t").op == "line.tangent"
+    assert figure.node("t").args == ["A", "O"]
+
+
 def test_a_parsed_figure_evaluates(registry: OperatorRegistry) -> None:
     source = "点 A(0,0) B(6,0) C(2,4)\n△ABC\nD = 垂足(A,BC)\nM = 中点(A,B)"
     figure = parse_dsl(source)

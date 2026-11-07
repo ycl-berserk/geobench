@@ -135,6 +135,45 @@ def oracle_segment_free(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any,
     return segment.p1.x, segment.p1.y, segment.p2.x, segment.p2.y
 
 
+def oracle_perpendicular_bisector(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any]:
+    bisector = Segment(_point(ctx, args[0]), _point(ctx, args[1])).perpendicular_bisector()
+    coefficients = bisector.coefficients
+    return coefficients[0], coefficients[1], coefficients[2]
+
+
+def oracle_angle_bisector(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any]:
+    """The bisector of the angle at B.
+
+    An independent characterisation: the internal bisector of ∠ABC
+    passes through the **incentre** of triangle ABC, because the incentre
+    lies on all three internal bisectors. So the line is the one through
+    B and the incentre -- a construction the kernel does not use.
+    """
+    triangle = sp.Triangle(_point(ctx, args[0]), _point(ctx, args[1]), _point(ctx, args[2]))
+    incentre = triangle.incenter
+    line = Line(_point(ctx, args[1]), sp.Point(incentre.x, incentre.y))
+    coefficients = line.coefficients
+    return coefficients[0], coefficients[1], coefficients[2]
+
+
+def oracle_tangent(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any]:
+    """The tangent to a circle at a point on it.
+
+    Written as the **polar** of the point rather than as "the line
+    through the point perpendicular to the radius": the polar of P with
+    respect to (x-cx)^2 + (y-cy)^2 = r^2 is
+
+        (x-cx)(px-cx) + (y-cy)(py-cy) = r^2,
+
+    which is the same line but a different derivation. That the two agree
+    is exactly what the point being on the circle means.
+    """
+    px, py = ctx.point(args[0])
+    cx, cy, r2 = ctx.circle(args[1])
+    nx, ny = px - cx, py - cy
+    return (nx, ny, -(nx * cx + ny * cy) - r2)
+
+
 def oracle_intersect_line_circle(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
     """The intersections of a line and a circle.
 
@@ -165,6 +204,9 @@ ORACLES = {
     "line.free": oracle_line_free,
     "line.perpendicular_through": oracle_perpendicular_through,
     "line.parallel_through": oracle_parallel_through,
+    "line.perpendicular_bisector": oracle_perpendicular_bisector,
+    "line.angle_bisector": oracle_angle_bisector,
+    "line.tangent": oracle_tangent,
     "segment.free": oracle_segment_free,
     "circle.through": oracle_circle_through,
     "circle.free": oracle_circle_free,
