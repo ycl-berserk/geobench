@@ -99,6 +99,40 @@ def _collinear_triple(rng: random.Random) -> dict[str, tuple[str, str]]:
     }
 
 
+def _centre_and_radius(
+    points: dict[str, tuple[str, str]], names: tuple[str, str, str]
+) -> tuple[float, float, float]:
+    """The circumcentre and radius of three points, in floats."""
+    ax, ay = (float(v) for v in points[names[0]])
+    bx, by = (float(v) for v in points[names[1]])
+    cx, cy = (float(v) for v in points[names[2]])
+    determinant = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+    if determinant == 0:
+        return 0.0, 0.0, 0.0
+    s1 = ax * ax + ay * ay
+    s2 = bx * bx + by * by
+    s3 = cx * cx + cy * cy
+    ux = (s1 * (by - cy) + s2 * (cy - ay) + s3 * (ay - by)) / determinant
+    uy = (s1 * (cx - bx) + s2 * (ax - cx) + s3 * (bx - ax)) / determinant
+    r2 = (ax - ux) ** 2 + (ay - uy) ** 2
+    return ux, uy, r2**0.5
+
+
+def _two_intersecting_circles(rng: random.Random) -> dict[str, tuple[str, str]]:
+    """Six points whose two triples give circles that meet in two points."""
+    while True:
+        points = _points(rng, 6, spread=5)
+        ux1, uy1, r1 = _centre_and_radius(points, ("A", "B", "C"))
+        ux2, uy2, r2 = _centre_and_radius(points, ("D", "E", "F"))
+        if r1 == 0 or r2 == 0:
+            continue
+        distance = ((ux1 - ux2) ** 2 + (uy1 - uy2) ** 2) ** 0.5
+        # Two points of intersection when neither circle contains the
+        # other and they are not too far apart.
+        if abs(r1 - r2) < distance < r1 + r2:
+            return points
+
+
 def battery(op_id: str, rng: random.Random) -> list[Fixture]:
     fixtures: list[Fixture] = []
 
@@ -279,6 +313,57 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
                 "error",
                 "the point is the centre of the circle",
             )
+    elif op_id == "point.intersect_circles":
+        for _ in range(TARGET):
+            pts = _two_intersecting_circles(rng)
+            add(pts, ["circle:A,B,C", "circle:D,E,F", "0"], "normal", "value", "first root")
+            add(pts, ["circle:A,B,C", "circle:D,E,F", "1"], "normal", "value", "second root")
+        # The same circle twice: concentric, so there is no pair of points.
+        pts = _points(rng, 3)
+        add(pts, ["circle:A,B,C", "circle:A,B,C", "0"], "degenerate", "error", "the same circle twice")
+        # Two circles far apart: they never meet.
+        far = {
+            "A": ("0", "0"),
+            "B": ("4", "0"),
+            "C": ("2", "3"),
+            "D": ("40", "0"),
+            "E": ("44", "0"),
+            "F": ("42", "3"),
+        }
+        add(far, ["circle:A,B,C", "circle:D,E,F", "0"], "degenerate", "error", "the circles do not meet")
+        # One circle strictly inside the other: they never meet either.
+        inside = {
+            "A": ("0", "0"),
+            "B": ("4", "0"),
+            "C": ("2", "3"),
+            "D": ("1", "1"),
+            "E": ("3", "1"),
+            "F": ("2", "2"),
+        }
+        add(
+            inside,
+            ["circle:A,B,C", "circle:D,E,F", "0"],
+            "degenerate",
+            "error",
+            "one circle inside the other",
+        )
+    elif op_id == "point.nearest_on_object":
+        for _ in range(TARGET):
+            pts = _points(rng, 3)
+            add(pts, ["A", "line:B,C"], "normal", "value", "nearest point on a line")
+            add(pts, ["A", "segment:B,C"], "normal", "value", "nearest point on a segment")
+        # The foot falls outside the segment: the nearest point is then
+        # the nearer end, which is what a foot is not.
+        add(
+            {"A": ("10", "0"), "B": ("0", "0"), "C": ("2", "0")},
+            ["A", "segment:B,C"],
+            "edge",
+            "value",
+            "the foot is beyond the end of the segment",
+        )
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 3)
+            add(pts, ["A", "segment:B,B"], "degenerate", "error", "zero-length segment")
     else:
         raise ValueError(f"no fixture generator for {op_id!r}")
     return fixtures
@@ -290,6 +375,8 @@ OPERATORS = [
     "point.foot",
     "point.intersect_lines",
     "point.intersect_line_circle",
+    "point.intersect_circles",
+    "point.nearest_on_object",
     "point.circumcenter",
     "point.incenter",
     "point.orthocenter",

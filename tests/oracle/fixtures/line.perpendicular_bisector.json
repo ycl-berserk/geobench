@@ -5,31 +5,12 @@
     {
       "points": {
         "A": [
-          "2",
-          "0"
+          "3",
+          "5"
         ],
         "B": [
-          "6",
-          "-6"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "-3"
-        ],
-        "B": [
-          "-3",
-          "7"
+          "-7",
+          "-7"
         ]
       },
       "args": [
@@ -44,87 +25,11 @@
       "points": {
         "A": [
           "-1",
-          "-4"
-        ],
-        "B": [
-          "-3",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "4",
-          "-6"
-        ],
-        "B": [
-          "-2",
-          "2"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-3"
+          "6"
         ],
         "B": [
           "-7",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "8"
-        ],
-        "B": [
-          "-5",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
           "4"
-        ],
-        "B": [
-          "5",
-          "-4"
         ]
       },
       "args": [
@@ -138,50 +43,12 @@
     {
       "points": {
         "A": [
-          "8",
-          "1"
-        ],
-        "B": [
-          "-5",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "-2",
-          "2"
-        ],
-        "B": [
           "-4",
-          "-4"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "0"
+          "-8"
         ],
         "B": [
-          "8",
-          "-3"
+          "1",
+          "1"
         ]
       },
       "args": [
@@ -196,30 +63,11 @@
       "points": {
         "A": [
           "-6",
-          "-5"
+          "4"
         ],
         "B": [
-          "-7",
-          "0"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
+          "-3",
           "-3"
-        ],
-        "B": [
-          "-8",
-          "-1"
         ]
       },
       "args": [
@@ -233,106 +81,11 @@
     {
       "points": {
         "A": [
-          "-5",
-          "-8"
-        ],
-        "B": [
-          "-5",
-          "2"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "5"
-        ],
-        "B": [
-          "-4",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "-3"
-        ],
-        "B": [
           "8",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "7"
+          "0"
         ],
         "B": [
-          "-7",
-          "-1"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-3"
-        ],
-        "B": [
-          "4",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "two distinct endpoints"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "8"
-        ],
-        "B": [
-          "2",
+          "-3",
           "-7"
         ]
       },
@@ -347,11 +100,106 @@
     {
       "points": {
         "A": [
-          "-7",
-          "8"
+          "-6",
+          "1"
+        ],
+        "B": [
+          "3",
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "-2"
         ],
         "B": [
           "8",
+          "1"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "-6",
+          "-3"
+        ],
+        "B": [
+          "4",
+          "-3"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "-7"
+        ],
+        "B": [
+          "1",
+          "-5"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "-6",
+          "7"
+        ],
+        "B": [
+          "-6",
+          "1"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "2"
+        ],
+        "B": [
+          "7",
           "-1"
         ]
       },
@@ -366,12 +214,31 @@
     {
       "points": {
         "A": [
-          "1",
-          "-4"
+          "-4",
+          "1"
         ],
         "B": [
-          "1",
-          "-8"
+          "2",
+          "-4"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-2"
+        ],
+        "B": [
+          "-2",
+          "-5"
         ]
       },
       "args": [
@@ -386,11 +253,30 @@
       "points": {
         "A": [
           "6",
-          "-2"
+          "2"
         ],
         "B": [
-          "3",
-          "-2"
+          "-8",
+          "1"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
+          "-7"
+        ],
+        "B": [
+          "1",
+          "1"
         ]
       },
       "args": [
@@ -405,11 +291,11 @@
       "points": {
         "A": [
           "-6",
-          "3"
+          "-7"
         ],
         "B": [
-          "3",
-          "-3"
+          "-8",
+          "-8"
         ]
       },
       "args": [
@@ -423,12 +309,107 @@
     {
       "points": {
         "A": [
-          "2",
-          "6"
+          "-1",
+          "7"
+        ],
+        "B": [
+          "4",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "-6",
+          "-7"
         ],
         "B": [
           "-8",
+          "-5"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
           "-3"
+        ],
+        "B": [
+          "2",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "-8"
+        ],
+        "B": [
+          "7",
+          "1"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "-8"
+        ],
+        "B": [
+          "-7",
+          "8"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-8"
+        ],
+        "B": [
+          "8",
+          "-7"
         ]
       },
       "args": [
@@ -443,11 +424,30 @@
       "points": {
         "A": [
           "-7",
-          "-7"
+          "-1"
         ],
         "B": [
-          "-2",
-          "6"
+          "-4",
+          "-4"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "two distinct endpoints"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "1"
+        ],
+        "B": [
+          "-3",
+          "2"
         ]
       },
       "args": [
@@ -499,11 +499,49 @@
     {
       "points": {
         "A": [
-          "-4",
+          "6",
+          "-3"
+        ],
+        "B": [
+          "6",
+          "-3"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "degenerate",
+      "expect": "error",
+      "note": "zero-length segment"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "3"
+        ],
+        "B": [
+          "-5",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "degenerate",
+      "expect": "error",
+      "note": "zero-length segment"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
           "5"
         ],
         "B": [
-          "-4",
+          "0",
           "5"
         ]
       },
@@ -518,50 +556,12 @@
     {
       "points": {
         "A": [
-          "-3",
-          "3"
+          "-2",
+          "1"
         ],
         "B": [
-          "-3",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "degenerate",
-      "expect": "error",
-      "note": "zero-length segment"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "3"
-        ],
-        "B": [
-          "-3",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "degenerate",
-      "expect": "error",
-      "note": "zero-length segment"
-    },
-    {
-      "points": {
-        "A": [
-          "-4",
-          "3"
-        ],
-        "B": [
-          "-4",
-          "3"
+          "-2",
+          "1"
         ]
       },
       "args": [

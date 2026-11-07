@@ -196,8 +196,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         CONSTRUCTION,
         3,
         "两圆的交点",
+        True,
     ),
-    _c("point.on_object", "点在", "PointIn", "点", CONSTRUCTION, 2, "点是否在对象上"),
     _c(
         "point.nearest_on_object",
         "最近点",
@@ -206,6 +206,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         CONSTRUCTION,
         2,
         "对象上离给定点最近的点",
+        True,
     ),
     _c(
         "point.polygon_vertex",

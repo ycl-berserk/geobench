@@ -142,6 +142,21 @@ def _build_figure(fixture: Fixture) -> Figure:
             figure.add_node(Node(id=node_id, kind="line", role="free", op="line.free", args=ids))
             figure.nodes[node_id].cache["line"] = coefficients
             fixture.args[index] = node_id
+        elif spec.startswith("segment:"):
+            ids = spec.split(":")[1].split(",")
+            first = _sympy_point(figure, ids[0])
+            second = _sympy_point(figure, ids[1])
+            node_id = f"_s{index}"
+            figure.add_node(
+                Node(id=node_id, kind="segment", role="free", op="segment.free", args=ids)
+            )
+            figure.nodes[node_id].cache["segment"] = (
+                first.x,
+                first.y,
+                second.x,
+                second.y,
+            )
+            fixture.args[index] = node_id
         elif spec.startswith("circle:"):
             ids = spec.split(":")[1].split(",")
             node_id = f"_c{index}"
@@ -250,7 +265,7 @@ def _expressions_equal(left: Expr, right: Expr) -> bool:
 # Operators whose result is one of several roots: the kernel picks one by a
 # convention, so the oracle returns the whole set and the harness checks
 # membership rather than position.
-SET_COMPARISON = {"point.intersect_line_circle"}
+SET_COMPARISON = {"point.intersect_line_circle", "point.intersect_circles"}
 
 
 def _compare_set(kernel_value: Any, oracle_value: Any) -> str | None:

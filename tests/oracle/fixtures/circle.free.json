@@ -5,13 +5,43 @@
     {
       "points": {
         "A": [
-          "-5",
-          "-8"
+          "7",
+          "-6"
         ]
       },
       "args": [
         "A",
-        "32"
+        "13"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "23"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "12"
       ],
       "kind": "normal",
       "expect": "value",
@@ -21,7 +51,7 @@
       "points": {
         "A": [
           "-7",
-          "3"
+          "-5"
         ]
       },
       "args": [
@@ -35,88 +65,13 @@
     {
       "points": {
         "A": [
-          "-8",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "24"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "20"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "29"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "-6"
-        ]
-      },
-      "args": [
-        "A",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
+          "-2",
           "-1"
         ]
       },
       "args": [
         "A",
-        "25"
+        "36"
       ],
       "kind": "normal",
       "expect": "value",
@@ -125,113 +80,8 @@
     {
       "points": {
         "A": [
-          "-5",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "20"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "19"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "-3"
-        ]
-      },
-      "args": [
-        "A",
-        "19"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-4"
-        ]
-      },
-      "args": [
-        "A",
-        "9"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "11"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "4"
-        ]
-      },
-      "args": [
-        "A",
-        "11"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "4",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "29"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "-4",
-          "-2"
+          "-2",
+          "0"
         ]
       },
       "args": [
@@ -246,7 +96,22 @@
       "points": {
         "A": [
           "5",
-          "3"
+          "-4"
+        ]
+      },
+      "args": [
+        "A",
+        "14"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "8"
         ]
       },
       "args": [
@@ -260,13 +125,13 @@
     {
       "points": {
         "A": [
-          "-3",
-          "-4"
+          "4",
+          "-8"
         ]
       },
       "args": [
         "A",
-        "2"
+        "9"
       ],
       "kind": "normal",
       "expect": "value",
@@ -275,88 +140,13 @@
     {
       "points": {
         "A": [
-          "7",
-          "3"
+          "3",
+          "8"
         ]
       },
       "args": [
         "A",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "6"
-        ]
-      },
-      "args": [
-        "A",
-        "6"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-4"
-        ]
-      },
-      "args": [
-        "A",
-        "28"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "-1"
-        ]
-      },
-      "args": [
-        "A",
-        "20"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "36"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "positive squared radius"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "0"
-        ]
-      },
-      "args": [
-        "A",
-        "2"
+        "25"
       ],
       "kind": "normal",
       "expect": "value",
@@ -371,17 +161,212 @@
       },
       "args": [
         "A",
-        "0"
+        "5"
       ],
-      "kind": "degenerate",
-      "expect": "error",
-      "note": "zero radius"
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "7"
+        ]
+      },
+      "args": [
+        "A",
+        "28"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
     },
     {
       "points": {
         "A": [
           "7",
+          "-8"
+        ]
+      },
+      "args": [
+        "A",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
           "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "14"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "-8",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "21"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "2"
+        ]
+      },
+      "args": [
+        "A",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-3"
+        ]
+      },
+      "args": [
+        "A",
+        "36"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "-6",
+          "-4"
+        ]
+      },
+      "args": [
+        "A",
+        "26"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "-6"
+        ]
+      },
+      "args": [
+        "A",
+        "8"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "17"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "-8"
+        ]
+      },
+      "args": [
+        "A",
+        "35"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "26"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "positive squared radius"
+    },
+    {
+      "points": {
+        "A": [
+          "-8",
+          "3"
         ]
       },
       "args": [
@@ -396,7 +381,7 @@
       "points": {
         "A": [
           "0",
-          "1"
+          "2"
         ]
       },
       "args": [
@@ -410,8 +395,23 @@
     {
       "points": {
         "A": [
-          "6",
-          "4"
+          "2",
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "0"
+      ],
+      "kind": "degenerate",
+      "expect": "error",
+      "note": "zero radius"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "0"
         ]
       },
       "args": [
