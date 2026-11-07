@@ -161,8 +161,8 @@ src/geobench/
 
 | ID | 任务 | 层 | 验收 | 状态 |
 |---|---|---|---|---|
-| T024 | DSL 改函数式 + GeoGebra 中文命令名 | DSL | `pytest tests/unit/dsl -q` | `[ ]` |
-| T025 | GeoGebra 几何命令总表与算子映射 | 算子 | `pytest tests/contract -q` | `[ ]` |
+| T024 | DSL 改函数式 + GeoGebra 中文命令名 | DSL | `pytest tests/unit/dsl -q` | `[x]` |
+| T025 | GeoGebra 几何命令总表与算子映射 | 算子 | `pytest tests/unit/test_commands.py -q` | `[x]` |
 | T026 | 点族算子补齐 | 算子 | `pytest tests/oracle -q` | `[ ]` |
 | T027 | 线族算子补齐 | 算子 | `pytest tests/oracle -q` | `[ ]` |
 | T028 | 圆与弧扇形族 | 算子 | `pytest tests/oracle -q` | `[ ]` |
@@ -201,132 +201,137 @@ src/geobench/
 
 ## 6. 命令覆盖表
 
-> **逐条推进，做一条勾一条。** 中文名以 GeoGebra 手册为准；标「?」的是尚未核对的，落地前必须核。
-> 状态：`[x]` 已实现并对拍 · `[~]` 进行中 · `[ ]` 未开始
+> **逐条推进，做一条勾一条。** 这张表是**生成的** —— 由 `src/geobench/commands.py` 的命令表写出，
+> 跑 `python scripts/gen_coverage.py` 更新，CI 用 `--check` 盯着它不让它落后于代码。
+>
+> 中文名取 GeoGebra 的中文命令名；**英文名同样接受**（GeoGebra 自己的输入栏在任何语言下都认英文），
+> 所以老师在 GeoGebra 里怎么打，这里就怎么打。
+>
+> 状态：`[x]` 已实现并对拍 · `[ ]` 未开始
+
+<!-- coverage:start -->
 
 ### 6.1 点
 
 | GeoGebra | 中文 | 我们的算子 | 状态 |
 |---|---|---|---|
-| `Point(x,y)` | 点 | `point.free` | `[x]` |
-| `Midpoint(A,B)` | 中点 | `point.midpoint` | `[x]` |
-| `Barycenter(A,B,C)` | 重心 | `point.centroid` | `[x]` |
-| `Circumcenter(A,B,C)` | 外心 | `point.circumcenter` | `[x]` |
-| `Incenter(A,B,C)` | 内心 | `point.incenter` | `[x]` |
-| `Orthocenter(A,B,C)` | 垂心 | `point.orthocenter` | `[x]` |
-| `Intersect(l1,l2)` | 相交 | `point.intersect_lines` | `[x]` |
-| `Intersect(l,c)` | 相交 | `point.intersect_line_circle` | `[x]` |
-| `Intersect(c1,c2)` | 相交 | `point.intersect_circles` | `[ ]` |
-| `PointIn(c,A)` | 点在 | `point.on_circle` | `[ ]` |
-| `NearestPoint(A,o)` | 最近点 | `point.nearest_on_object` | `[ ]` |
-| `AffineRatio(A,B,C,r)` | 仿射比 | `point.affine_ratio` | `[ ]` |
-| `Vertex(poly,i)` | 顶点 | `point.polygon_vertex` | `[ ]` |
-| `PointInRegion(A,poly)` | 点在区域内 | `point.in_region` | `[ ]` |
-| `IntersectPath(path,A)` | 路径交点 | `point.intersect_path` | `[ ]` |
-| `Mirror(A,l)` / `Rotate` / `Translate` / `Dilate` | 镜像 / 旋转 / 平移 / 位似 | 见 6.6 | `[ ]` |
+| `Point` | 点 | `point.free` | `[x]` |
+| `Midpoint` | 中点 | `point.midpoint` | `[x]` |
+| `Barycenter` | 重心 | `point.centroid` | `[x]` |
+| `Circumcenter` | 外心 | `point.circumcenter` | `[x]` |
+| `Incenter` | 内心 | `point.incenter` | `[x]` |
+| `Orthocenter` | 垂心 | `point.orthocenter` | `[x]` |
+| `OrthogonalProjection` | 垂足 | `point.foot` | `[x]` |
+| `Intersect` | 交点 | `point.intersect_lines` | `[x]` |
+| `Intersect` | 交点 | `point.intersect_line_circle` | `[x]` |
+| `Intersect` | 交点 | `point.intersect_circles` | `[ ]` |
+| `PointIn` | 点在 | `point.on_object` | `[ ]` |
+| `NearestPoint` | 最近点 | `point.nearest_on_object` | `[ ]` |
+| `Vertex` | 顶点 | `point.polygon_vertex` | `[ ]` |
+| `AffineRatio` | 仿射比 | `point.affine_ratio` | `[ ]` |
+| `PointInRegion` | 区域内点 | `point.in_region` | `[ ]` |
 
-### 6.2 线、线段、射线
-
-| GeoGebra | 中文 | 我们的算子 | 状态 |
-|---|---|---|---|
-| `Line(A,B)` | 直线 | `line.free` | `[x]` |
-| `Segment(A,B)` | 线段 | `segment.free` | `[x]` |
-| `Perpendicular(A,l)` | 垂直 | `line.perpendicular_through` | `[x]` |
-| `Parallel(A,l)` | 平行 | `line.parallel_through` | `[x]` |
-| `PerpendicularBisector(A,B)` | 中垂线 | `line.perpendicular_bisector` | `[ ]` |
-| `AngleBisector(A,B,C)` | 角平分线 | `line.angle_bisector` | `[ ]` |
-| `Tangent(A,c)` | 切线 | `line.tangent` | `[ ]` |
-| `Ray(A,B)` | 射线 | `ray.free` | `[ ]` |
-| `Bisector(A,B,C)` | 二等分线 ? | `line.angle_bisector`（别名） | `[ ]` |
-| `Trilinear(A,B,C)` | 中线 ? | `line.median` | `[ ]` |
-| `Polar(A,c)` | 极线 | `line.polar` | `[ ]` |
-
-### 6.3 圆、弧、扇形
+### 6.2 线
 
 | GeoGebra | 中文 | 我们的算子 | 状态 |
 |---|---|---|---|
-| `Circle(A,r)` | 圆周（圆心+半径） | `circle.free` | `[x]` |
-| `Circle(A,B)` | 圆周（圆心+点） | `circle.center_point` | `[ ]` |
-| `Circle(A,B,C)` | 圆周（三点） | `circle.through` | `[x]` |
-| `Circumcircle(A,B,C)` | 外接圆 | `circle.circumcircle` | `[ ]` |
-| `Incircle(A,B,C)` | 内切圆 | `circle.incircle` | `[ ]` |
-| `Arc(c,A,B)` | 弧 | `arc.free` | `[ ]` |
-| `CircularArc(A,B,C)` | 圆弧 | `arc.three_points` | `[ ]` |
-| `CircularSector(A,B,C)` | 圆扇形 | `sector.circular` | `[ ]` |
-| `Sector(A,B,r)` | 扇形 | `sector.free` | `[ ]` |
-| `Semicircle(A,B)` | 半圆 | `sector.semicircle` | `[ ]` |
-| `ConcentricCircle(c,r)` | 同心圆 | `circle.concentric` | `[ ]` |
-| `OsculatingCircle(c,A)` | 密切圆 | `circle.osculating` | `[ ]` |
+| `Line` | 直线 | `line.free` | `[x]` |
+| `Perpendicular` | 垂直 | `line.perpendicular_through` | `[x]` |
+| `Parallel` | 平行 | `line.parallel_through` | `[x]` |
+| `PerpendicularBisector` | 中垂线 | `line.perpendicular_bisector` | `[ ]` |
+| `AngleBisector` | 角平分线 | `line.angle_bisector` | `[ ]` |
+| `Tangent` | 切线 | `line.tangent` | `[ ]` |
+| `Polar` | 极线 | `line.polar` | `[ ]` |
+| `Ray` | 射线 | `ray.free` | `[ ]` |
+| `Segment` | 线段 | `segment.free` | `[x]` |
+| `PolyLine` | 折线 | `polyline.free` | `[ ]` |
 
-### 6.4 多边形与折线
+### 6.3 圆
 
 | GeoGebra | 中文 | 我们的算子 | 状态 |
 |---|---|---|---|
-| `Polygon(A,B,C)` | 多边形 | `polygon.free` | `[ ]` |
-| `RegularPolygon(A,B,n)` | 正多边形 | `polygon.regular` | `[ ]` |
-| `RigidPolygon(A,B,C)` | 刚性多边形 | `polygon.rigid` | `[ ]` |
-| `PolyLine(A,B,C)` | 折线 | `polyline.free` | `[ ]` |
-| `Vertex(poly,i)` | 顶点 | 见 6.1 | `[ ]` |
+| `Circle` | 圆 | `circle.free` | `[x]` |
+| `Circle` | 圆 | `circle.center_point` | `[ ]` |
+| `Circumcircle` | 外接圆 | `circle.through` | `[x]` |
+| `Incircle` | 内切圆 | `circle.incircle` | `[ ]` |
+| `Arc` | 弧 | `arc.free` | `[ ]` |
+| `CircularArc` | 圆弧 | `arc.three_points` | `[ ]` |
+| `CircularSector` | 圆扇形 | `sector.circular` | `[ ]` |
+| `Sector` | 扇形 | `sector.free` | `[ ]` |
+| `SectorThreePoints` | 三点扇形 | `sector.three_points` | `[ ]` |
+| `OsculatingCircle` | 密切圆 | `circle.osculating` | `[ ]` |
 
-### 6.5 测量与关系（判定器）
-
-| GeoGebra | 中文 | 我们的判定器 | 状态 |
-|---|---|---|---|
-| `Distance(A,B)` | 距离 | `equal_length` / `distance` | `[x]` |
-| `Length(o)` | 长度 | `equal_length` | `[x]` |
-| `Area(poly)` | 面积 | `area_equal` | `[ ]` |
-| `Perimeter(poly)` | 周长 | `perimeter_equal` | `[ ]` |
-| `Angle(A,B,C)` | 角度 | `angle_equal` | `[ ]` |
-| `Radius(c)` | 半径 | `radius_equal` | `[ ]` |
-| `Slope(l)` | 斜率 | `slope_equal` | `[ ]` |
-| `AreCollinear(A,B,C)` | 共线 | `collinear` | `[x]` |
-| `AreConcyclic(A,B,C,D)` | 共圆 | `concyclic` | `[x]` |
-| `AreConcurrent(l1,l2,l3)` | 共点 | `concurrent` | `[ ]` |
-| `AreEqual(o1,o2)` | 相等 | `equal_length` | `[x]` |
-| `AreCongruent(o1,o2)` | 全等 | `congruent` | `[ ]` |
-| `AreParallel(l1,l2)` | 平行 | `parallel` | `[ ]` |
-| `ArePerpendicular(l1,l2)` | 垂直 | `perpendicular` | `[x]` |
-| `IsTangent(l,c)` | 相切 | `tangent` | `[ ]` |
-| `SimpleRatio` / `DoubleRatio` | 单比 / 双比 | `ratio_equal` | `[ ]` |
-
-### 6.6 变换
+### 6.4 多边形
 
 | GeoGebra | 中文 | 我们的算子 | 状态 |
 |---|---|---|---|
-| `Translate(o,v)` | 平移 | `transform.translate` | `[ ]` |
-| `Rotate(o,θ,P)` | 旋转 | `transform.rotate` | `[ ]` |
-| `Dilate(o,k,P)` | 位似 | `transform.dilate` | `[ ]` |
-| `Mirror(o,l)` | 镜像 | `transform.mirror` | `[ ]` |
-| `Reflect(o,l)` | 反射 | `transform.reflect` | `[ ]` |
+| `Polygon` | 多边形 | `polygon.free` | `[ ]` |
+| `RegularPolygon` | 正多边形 | `polygon.regular` | `[ ]` |
+| `RigidPolygon` | 刚性多边形 | `polygon.rigid` | `[ ]` |
 
-### 6.7 轨迹与曲线
+### 6.5 变换
 
 | GeoGebra | 中文 | 我们的算子 | 状态 |
 |---|---|---|---|
-| `Locus(f,t)` | 轨迹 | `locus.free` | `[ ]` |
-| `Envelope(f)` | 包络 | `locus.envelope` | `[ ]` |
-| `Curve(t,a,b)` | 参数曲线 | `curve.parametric` | `[ ]` |
-| `TriangleCurve(a,b,c)` | 三角函数曲线 ? | — | `[ ]`（或不做） |
+| `Translate` | 平移 | `transform.translate` | `[ ]` |
+| `Rotate` | 旋转 | `transform.rotate` | `[ ]` |
+| `Dilate` | 位似 | `transform.dilate` | `[ ]` |
+| `Mirror` | 镜像 | `transform.mirror` | `[ ]` |
+| `Reflect` | 反射 | `transform.reflect` | `[ ]` |
 
-### 6.8 圆锥曲线
+### 6.6 轨迹与曲线
 
 | GeoGebra | 中文 | 我们的算子 | 状态 |
 |---|---|---|---|
-| `Ellipse(A,B,C)` | 椭圆 | `conic.ellipse` | `[ ]` |
-| `Parabola(A,B)` | 抛物线 | `conic.parabola` | `[ ]` |
-| `Hyperbola(A,B,C)` | 双曲线 | `conic.hyperbola` | `[ ]` |
-| `Conic(A,B,C,D,E)` | 二次曲线 | `conic.five_points` | `[ ]` |
-| `Directrix(c)` | 准线 | `conic.directrix` | `[ ]` |
-| `Focus(c)` | 焦点 | `conic.focus` | `[ ]` |
-| `Axes(c)` | 轴 | `conic.axes` | `[ ]` |
-| `Eccentricity(c)` | 离心率 | `conic.eccentricity` | `[ ]` |
-| `Polar(l,c)` | 极线 | 见 6.2 | `[ ]` |
+| `Locus` | 轨迹 | `locus.free` | `[ ]` |
+| `Envelope` | 包络 | `locus.envelope` | `[ ]` |
+| `Curve` | 曲线 | `curve.parametric` | `[ ]` |
 
-### 6.9 明确不做
+### 6.7 测量
 
-3D · CAS · 函数绘图 · 统计 · 表格 · 脚本 · 滑块与动画 · 列表运算 · 向量矩阵。
+| GeoGebra | 中文 | 我们的算子 | 状态 |
+|---|---|---|---|
+| `Distance` | 距离 | `measure.distance` | `[ ]` |
+| `Length` | 长度 | `measure.length` | `[ ]` |
+| `Area` | 面积 | `measure.area` | `[ ]` |
+| `Perimeter` | 周长 | `measure.perimeter` | `[ ]` |
+| `Angle` | 角度 | `measure.angle` | `[ ]` |
+| `Radius` | 半径 | `measure.radius` | `[ ]` |
+| `Slope` | 斜率 | `measure.slope` | `[ ]` |
+| `Direction` | 方向 | `measure.direction` | `[ ]` |
 
-理由：不是"几何内容"，且不在 D5（v1 = 平面几何）范围内。
+### 6.8 判定
+
+| GeoGebra | 中文 | 我们的算子 | 状态 |
+|---|---|---|---|
+| `AreCollinear` | 共线 | `collinear` | `[x]` |
+| `AreConcyclic` | 共圆 | `concyclic` | `[x]` |
+| `AreConcurrent` | 共点 | `concurrency` | `[x]` |
+| `AreEqual` | 相等 | `equal_length` | `[x]` |
+| `AreCongruent` | 全等 | `congruent` | `[ ]` |
+| `AreParallel` | 平行 | `parallel` | `[ ]` |
+| `ArePerpendicular` | 垂直 | `perpendicular` | `[x]` |
+| `IsTangent` | 相切 | `tangent_to` | `[x]` |
+| `PointIn` | 点在 | `point_in` | `[ ]` |
+| `SimpleRatio` | 比例相等 | `ratio_equal` | `[ ]` |
+| `IsMidpoint` | 中点 | `midpoint_of` | `[x]` |
+| `IsPerpendicularPoint` | 垂直 | `point_perpendicular` | `[x]` |
+| `IsAngleBisector` | 角平分线 | `angle_bisector` | `[x]` |
+
+### 6.9 圆锥曲线
+
+| GeoGebra | 中文 | 我们的算子 | 状态 |
+|---|---|---|---|
+| `Ellipse` | 椭圆 | `conic.ellipse` | `[ ]` |
+| `Parabola` | 抛物线 | `conic.parabola` | `[ ]` |
+| `Hyperbola` | 双曲线 | `conic.hyperbola` | `[ ]` |
+| `Conic` | 二次曲线 | `conic.five_points` | `[ ]` |
+| `Directrix` | 准线 | `conic.directrix` | `[ ]` |
+| `Focus` | 焦点 | `conic.focus` | `[ ]` |
+| `Axes` | 轴 | `conic.axes` | `[ ]` |
+| `Eccentricity` | 离心率 | `conic.eccentricity` | `[ ]` |
+
+<!-- coverage:end -->
 
 ## 7. 性能基准
 
@@ -402,13 +407,15 @@ src/geobench/
 
 ## 10. 当前状态快照
 
-- 内核：14 个算子、9 个判定器、DSL（句子式，M-C 改函数式）、MCP 三工具
+- 内核：14 个算子、9 个判定器、MCP 三工具
+- 命令表：**77 条** GeoGebra 几何命令已登记（`src/geobench/commands.py`），**18 条已实现**；覆盖表由它生成
 - 求值：**已分层**（T015）—— 精确路径增量缓存，数值路径编译执行
 - 性能：**已有 CI 预算门禁**（T016）；**结论缓存**（T017）
 - 渲染：**原语列表 + 双后端**（T018）—— 屏幕与导出吃同一份
 - 画板：**能开窗了**（T019–T022）—— 拖点 · 工具栏构造 · 构造步骤表 · 判定面板
-- 测试：363 通过；ruff / mypy --strict 干净；CI 绿
-- 下一步：**T020–T024 的补完**（关系选择器、判定面板细节、DSL 改函数式），或 **M-C 覆盖面**（GeoGebra 几何命令）
+- DSL：**函数式 + 中英文命令名**（T024）—— `M = 中点(A,B)`，`M=Midpoint(A,B)` 同样成立
+- 测试：385 通过；ruff / mypy --strict 干净；CI 绿
+- 下一步：**M-C 的算子补齐**（T026–T032：点族 / 线族 / 圆弧扇形 / 多边形 / 变换 / 轨迹 / 圆锥曲线），每族一个任务
 
 ## 11. 变更记录
 
@@ -419,3 +426,4 @@ src/geobench/
 | 2026-11-07 | T016 完成：性能预算成为 CI 门禁（`tests/perf`）。T017 完成：结论缓存（identity 结论与摆放无关）。 |
 | 2026-11-07 | T018 完成：原语列表 + SVG/QPainter 双后端。**T019–T022 完成：桌面工作台能开窗了**（画板 · 工具栏 · 构造步骤表 · 判定面板）。`geobench-app` 命令已可用。 |
 | 2026-11-07 | 关系选择器改掉了"取前 N 个对象"的做法 —— 那样会悄悄检查一个没人提过的断言。判定面板加了**证据栏**（完整证明 / 反例）。CI 补上 Qt 的系统库与 app 依赖。 |
+| 2026-11-07 | **T024 + T025 完成：DSL 改函数式（中英文命令名都认），命令表成为唯一真源。** §6 的覆盖表改为**生成**的（`scripts/gen_coverage.py`，CI 盯）。句子式作废。 |

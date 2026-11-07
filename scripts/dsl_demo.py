@@ -25,17 +25,18 @@ from geobench.operators import register_builtins  # noqa: E402
 from geobench.registry import OperatorRegistry  # noqa: E402
 from geobench.render import COMPETITION, render_svg  # noqa: E402
 
-# A competition-style problem, written the way a teacher would write it.
+# A competition-style problem, written the way a teacher would write it
+# in GeoGebra: the Chinese command names, function-call style.
 PROBLEM = """\
 点 A(0,0) B(6,0) C(2,4)
 △ABC
-⊙O = 过 A B C
-D = BC 上 A 的垂足
-M = AB 中点
-I = △ABC 的内心
-P = AD 与 ⊙O 的另一交点
-断言 M A B 共线
-断言 AB = AC
+O = 外接圆(A,B,C)
+D = 垂足(A,BC)
+M = 中点(A,B)
+I = 内心(A,B,C)
+P = 交点(AD,O,另一交点)
+断言 共线(M,A,B)
+断言 相等(AB,AC)
 """
 
 
