@@ -62,6 +62,37 @@ IDENTITY = "identity"
 #: The relation is decided for the configuration as drawn.
 INSTANCE = "instance"
 
+#: The runtime key holding the cached verdicts.
+CACHE_VERDICTS = "verdicts"
+
+
+def _verdict_key(
+    figure: Figure, judge_id: str, args: list[str], scope: str
+) -> tuple[object, ...]:
+    """What a verdict depends on.
+
+    An **identity** verdict does not depend on the placement -- that is
+    what "identity" means -- so the key holds only the *versions* of the
+    nodes involved, which change exactly when an expression changes.
+
+    An **instance** verdict does depend on the placement, so the free
+    points' positions are part of its key.
+    """
+    versions = figure.runtime.get("versions", {})
+    key: list[object] = [
+        judge_id,
+        tuple(args),
+        scope,
+        tuple(versions.get(arg, 0) for arg in args),
+    ]
+    if scope == INSTANCE:
+        placements = []
+        for node_id, node in figure.nodes.items():
+            if node.role == "free" and node.placement is not None:
+                placements.append((node_id, tuple(node.placement)))
+        key.append(tuple(placements))
+    return tuple(key)
+
 
 @dataclass
 class JudgeSpec:
@@ -305,7 +336,7 @@ def judge_relation(
     seed: int = 20261105,
     scope: str = IDENTITY,
 ) -> Verdict:
-    """Decide a relation about a figure.
+    """Decide a relation about a figure, reusing a verdict already reached.
 
     ``scope`` selects what the verdict means:
 
@@ -316,12 +347,43 @@ def judge_relation(
     ``INSTANCE``  the relation is checked for the configuration as drawn, with
                   the free points fixed at their placement. This is the scope
                   for "is the figure I just drew consistent with the claim".
+
+    The verdict is cached on the figure. An identity verdict does not
+    change when a free point is dragged -- that is what "identity" means
+    -- so the screen can keep showing it without re-running the proof on
+    every frame.
     """
+    cache = figure.runtime.setdefault(CACHE_VERDICTS, {})
+    key = _verdict_key(figure, judge_id, list(args), scope)
+    cached = cache.get(key)
+    if isinstance(cached, Verdict):
+        return cached
+    verdict = _judge_uncached(
+        figure, judge_id, args, registry, sample_count, seed, scope
+    )
+    cache[key] = verdict
+    return verdict
+
+
+def _judge_uncached(
+    figure: Figure,
+    judge_id: str,
+    args: list[str],
+    registry: JudgeRegistry,
+    sample_count: int,
+    seed: int,
+    scope: str,
+) -> Verdict:
+    """Decide a relation, without consulting the cache."""
     spec = registry.spec(judge_id)
     if len(args) != len(spec.args):
         raise StateError(
             f"judge {spec.id!r} takes {len(spec.args)} arguments, got {len(args)}"
         )
+
+    # A verdict that has already been reached is reused: an identity
+    # verdict does not change when a free point is dragged, so the
+    # screen can show it without re-running the proof every frame.
     ctx = JudgeContext(figure=figure, ctx=OpContext(figure))
     try:
         expression = spec.impl(ctx, list(args))

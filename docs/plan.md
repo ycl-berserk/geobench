@@ -118,8 +118,8 @@ src/geobench/
 | ID | 任务 | 层 | 验收 | 状态 |
 |---|---|---|---|---|
 | T015 | 求值分层：精确路径（缓存）+ 数值路径（lambdify 编译） | 算子 | `pytest tests/unit/test_evaluate.py -q` | `[x]` |
-| T016 | 性能基准套件与 CI 预算门禁 | 基础设施 | `pytest tests/perf -q` | `[ ]` |
-| T017 | 判定的摆放不变性 + 结论缓存 | 判定器 | `pytest tests/unit/test_judges.py -q` | `[ ]` |
+| T016 | 性能基准套件与 CI 预算门禁 | 基础设施 | `pytest tests/perf -q` | `[x]` |
+| T017 | 判定的摆放不变性 + 结论缓存 | 判定器 | `pytest tests/unit/test_judges.py -q` | `[x]` |
 | T018 | 原语列表 + QPainter/SVG 双后端 | 渲染 | `pytest tests/unit/test_primitives.py -q` | `[ ]` |
 
 **T015 做法要点**
@@ -404,9 +404,10 @@ src/geobench/
 
 - 内核：14 个算子、9 个判定器、DSL（句子式，M-C 改函数式）、MCP 三工具
 - 求值：**已分层**（T015）—— 精确路径增量缓存，数值路径编译执行
-- 测试：304 通过；ruff / mypy --strict 干净；CI 绿
+- 性能：**已有 CI 预算门禁**（T016）；**结论缓存**（T017）
+- 测试：318 通过；ruff / mypy --strict 干净；CI 绿
 - 画板：**未开始**
-- 下一步：**T016（性能门禁）**，然后 T018（原语列表）→ T019（画布）
+- 下一步：**T018（原语列表 + 双后端）**，然后 T019（画布）
 
 ## 11. 变更记录
 
@@ -414,3 +415,4 @@ src/geobench/
 |---|---|
 | 2026-11-07 | 初稿。确立覆盖面 / 速度 / 质量三条硬指标；M-A…M-E 里程碑；任务清单；命令覆盖表；性能基准表；D16–D20。 |
 | 2026-11-07 | T015 完成：求值分层。补 §7.1 实测数据；T015 勾选。退化语义改为 undefined（D19），`degraded` 的原因移到 `warnings`。 |
+| 2026-11-07 | T016 完成：性能预算成为 CI 门禁（`tests/perf`）。T017 完成：结论缓存（identity 结论与摆放无关）。 |

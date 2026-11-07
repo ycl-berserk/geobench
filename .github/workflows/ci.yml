@@ -57,8 +57,9 @@ jobs:
   #   oracle      -> T002, T006
   #   unit/dsl    -> T004
   #   property    -> T004
-  #   contract    -> T003
+  #   contract    -> T003, T015
   #   integration -> T003
+  #   perf        -> T016
   #   degeneracy  -> T006
   gates:
     runs-on: ubuntu-latest
@@ -82,3 +83,5 @@ jobs:
         run: pytest tests/contract -q
       - name: integration
         run: pytest tests/integration -q
+      - name: perf
+        run: pytest tests/perf -q
