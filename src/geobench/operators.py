@@ -347,6 +347,84 @@ def op_line_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {"kind": "line", "line": _line_through(ctx.point(args[0]), ctx.point(args[1]))}
 
 
+def op_nearest_on_object(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The point of a line or segment closest to a given point (最近点).
+
+    On a line this is the foot of the perpendicular. On a *segment* the
+    foot may lie outside it, and then the nearest point is the nearer
+    end -- which is what ``point.foot`` does not do, because a foot is
+    on the supporting line.
+    """
+    (px, py) = ctx.point(args[0])
+    node = ctx.figure.node(args[1])
+    if node.kind == "line":
+        a, b, c = ctx.line(args[1])
+        denominator = a * a + b * b
+        if denominator == 0:
+            raise DegenerateError("degenerate line")
+        # Moving p along the normal by the signed distance gives the foot.
+        shift = (a * px + b * py + c) / denominator
+        return {"kind": "point", "coords": (px - shift * a, py - shift * b)}
+    x1, y1, x2, y2 = ctx.segment(args[1])
+    dx, dy = x2 - x1, y2 - y1
+    length2 = dx * dx + dy * dy
+    if length2 == 0:
+        raise DegenerateError("a segment needs two distinct endpoints")
+    # Parametrise the segment by t in [0, 1] and clamp the unconstrained
+    # minimiser to that interval.
+    t = ((px - x1) * dx + (py - y1) * dy) / length2
+    clamped = sp.Min(sp.Max(t, 0), 1)
+    return {"kind": "point", "coords": (x1 + clamped * dx, y1 + clamped * dy)}
+
+
+def op_intersect_circles(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The intersection points of two circles (两圆交点).
+
+    The common chord of two circles lies on the **radical axis**, which
+    is found by subtracting the two circle equations -- no square root.
+    Its distance from the first centre along the line of centres is
+    ``k / (2 d^2)`` times the centre-to-centre vector, and the height of
+    the chord is ``sqrt(n) / (2 d^2)``, where ``n`` is a polynomial in
+    the coordinates. So exactly one square root survives.
+    """
+    x1, y1, r1 = ctx.circle(args[0])
+    x2, y2, r2 = ctx.circle(args[1])
+    selector = args[2]
+    dx, dy = x2 - x1, y2 - y1
+    d2 = dx * dx + dy * dy
+    if d2 == 0:
+        raise DegenerateError("the circles are concentric; no intersection points")
+    # k is the squared-distance bookkeeping of the two circles.
+    k = r1 - r2 + d2
+    # n is four times the squared half-chord, times d2. It is a
+    # polynomial, so the only irrationality left is its square root.
+    n = 4 * r1 * d2 - k * k
+    if n.is_number and n < 0:
+        raise DegenerateError("the circles do not meet")
+    # The foot of the common chord on the line of centres.
+    t = k / (2 * d2)
+    bx, by = x1 + dx * t, y1 + dy * t
+    # The offset from that foot, perpendicular to the line of centres.
+    s = sp.sqrt(n) / (2 * d2)
+    if _is_second(selector):
+        return {"kind": "point", "coords": (bx + dy * s, by - dx * s)}
+    return {
+        "kind": "point",
+        "coords": (bx - dy * s, by + dx * s),
+        # Tangency: the two circles meet in a single point, so there is
+        # no second intersection to pick.
+        "must_be_nonzero": {"discriminant": n},
+    }
+
+
+def _is_second(selector: object) -> bool:
+    """Is this the second of the two answers?"""
+    if isinstance(selector, int):
+        return selector == 1
+    text = str(selector)
+    return text == "1"
+
+
 def op_perpendicular_bisector(ctx: OpContext, args: list[str]) -> dict[str, object]:
     """The perpendicular bisector of a segment (中垂线).
 
@@ -518,9 +596,34 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
     ),
     (
         OpSpec(
+            id="point.intersect_circles",
+            kind="point",
+            args=(
+                ArgSpec("c1", "circle"),
+                ArgSpec("c2", "circle"),
+                ArgSpec("selector", "selector"),
+            ),
+            returns="point",
+            degenerate_when=("the circles are concentric", "the circles do not meet"),
+            oracle="sympy.geometry:Circle.intersection",
+        ),
+        op_intersect_circles,
+    ),
+    (
+        OpSpec(
+            id="point.nearest_on_object",
+            kind="point",
+            args=(ArgSpec("p", "point"), ArgSpec("object", "line")),
+            returns="point",
+            degenerate_when=("the object has zero length",),
+            oracle="sympy.geometry:Segment / Line projection, clamped",
+        ),
+        op_nearest_on_object,
+    ),
+    (
+        OpSpec(
             id="line.perpendicular_bisector",
-            kind="line",
-            args=(ArgSpec("a", "point"), ArgSpec("b", "point")),
+            kind="line",            args=(ArgSpec("a", "point"), ArgSpec("b", "point")),
             returns="line",
             degenerate_when=("a == b",),
             oracle="sympy.geometry:Segment.perpendicular_bisector",

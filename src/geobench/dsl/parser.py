@@ -480,6 +480,7 @@ _KIND_BY_COMMAND: dict[str, str] = {
     "point.intersect_lines": POINT,
     "point.intersect_line_circle": POINT,
     "point.intersect_circles": POINT,
+    "point.nearest_on_object": POINT,
     "line.free": LINE,
     "line.perpendicular_through": LINE,
     "line.parallel_through": LINE,

@@ -174,6 +174,54 @@ def oracle_tangent(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any]:
     return (nx, ny, -(nx * cx + ny * cy) - r2)
 
 
+def oracle_intersect_circles(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """The intersection points of two circles.
+
+    The order of the two points is a convention of the kernel's, not a
+    fact of the geometry, so this oracle returns the *set* and the
+    harness checks membership.
+    """
+    cx1, cy1, r1 = ctx.circle(args[0])
+    cx2, cy2, r2 = ctx.circle(args[1])
+    first = sp.Circle(sp.Point(cx1, cy1), sp.sqrt(r1))
+    second = sp.Circle(sp.Point(cx2, cy2), sp.sqrt(r2))
+    points = [p for p in first.intersection(second) if isinstance(p, sp.Point)]
+    if len(points) != 2:
+        raise ValueError("the circles do not meet in two points")
+    return tuple((p.x, p.y) for p in points)
+
+
+def oracle_nearest_on_object(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
+    """The point of a line or segment closest to a given point.
+
+    For a line this is the perpendicular projection. For a segment the
+    answer is whichever of the two ends and the projection is closest --
+    a case analysis, where the kernel clamps the projection's parameter
+    to the interval.
+    """
+    point = _point(ctx, args[0])
+    node = ctx.figure.node(args[1])
+    if node.kind == "line":
+        projected = _line(ctx, args[1]).projection(point)
+        return projected.x, projected.y
+    x1, y1, x2, y2 = ctx.segment(args[1])
+    first = sp.Point(x1, y1)
+    second = sp.Point(x2, y2)
+    projection = Line(first, second).projection(point)
+    # Whether the projection lies *between* the two ends is decided by
+    # the triangle equality |AP| + |PB| = |AB| -- a different
+    # characterisation from the kernel's, which clamps a parameter.
+    span = float(first.distance(second))
+    through = float(first.distance(projection) + projection.distance(second))
+    if abs(span - through) < 1e-9 * max(1.0, span):
+        nearest = projection
+    elif float(first.distance(point)) <= float(second.distance(point)):
+        nearest = first
+    else:
+        nearest = second
+    return nearest.x, nearest.y
+
+
 def oracle_intersect_line_circle(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
     """The intersections of a line and a circle.
 
@@ -207,6 +255,8 @@ ORACLES = {
     "line.perpendicular_bisector": oracle_perpendicular_bisector,
     "line.angle_bisector": oracle_angle_bisector,
     "line.tangent": oracle_tangent,
+    "point.intersect_circles": oracle_intersect_circles,
+    "point.nearest_on_object": oracle_nearest_on_object,
     "segment.free": oracle_segment_free,
     "circle.through": oracle_circle_through,
     "circle.free": oracle_circle_free,
