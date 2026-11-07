@@ -35,6 +35,10 @@ dev = [
   "mcp>=2.0",
 ]
 
+# The kernel never needs pixels; this is only for looking at the rendered
+# figures. See scripts/preview.py.
+preview = ["pymupdf>=1.24"]
+
 [project.scripts]
 geobench-mcp = "geobench.server:main"
 

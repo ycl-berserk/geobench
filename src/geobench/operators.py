@@ -193,11 +193,16 @@ def op_intersect_line_circle(ctx: OpContext, args: list[str]) -> dict[str, objec
     if isinstance(selector, str) and selector.isdigit():
         selector = int(selector)
 
-    # Parameterise the line: P(t) = P0 + t * D.
-    if b != 0:
-        p0x, p0y = sp.Integer(0), -c / b
-    else:
-        p0x, p0y = -c / a, sp.Integer(0)
+    # Parameterise the line: P(t) = P0 + t * D, where P0 is the point of
+    # the line closest to the origin and D = (b, -a) is its direction.
+    #
+    # Both choices are canonical: they depend only on the line's
+    # coefficients, so the numbering of the two intersections does not
+    # change when the same line is written down differently.
+    norm_sq = a * a + b * b
+    if norm_sq == 0:
+        raise DegenerateError("degenerate line")
+    p0x, p0y = -a * c / norm_sq, -b * c / norm_sq
     dx, dy = b, -a
 
     fx, fy = p0x - cx, p0y - cy
@@ -225,7 +230,15 @@ def op_intersect_line_circle(ctx: OpContext, args: list[str]) -> dict[str, objec
                 "point.intersect_line_circle", 2, "0, 1 or 'other'", selector
             )
         x, y = points[selector]
-        return {"kind": "point", "coords": (x, y)}
+        return {
+            "kind": "point",
+            "coords": (x, y),
+            # A tangent line has no second intersection. The discriminant
+            # is not identically zero -- it is zero only for some
+            # placements -- so the condition is published and checked by
+            # the evaluation pass, where the placement is known.
+            "must_be_nonzero": {"discriminant": disc},
+        }
 
     if selector != "other":
         raise ArgumentTypeError(
@@ -236,9 +249,16 @@ def op_intersect_line_circle(ctx: OpContext, args: list[str]) -> dict[str, objec
     # the other intersection.
     #
     # This is done algebraically rather than by comparing the two roots. The
-    # quadratic's roots satisfy t1 * t2 = c/a, so once the parameter of the
-    # known point is known, the other one follows by division -- no square
-    # root, and therefore no slow symbolic comparison.
+    # quadratic's roots satisfy t1 + t2 = -quad_b / quad_a, so once the
+    # parameter of the known point is known, the other one follows by
+    # subtraction -- no square root, and therefore no slow symbolic
+    # comparison.
+    #
+    # The *sum* is used rather than the product (t1 * t2 = quad_c / quad_a)
+    # because the product divides by the known root: when the known point
+    # happens to sit at the base of the parameterisation, that root is zero
+    # and the product form returns 0/0. The sum form never divides by a
+    # root, so it stays valid there.
     reference: tuple[Expr, Expr] | None = None
     for candidate in ctx.line_points(args[0]):
         on = (candidate[0] - cx) ** 2 + (candidate[1] - cy) ** 2 - r2
@@ -253,12 +273,11 @@ def op_intersect_line_circle(ctx: OpContext, args: list[str]) -> dict[str, objec
         )
     # The parameter of the reference point along D.
     t_ref = ((reference[0] - p0x) * dx + (reference[1] - p0y) * dy) / quad_a
-    if t_ref == 0:
-        raise DegenerateError("the reference point is the base point of the parameterisation")
-    t_other = (quad_c / quad_a) / t_ref
+    t_other = -quad_b / quad_a - t_ref
     return {
         "kind": "point",
         "coords": (p0x + t_other * dx, p0y + t_other * dy),
+        "must_be_nonzero": {"discriminant": disc},
     }
 
 
@@ -274,7 +293,13 @@ def op_circumcenter(ctx: OpContext, args: list[str]) -> dict[str, object]:
     s3 = x3 * x3 + y3 * y3
     ux = (s1 * (y2 - y3) + s2 * (y3 - y1) + s3 * (y1 - y2)) / det
     uy = (s1 * (x3 - x2) + s2 * (x1 - x3) + s3 * (x2 - x1)) / det
-    return {"kind": "point", "coords": (ux, uy)}
+    return {
+        "kind": "point",
+        "coords": (ux, uy),
+        # Three points are collinear for some placements, not identically,
+        # so the condition is published for the evaluation pass to check.
+        "must_be_nonzero": {"determinant": det},
+    }
 
 
 def op_incenter(ctx: OpContext, args: list[str]) -> dict[str, object]:

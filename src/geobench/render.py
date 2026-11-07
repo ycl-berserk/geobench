@@ -247,6 +247,10 @@ def render_svg(
         if node.kind != "point" or not node.style.visible:
             continue
         x, y = numeric_coords(figure, node_id)
+        if not (math.isfinite(x) and math.isfinite(y)):
+            # Nothing sensible to draw for a point that has no finite
+            # position (a degenerate configuration).
+            continue
         radius = (
             style.point_radius if node.role == "free" else style.derived_point_radius
         )
@@ -266,6 +270,11 @@ def render_svg(
         if not label:
             continue
         x, y = numeric_coords(figure, node_id)
+        if not (math.isfinite(x) and math.isfinite(y)):
+            # A point that could not be placed has no sensible label
+            # position. Skip it rather than dragging the whole layout
+            # into NaN with it.
+            continue
         dx, dy = _label_offset(node_id, figure)
         parts.append(
             f'<text x="{_fmt(tx(x) + dx * offset)}" y="{_fmt(ty(y) - dy * offset)}" '
@@ -287,6 +296,10 @@ def _label_offset(node_id: str, figure: Figure) -> tuple[float, float]:
         try:
             x, y = numeric_coords(figure, other.id)
         except Exception:  # pragma: no cover - defensive
+            continue
+        if not (math.isfinite(x) and math.isfinite(y)):
+            # One unplaceable point must not poison the centroid: that
+            # would push every label in the figure off the canvas.
             continue
         xs.append(x)
         ys.append(y)
