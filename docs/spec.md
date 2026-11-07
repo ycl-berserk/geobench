@@ -300,22 +300,19 @@
 
 > **语法的正本是 [`docs/dsl-spec.md`](dsl-spec.md)。** 本节是规格层面的概览，细则（记号、缺口清单、交点序号约定）以 `dsl-spec.md` 为准。
 
-### 9.2 语法草案
+### 9.2 语法
 
-行式语法，一行一条语句，空白与全角标点容错。
+行式语法，一行一条语句。**函数式**：`名称(参数, ...)`，名称与参数均用 GeoGebra 的**中文命令名**（决策 D17）。
 
 ```
 点 A(0,0) B(4,0) C(1,3)
 △ABC
-D = BC 上 A 的垂足
-E = BC 中点
-⊙O = 过 A B C
-F = ⊙O 与 AC 的另一交点
-P = DE 与 ⊙O 的交点
-断言 D E P 共线
-断言 AB = AC
-断言 A B C D 共圆
-断言 AD ⊥ BC
+D = BC上A的垂足(A,BC)
+M = 中点(A,B)
+⊙O = 外接圆(A,B,C)
+P = 交点(AD,⊙O,另一交点)
+断言 共线(M,A,B)
+断言 相等(AB,AC)
 ```
 
 语句类型：
@@ -323,25 +320,31 @@ P = DE 与 ⊙O 的交点
 | 类型 | 形式 | 语义 |
 |---|---|---|
 | 引入点 | `点 A(x,y) B(x,y)` | `point.free` |
-| 声明图元 | `△ABC` / `⊙O = 过 A B C` / `⊙O = 以 A 为圆心 半径 2` | 断言存在，不改变几何 |
-| 构造点 | `X = <构造子句>` | 映射到 §5.2 的算子 |
-| 构造子句 | `BC 上 A 的垂足` / `BC 中点` / `DE 与 ⊙O 的交点` / `∠ABC 的平分线与 AC 的交点` | 见 §9.3 |
-| 断言关系 | `断言 ...` | 写入 `relations`，由判定器裁定 |
-| 约束 | `X 在 ⊙O 上` / `AB ∥ CD` | 进入约束集 |
+| 声明图元 | `△ABC` / `⊙O = 外接圆(A,B,C)` | 断言存在，不改变几何 |
+| 构造点 | `X = <命令>(参数, ...)` | 映射到 §5.2 的算子 |
+| 构造子句 | `中点(A,B)` / `垂直(A,l)` / `交点(l,c)` / `另一交点` | 见 §9.3 |
+| 断言关系 | `断言 <关系>(参数, ...)` | 写入 `relations`，由判定器裁定 |
 
 ### 9.3 构造子句 → 算子的映射表（初版）
 
+命令名与 GeoGebra 中文命令名一致（决策 D17）；完整的覆盖表见 [`plan.md`](plan.md) §6。
+
 | 子句 | 算子 |
 |---|---|
-| `XY 中点` | `point.midpoint` |
-| `ℓ 上 P 的垂足` | `point.foot` |
-| `ℓ₁ 与 ℓ₂ 的交点` | `point.intersect_lines` |
-| `ℓ 与 ⊙O 的交点`（可指定"另一交点"） | `point.intersect_line_circle` |
-| `⊙O₁ 与 ⊙O₂ 的交点` | `point.intersect_circles` |
-| `△ABC 的外心 / 内心 / 垂心 / 重心` | `point.circumcenter` / `incenter` / `orthocenter` / `centroid` |
-| `∠ABC 的平分线与 AC 的交点` | `point.angle_bisector_point` |
-| `过 P 作 ℓ 的垂线 / 平行线` | `line.perpendicular_through` / `line.parallel_through` |
-| `过 A B C 的圆` | `circle.through` |
+| `中点(A,B)` | `point.midpoint` |
+| `重心(A,B,C)` | `point.centroid` |
+| `外心(A,B,C)` | `point.circumcenter` |
+| `内心(A,B,C)` | `point.incenter` |
+| `垂心(A,B,C)` | `point.orthocenter` |
+| `BC上A的垂足(A,BC)` | `point.foot` |
+| `相交(l1,l2)` | `point.intersect_lines` |
+| `交点(l,c)` / `交点(l,c,另一交点)` | `point.intersect_line_circle`（序号显式） |
+| `交点(c1,c2)` | `point.intersect_circles`（序号显式） |
+| `垂直(A,l)` | `line.perpendicular_through` |
+| `平行(A,l)` | `line.parallel_through` |
+| `过(A,B)` | `line.free` |
+| `外接圆(A,B,C)` | `circle.through` |
+| `以(A为圆心,r)` | `circle.free` |
 
 ### 9.4 解析器契约
 
@@ -349,7 +352,7 @@ P = DE 与 ⊙O 的交点
 - 错误类型 `DSLParseError(line, col, span, message)`：定位到行列与出错片段。
 - 未识别的构造子句**必须报错**，不得静默忽略或猜测。
 - 解析产物是 §3.1 的构造图；DSL 与构造图**双向可转**（`geo_to_dsl`）。
-- 同一份 DSL 在 Python（原生）与浏览器（Pyodide）下必须产生**逐字节相同**的构造图。
+- 同一份 DSL 在**桌面应用**与 **MCP 服务端**下必须产生**逐字节相同**的构造图。
 
 ### 9.5 题面生成
 
@@ -383,6 +386,12 @@ P = DE 与 ⊙O 的交点
 ### 10.3 往返一致性
 
 渲染是 `(构造图, 样式, 视图变换)` 的**纯函数**，无隐藏状态。因此同一文件今天导出与明天导出必须逐字节一致——这是回归测试，不是锦上添花。
+
+**实现约定（决策 D20）。** 内核产出**一份原语列表**（点 / 线段 / 直线 / 圆 / 标注），屏幕后端（QPainter）与导出后端（SVG）**消费同一份**。因此：
+
+- 屏幕上看到的与导出的 SVG **必然一致**（一致性由结构保证，不由两套代码的巧合保证）；
+- 屏幕走 QPainter 而非 SVG，因为 Qt 的 SVG 渲染不足以支撑逐帧重绘；
+- 两个后端产出的原语集合**必须逐条相等**（回归测试）。
 
 ---
 

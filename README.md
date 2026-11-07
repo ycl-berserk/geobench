@@ -116,8 +116,9 @@ geobench-mcp        # stdio 传输；客户端配置里填这个命令即可
 
 ```
 docs/spec.md          契约：数据模型、DSL、算子、判定器、MCP schema、题库格式、评测
+docs/plan.md          工程总纲：里程碑、任务、做法要点、命令覆盖表、性能基准
 docs/dsl-spec.md      中文几何 DSL 的语法规格（记号、语句、缺口清单）
-docs/decisions.md     决策记录 D1–D15，含理由、备选、结论
+docs/decisions.md     决策记录 D1–D20，含理由、备选、结论
 docs/ai-workflow.md   实现由 Agent 生产的过程与门禁
 docs/configurations.md 典型构型库（人写的品味资产，AI 替代不了的那部分）
 tasks/                任务制：每个任务一份，验收标准必须机器可判
@@ -166,9 +167,12 @@ python scripts/demo.py    # 端到端演示
 - [x] **M4 渲染**：竞赛图规范预设 + SVG（TikZ 待做）
 - [x] **M5 DSL**：中文几何 DSL 语法、递归下降解析器、DSL↔构造图
 - [x] **M6 MCP 服务端**：`geo_state` / `geo_construct` / `geo_evaluate`（其余工具待做）
-- [ ] **M7 退化检测器**：spec §7 的九条
-- [ ] **M8 自动出题**：变体采样 + 约束求解接 LLM，端到端 demo
-- [ ] **M9 Benchmark**：评测框架与公开报告
+- [ ] **M-A 内核提速**：精确/数值双路径，性能门禁
+- [ ] **M-B 画板 v1**：桌面软件（PySide6）：拖点 · 工具栏构造 · 构造步骤表 · 判定面板
+- [ ] **M-C 覆盖面**：GeoGebra 全部几何命令 + 中文命令名 + DSL 改函数式
+- [ ] **M-D 兼容与成稿**：`.ggb` 导入导出、题库格式、卷面导出
+- [ ] **M-E AI 与生态**：应用内 AI（NL→图）、接其它 MCP 服务器
+- [ ] **M-F Benchmark**：评测框架与公开报告
 
 ## 参与贡献
 
