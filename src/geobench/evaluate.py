@@ -89,8 +89,9 @@ def evaluate_figure(figure: Figure, registry: OperatorRegistry) -> Figure:
         try:
             result = impl(ctx, list(node.args))
         except StateError as exc:
-            raise StateError(f"node {node_id!r} (operator {node.op!r}): {exc}") from None
+            raise _with_context(exc, node_id, node.op) from None
         node.cache.update(result)
+        _check_conditions(node_id, node.op, result.get("must_be_nonzero"), subs)
         if "coords" in result:
             coords = result["coords"]
             assert isinstance(coords, tuple)
@@ -99,6 +100,55 @@ def evaluate_figure(figure: Figure, registry: OperatorRegistry) -> Figure:
             _check_finite(node_id, node.op, placement)
             node.placement = placement
     return figure
+
+
+def _with_context(exc: StateError, node_id: str, op: str) -> StateError:
+    """The same failure, with the node it happened in.
+
+    The *type* of the error is part of the contract: the MCP layer turns
+    it into a machine-readable code, and a degenerate configuration must
+    not be reported as a generic failure. So the exception is rebuilt as
+    its own class rather than as a plain ``StateError``.
+    """
+    message = f"node {node_id!r} (operator {op!r}): {exc}"
+    try:
+        return type(exc)(message)
+    except TypeError:
+        # Some error classes need more than a message; keep the original
+        # object and just rewrite what it says.
+        exc.args = (message,)
+        return exc
+
+
+def _check_conditions(
+    node_id: str,
+    op: str,
+    conditions: object,
+    subs: dict[sp.Symbol, Expr],
+) -> None:
+    """Refuse a construction whose non-degeneracy condition fails.
+
+    An operator works on *symbols*, so it cannot see that this particular
+    placement is degenerate: three points are collinear for some
+    placements, not identically, so the determinant it divides by is not
+    the zero expression.
+
+    An operator therefore publishes the conditions its answer depends on
+    -- "the discriminant must not be zero", "the determinant must not be
+    zero" -- and they are checked here, where the placement is known.
+    """
+    if not isinstance(conditions, dict):
+        return
+    for name, expression in conditions.items():
+        try:
+            value = FIELD.coerce(expression).subs(subs)
+        except Exception:  # pragma: no cover - defensive
+            continue
+        if FIELD.simplify_to_zero(value):
+            raise DegenerateError(
+                f"node {node_id!r} (operator {op!r}) is degenerate: "
+                f"{name} is zero under the current placement"
+            )
 
 
 def _check_finite(node_id: str, op: str, placement: tuple[str, str]) -> None:
