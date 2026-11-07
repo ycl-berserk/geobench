@@ -120,7 +120,7 @@ src/geobench/
 | T015 | 求值分层：精确路径（缓存）+ 数值路径（lambdify 编译） | 算子 | `pytest tests/unit/test_evaluate.py -q` | `[x]` |
 | T016 | 性能基准套件与 CI 预算门禁 | 基础设施 | `pytest tests/perf -q` | `[x]` |
 | T017 | 判定的摆放不变性 + 结论缓存 | 判定器 | `pytest tests/unit/test_judges.py -q` | `[x]` |
-| T018 | 原语列表 + QPainter/SVG 双后端 | 渲染 | `pytest tests/unit/test_primitives.py -q` | `[ ]` |
+| T018 | 原语列表 + QPainter/SVG 双后端 | 渲染 | `pytest tests/unit/test_primitives.py -q` | `[x]` |
 
 **T015 做法要点**
 - `evaluate_exact(figure)`：产出符号表达式，按"构造版本号"缓存；构造变了才失效。
@@ -137,10 +137,10 @@ src/geobench/
 
 | ID | 任务 | 层 | 验收 | 状态 |
 |---|---|---|---|---|
-| T019 | 画布：缩放 / 平移 / 命中测试 / 拖点 | 渲染 | `pytest tests/app/test_canvas.py -q` | `[ ]` |
-| T020 | 构造步骤表（Construction Protocol 式） | 渲染 | `pytest tests/app/test_steps.py -q` | `[ ]` |
-| T021 | 工具栏（表格驱动，每算子一行） | 渲染 | `pytest tests/app/test_toolbar.py -q` | `[ ]` |
-| T022 | 判定面板：结论 + 证据 + 反例 | 渲染 | `pytest tests/app/test_judgepanel.py -q` | `[ ]` |
+| T019 | 画布：缩放 / 平移 / 命中测试 / 拖点 | 渲染 | `pytest tests/app/test_canvas.py -q` | `[x]` |
+| T020 | 构造步骤表（Construction Protocol 式） | 渲染 | `pytest tests/app/test_steps.py -q` | `[x]` |
+| T021 | 工具栏（表格驱动，每算子一行） | 渲染 | `pytest tests/app/test_toolbar.py -q` | `[x]` |
+| T022 | 判定面板：结论 + 证据 + 反例 | 渲染 | `pytest tests/app/test_judgepanel.py -q` | `[x]` |
 | T023 | 退化标记：undefined 节点变灰，图形不崩 | 判定器 | `pytest tests/unit/test_evaluate.py -q` | `[ ]` |
 
 **T019 做法要点**
@@ -405,9 +405,10 @@ src/geobench/
 - 内核：14 个算子、9 个判定器、DSL（句子式，M-C 改函数式）、MCP 三工具
 - 求值：**已分层**（T015）—— 精确路径增量缓存，数值路径编译执行
 - 性能：**已有 CI 预算门禁**（T016）；**结论缓存**（T017）
-- 测试：318 通过；ruff / mypy --strict 干净；CI 绿
-- 画板：**未开始**
-- 下一步：**T018（原语列表 + 双后端）**，然后 T019（画布）
+- 渲染：**原语列表 + 双后端**（T018）—— 屏幕与导出吃同一份
+- 画板：**能开窗了**（T019–T022）—— 拖点 · 工具栏构造 · 构造步骤表 · 判定面板
+- 测试：340 通过；ruff / mypy --strict 干净；CI 绿
+- 下一步：**T020–T024 的补完**（关系选择器、判定面板细节、DSL 改函数式），或 **M-C 覆盖面**（GeoGebra 几何命令）
 
 ## 11. 变更记录
 
@@ -416,3 +417,4 @@ src/geobench/
 | 2026-11-07 | 初稿。确立覆盖面 / 速度 / 质量三条硬指标；M-A…M-E 里程碑；任务清单；命令覆盖表；性能基准表；D16–D20。 |
 | 2026-11-07 | T015 完成：求值分层。补 §7.1 实测数据；T015 勾选。退化语义改为 undefined（D19），`degraded` 的原因移到 `warnings`。 |
 | 2026-11-07 | T016 完成：性能预算成为 CI 门禁（`tests/perf`）。T017 完成：结论缓存（identity 结论与摆放无关）。 |
+| 2026-11-07 | T018 完成：原语列表 + SVG/QPainter 双后端。**T019–T022 完成：桌面工作台能开窗了**（画板 · 工具栏 · 构造步骤表 · 判定面板）。`geobench-app` 命令已可用。 |

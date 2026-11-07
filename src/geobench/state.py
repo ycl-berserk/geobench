@@ -201,6 +201,10 @@ class FigureStore:
         if node_id not in figure.nodes:
             raise UnknownNodeError(node_id, list(figure.nodes), op=op, index=index)
         node = figure.nodes[node_id]
+        # A segment carries a line: "the foot on BC" is the same request
+        # whether BC is drawn as a segment or as a line.
+        if expected == "line" and node.kind in {"line", "segment"}:
+            return
         if node.kind != expected:
             raise ArgumentTypeError(op, index, expected, node_id)
 

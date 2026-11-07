@@ -68,6 +68,19 @@ def test_the_judges_do_not_import_the_numeric_path() -> None:
     assert "geobench.numeric" not in _imports_of("judges.py")
 
 
+def test_the_canvas_reads_primitives_and_computes_no_geometry() -> None:
+    """The screen draws the picture; it does not make it (decision D20).
+
+    If the canvas computed geometry itself, the screen and the exported
+    figure would be two independent implementations of "how a figure
+    looks", and they would drift apart.
+    """
+    imports = _imports_of("app/canvas.py")
+    assert "geobench.evaluate" not in imports
+    assert "geobench.numeric" not in imports
+    assert "geobench.primitives" in imports
+
+
 def test_the_verdict_does_not_depend_on_the_numeric_path() -> None:
     figure, registry = _figure()
     evaluate_exact(figure, registry)
