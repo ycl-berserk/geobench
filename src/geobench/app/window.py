@@ -388,6 +388,30 @@ class StudioWindow(QMainWindow):
         save_as_action.triggered.connect(self._save_file_as)
         file_menu.addAction(save_as_action)
 
+        edit_menu = menu.addMenu("编辑")
+        undo_action = QAction("撤销", self)
+        undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        undo_action.triggered.connect(self._undo)
+        edit_menu.addAction(undo_action)
+        redo_action = QAction("重做", self)
+        redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+        redo_action.triggered.connect(self._redo)
+        edit_menu.addAction(redo_action)
+
+    def _undo(self) -> None:
+        if self.controller.undo():
+            self.canvas.reset_pending()
+            self.status.showMessage("撤销了一步")
+        else:
+            self.status.showMessage("没有可撤销的了")
+
+    def _redo(self) -> None:
+        if self.controller.redo():
+            self.canvas.reset_pending()
+            self.status.showMessage("重做了一步")
+        else:
+            self.status.showMessage("没有可重做的了")
+
     def _open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self, "打开图形", "", "Geobench 图形 (*.geobench);;所有文件 (*)"

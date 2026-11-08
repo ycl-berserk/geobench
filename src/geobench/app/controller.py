@@ -17,6 +17,7 @@ drive it the same way.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Any
 
 from geobench import numeric
@@ -53,6 +54,10 @@ _LABELS_BY_OP: dict[str, str] = {
 }
 
 
+#: What the undo stack keeps: the nodes and the relations of a figure.
+Snapshot = tuple[dict[str, "Node"], list["Relation"]]
+
+
 class StudioController:
     """The state behind the studio window."""
 
@@ -72,6 +77,11 @@ class StudioController:
         self.judges = JudgeRegistry()
         self._listeners: list[Callable[[], None]] = []
         self._next_label = 1
+        # The undo stack. A figure is a few dozen objects, so a
+        # snapshot is cheap -- and a snapshot cannot be wrong in the way
+        # an "undo the last operation" can be.
+        self._undo: list[Snapshot] = []
+        self._redo: list[Snapshot] = []
 
     # -- listeners ---------------------------------------------------------
 
@@ -84,6 +94,52 @@ class StudioController:
             callback()
 
     # -- the figure --------------------------------------------------------
+
+    # -- undo ---------------------------------------------------------------
+
+    def push_undo(self) -> None:
+        """Remember the figure as it is now, so it can come back."""
+        self._undo.append(self._snapshot())
+        self._redo.clear()
+
+    def can_undo(self) -> bool:
+        return bool(self._undo)
+
+    def can_redo(self) -> bool:
+        return bool(self._redo)
+
+    def undo(self) -> bool:
+        """Step back. Returns whether there was anything to step back to."""
+        if not self._undo:
+            return False
+        self._redo.append(self._snapshot())
+        self._restore(self._undo.pop())
+        return True
+
+    def redo(self) -> bool:
+        """Step forward again."""
+        if not self._redo:
+            return False
+        self._undo.append(self._snapshot())
+        self._restore(self._redo.pop())
+        return True
+
+    def _snapshot(self) -> Snapshot:
+        figure = self.figure()
+        nodes = {
+            node_id: replace(node, args=list(node.args), cache=dict(node.cache))
+            for node_id, node in figure.nodes.items()
+        }
+        relations = [replace(relation) for relation in figure.relations]
+        return nodes, relations
+
+    def _restore(self, snapshot: Snapshot) -> None:
+        figure = self.figure()
+        figure.nodes.clear()
+        figure.nodes.update(snapshot[0])
+        figure.relations[:] = snapshot[1]
+        self.evaluate()
+        self._changed()
 
     def figure(self) -> Figure:
         return self.store.figure(self.figure_id)
@@ -105,6 +161,7 @@ class StudioController:
 
     def add_free_point(self, x: float, y: float, label: str | None = None) -> str:
         """Put a free point on the canvas."""
+        self.push_undo()
         node_id = label or self._new_label()
         # The coordinates are rounded for reading: the exact values live
         # in the symbolic expressions, and a list of seventeen decimal
@@ -126,7 +183,13 @@ class StudioController:
         return node_id
 
     def move_point(self, node_id: str, x: float, y: float) -> None:
-        """Move a free point. The whole point of the product is this call."""
+        """Move a free point. The whole point of the product is this call.
+
+        The undo entry is pushed by the canvas **before** the drag
+        starts, not here: a drag is one change, however many frames it
+        takes, and an undo stack with an entry per frame would be
+        useless.
+        """
         figure = self.figure()
         node = figure.nodes.get(node_id)
         if node is None:
@@ -139,6 +202,7 @@ class StudioController:
 
     def construct(self, op: str, args: list[Any], node_id: str | None = None) -> str:
         """Apply one construction."""
+        self.push_undo()
         if node_id is None:
             node_id = self._name_for(op)
         result = self.store.apply(
@@ -179,6 +243,7 @@ class StudioController:
         return to_dsl(self.figure())
 
     def load_text(self, source: str) -> None:
+        self.push_undo()
         """Replace the figure with the one in the text.
 
         The text is parsed strictly: a file that does not make sense is
@@ -200,6 +265,7 @@ class StudioController:
 
     def remove_node(self, node_id: str) -> None:
         """Remove an object and everything that depends on it."""
+        self.push_undo()
         figure = self.figure()
         dependents = [
             other.id
@@ -213,6 +279,7 @@ class StudioController:
         self._changed()
 
     def add_relation(self, kind: str, args: list[str]) -> str:
+        self.push_undo()
         """Add a relation to be judged."""
         figure = self.figure()
         relation_id = f"r{len(figure.relations) + 1}"
@@ -223,6 +290,7 @@ class StudioController:
         return relation_id
 
     def remove_relation(self, relation_id: str) -> None:
+        self.push_undo()
         figure = self.figure()
         figure.relations = [r for r in figure.relations if r.id != relation_id]
         self._changed()

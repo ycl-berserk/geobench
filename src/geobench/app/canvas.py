@@ -311,6 +311,15 @@ class FigureCanvas(QWidget):
         """The points clicked so far for the armed tool."""
         return list(self._tool_args)
 
+    def reset_pending(self) -> None:
+        """Forget the points collected so far.
+
+        After an undo the points that were collected may be gone, so
+        the tool starts again from nothing.
+        """
+        self._tool_args = []
+        self.update()
+
     def _hit_point(self, px: float, py: float) -> str | None:
         viewport = self._viewport()
         best: str | None = None
@@ -350,6 +359,7 @@ class FigureCanvas(QWidget):
         ):
             # Grab it. The point tool is the one tool whose clicks on a
             # point mean "move it" rather than "use it as an argument".
+            self.controller.push_undo()
             self._dragging = node_id
             viewport = self._viewport()
             fx, fy = viewport.to_figure(px, py)
