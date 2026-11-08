@@ -66,6 +66,7 @@
 | [T024](T024-dsl-function-syntax.md) | DSL 改函数式 + GeoGebra 中文命令名 | DSL | 已实现（中英文命令名都认） | T004 |
 | [T025](T025-command-table.md) | GeoGebra 几何命令总表与算子映射 | 算子 | 已实现（77 条登记，覆盖表由它生成） | T024 |
 | [T026](T026-point-family.md) | 点族补齐：两圆交点 / 最近点 | 算子 | 已实现（各 28–32 组对拍夹具） | T025 |
+| [T030](T030-transform-family.md) | 变换族：镜像 / 平移 / 旋转 / 位似 | 算子 | 已实现（特殊角保持精确） | T025 |
 | [T028](T028-circle-family.md) | 圆族：圆心一点 / 内切圆 | 算子 | 已实现（弧与扇形另立任务） | T025 |
 | [T027](T027-line-family.md) | 线族补齐：中垂线 / 角平分线 / 切线 | 算子 | 已实现（各 28–30 组对拍夹具） | T025 |
 | T020 | 构造步骤表（Construction Protocol 式） | 渲染 | 提案 | T019 |

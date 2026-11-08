@@ -384,6 +384,104 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
         for _ in range(DEGENERATE):
             pts = _collinear_triple(rng)
             add(pts, ["A", "B", "C"], "degenerate", "error", "collinear triple")
+    elif op_id == "transform.mirror":
+        for _ in range(TARGET):
+            pts = _points(rng, 3)
+            add(pts, ["A", "line:B,C"], "normal", "value", "reflect a point in a line")
+        # A point on the line is its own mirror.
+        add(
+            {"A": ("0", "0"), "B": ("0", "0"), "C": ("5", "0")},
+            ["A", "line:B,C"],
+            "edge",
+            "value",
+            "the point is on the line",
+        )
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 3)
+            add(pts, ["A", "line:B,B"], "degenerate", "error", "degenerate line")
+    elif op_id == "transform.translate":
+        for _ in range(TARGET):
+            pts = _points(rng, 3)
+            add(pts, ["A", "B"], "normal", "value", "translate by a vector")
+        # A zero vector translates nothing.
+        add(
+            {"A": ("3", "4"), "B": ("0", "0")},
+            ["A", "B"],
+            "edge",
+            "value",
+            "a zero vector",
+        )
+        add(
+            {"A": ("3", "4"), "B": ("-2", "7")},
+            ["A", "B"],
+            "edge",
+            "value",
+            "a negative vector",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("0", "0")},
+            ["A", "B"],
+            "edge",
+            "value",
+            "translating the origin by nothing",
+        )
+    elif op_id == "transform.rotate":
+        for _ in range(TARGET):
+            pts = _points(rng, 3)
+            # The special angles are where an exact answer shows up:
+            # a quarter turn and a third of a turn both stay rational
+            # or quadratic.
+            add(pts, ["A", "90", "C"], "normal", "value", "a quarter turn")
+            add(pts, ["A", "120", "C"], "normal", "value", "a third of a turn")
+            add(pts, ["A", "60", "C"], "normal", "value", "a sixth of a turn")
+        add(
+            {"A": ("3", "4"), "C": ("0", "0")},
+            ["A", "0", "C"],
+            "edge",
+            "value",
+            "no turn at all",
+        )
+        add(
+            {"A": ("3", "4"), "C": ("0", "0")},
+            ["A", "360", "C"],
+            "edge",
+            "value",
+            "a whole turn",
+        )
+        add(
+            {"A": ("3", "4"), "C": ("0", "0")},
+            ["A", "-90", "C"],
+            "edge",
+            "value",
+            "a turn the other way",
+        )
+    elif op_id == "transform.dilate":
+        for _ in range(TARGET):
+            pts = _points(rng, 3)
+            add(pts, ["A", "2", "C"], "normal", "value", "a factor of two")
+            add(pts, ["A", "-1", "C"], "normal", "value", "a half turn")
+            add(pts, ["A", "1", "C"], "normal", "value", "the identity")
+        add(
+            {"A": ("3", "4"), "C": ("1", "1")},
+            ["A", "0", "C"],
+            "edge",
+            "value",
+            "everything collapses onto the centre",
+        )
+        add(
+            {"A": ("3", "4"), "C": ("1", "1")},
+            ["A", "1", "C"],
+            "edge",
+            "value",
+            "the identity",
+        )
+        add(
+            {"A": ("3", "4"), "C": ("1", "1")},
+            ["A", "1/2", "C"],
+            "edge",
+            "value",
+            "a fractional factor",
+        )
     else:
         raise ValueError(f"no fixture generator for {op_id!r}")
     return fixtures
@@ -411,6 +509,10 @@ OPERATORS = [
     "circle.free",
     "circle.center_point",
     "circle.incircle",
+    "transform.mirror",
+    "transform.translate",
+    "transform.rotate",
+    "transform.dilate",
 ]
 
 
