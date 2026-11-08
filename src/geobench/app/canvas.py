@@ -16,12 +16,13 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from PySide6.QtCore import QPointF, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QPen
+from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from geobench.app.controller import StudioController
 from geobench.primitives import (
+    ArcPrimitive,
     CirclePrimitive,
     LabelPrimitive,
     LinePrimitive,
@@ -130,6 +131,8 @@ class FigureCanvas(QWidget):
                 self._draw_segment(painter, viewport, primitive, style)
             elif isinstance(primitive, CirclePrimitive):
                 self._draw_circle(painter, viewport, primitive, style)
+            elif isinstance(primitive, ArcPrimitive):
+                self._draw_arc(painter, viewport, primitive, style)
             elif isinstance(primitive, PointPrimitive):
                 self._draw_point(painter, viewport, primitive, style)
             elif isinstance(primitive, LabelPrimitive):
@@ -169,6 +172,28 @@ class FigureCanvas(QWidget):
         radius = primitive.radius * viewport.scale
         painter.setPen(self._pen(primitive.auxiliary, style))
         painter.drawEllipse(QPointF(cx, cy), radius, radius)
+
+    def _draw_arc(
+        self, painter: QPainter, viewport: Viewport, primitive: ArcPrimitive, style: FigureStyle
+    ) -> None:
+        """One arc or sector.
+
+        The screen's y points down, so the figure's counter-clockwise
+        angle is the negative of the painter's angle, and the span
+        changes sign with it.
+        """
+        cx, cy = viewport.to_screen(primitive.cx, primitive.cy)
+        radius = primitive.radius * viewport.scale
+        rect = QRectF(cx - radius, cy - radius, 2 * radius, 2 * radius)
+        start = round(-primitive.start_angle * 16)
+        span = round(-primitive.span_angle * 16)
+        painter.setPen(self._pen(primitive.auxiliary, style))
+        if primitive.filled:
+            painter.setBrush(QBrush(QColor(style.sector_fill)))
+            painter.drawPie(rect, start, span)
+        else:
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawArc(rect, start, span)
 
     def _draw_point(
         self, painter: QPainter, viewport: Viewport, primitive: PointPrimitive, style: FigureStyle

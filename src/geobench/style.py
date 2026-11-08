@@ -33,6 +33,7 @@ class FigureStyle:
     font_size: float = 10.0
     label_offset: float = 0.22
     background: str = "none"
+    sector_fill: str = "#e9e9e9"
     padding: float = 0.6
     auxiliary_ids: tuple[str, ...] = ()
     """The node ids that are auxiliary objects.

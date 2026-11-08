@@ -461,6 +461,61 @@ def op_polygon_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {"kind": "polygon", "polygon": tuple(vertices)}
 
 
+def op_arc_through(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The arc from the first point to the third, through the second (弧).
+
+    The arc lies on the circle through the three points, so the centre
+    and the squared radius come from the same exact computation the
+    circle uses. Which of the two arcs is meant -- the short one or the
+    long one -- depends on where the middle point lies, and that is a
+    question about the *placement*, so it is settled when the figure is
+    drawn, not here.
+    """
+    circumcircle = op_circumcenter(ctx, args)
+    ox, oy = cast(tuple[Expr, Expr], circumcircle["coords"])
+    ax, ay = ctx.point(args[0])
+    r2 = (ax - ox) ** 2 + (ay - oy) ** 2
+    if r2 == 0:
+        raise DegenerateError("the arc has no length")
+    bx, by = ctx.point(args[1])
+    cx, cy = ctx.point(args[2])
+    return {
+        "kind": "arc",
+        "arc": (ox, oy, r2, ax, ay, cx, cy, bx, by),
+        # Three points are collinear for some placements, not identically,
+        # so the condition is published for the evaluation pass to check.
+        "must_be_nonzero": circumcircle.get("must_be_nonzero", {}),
+    }
+
+
+def op_sector_from_points(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The sector with a given centre, between two points (扇形).
+
+    The centre is the first point. The **radius** is the distance from
+    the centre to the second point, and the two points give the two
+    *directions* the sector runs between: it sweeps counter-clockwise
+    from the second to the third.
+
+    The radius is taken from the second point alone, rather than
+    insisting that both points lie on the same circle. That insistence
+    would be a statement about one particular drawing -- the points
+    could be moved and it would stop holding -- and the kernel works
+    with the figures as they are drawn, not with one of them.
+    """
+    ox, oy = ctx.point(args[0])
+    ax, ay = ctx.point(args[1])
+    bx, by = ctx.point(args[2])
+    r2 = (ax - ox) ** 2 + (ay - oy) ** 2
+    if r2 == 0:
+        raise DegenerateError("the sector has no radius")
+    if bx == ox and by == oy:
+        raise DegenerateError("the second point is the centre, so the sector has no end")
+    return {
+        "kind": "sector",
+        "sector": (ox, oy, r2, ax, ay, bx, by),
+    }
+
+
 def op_intersect_circles(ctx: OpContext, args: list[str]) -> dict[str, object]:
     """The intersection points of two circles (两圆交点).
 
@@ -798,6 +853,36 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="the polygon is its edges: the oracle checks the vertices",
         ),
         op_polygon_free,
+    ),
+    (
+        OpSpec(
+            id="arc.three_points",
+            kind="arc",
+            args=(
+                ArgSpec("a", "point"),
+                ArgSpec("b", "point"),
+                ArgSpec("c", "point"),
+            ),
+            returns="arc",
+            degenerate_when=("the three points are on a line",),
+            oracle="the arc lies on the circle through the three points",
+        ),
+        op_arc_through,
+    ),
+    (
+        OpSpec(
+            id="sector.three_points",
+            kind="sector",
+            args=(
+                ArgSpec("o", "point"),
+                ArgSpec("a", "point"),
+                ArgSpec("b", "point"),
+            ),
+            returns="sector",
+            degenerate_when=("the two points are not on the same circle",),
+            oracle="the sector lies on the circle of the given radius",
+        ),
+        op_sector_from_points,
     ),
     (
         OpSpec(

@@ -283,6 +283,30 @@ def _compare_set(kernel_value: Any, oracle_value: Any) -> str | None:
     )
 
 
+_PAYLOAD_ORDER = (
+    "coords",
+    "line",
+    "segment",
+    "circle",
+    "polygon",
+    "arc",
+    "sector",
+)
+
+
+def _payload_of(kernel_result: dict[str, Any]) -> Any:
+    """The value the kernel computed, whatever shape it has.
+
+    Each operator carries its result under a key named after the kind
+    of object it produces, so the comparison asks for the one that is
+    there.
+    """
+    for key in _PAYLOAD_ORDER:
+        if key in kernel_result:
+            return kernel_result[key]
+    return None
+
+
 def _compare(kind: str, kernel_value: Any, oracle_value: Any) -> str | None:
     """Return None when the two agree, otherwise a description of the difference."""
     kernel_parts = list(kernel_value) if isinstance(kernel_value, tuple) else [kernel_value]
@@ -347,16 +371,7 @@ def check_operator(
         except Exception as exc:  # the oracle may refuse what the kernel allows
             mismatches.append(Mismatch(op_id, index, f"oracle failed: {exc}"))
             continue
-        kernel_value = kernel_result.get(
-            "coords",
-            kernel_result.get(
-                "line",
-                kernel_result.get(
-                    "segment",
-                    kernel_result.get("circle", kernel_result.get("polygon")),
-                ),
-            ),
-        )
+        kernel_value = _payload_of(kernel_result)
         kind = str(kernel_result.get("kind", "point"))
         if op_id in SET_COMPARISON:
             detail = _compare_set(kernel_value, oracle_result)

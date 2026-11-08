@@ -45,11 +45,13 @@ from geobench.commands import (
 from geobench.dsl.errors import DSLParseError, Span
 from geobench.dsl.lexer import Line, Token, TokenKind, tokenize
 from geobench.model import (
+    ARC,
     CIRCLE,
     FREE,
     LINE,
     POINT,
     POLYGON,
+    SECTOR,
     SEGMENT,
     Figure,
     Node,
@@ -514,6 +516,8 @@ _KIND_BY_COMMAND: dict[str, str] = {
     "circle.through": CIRCLE,
     "circle.incircle": CIRCLE,
     "polygon.free": POLYGON,
+    "arc.three_points": ARC,
+    "sector.three_points": SECTOR,
 }
 
 

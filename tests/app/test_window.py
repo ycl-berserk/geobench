@@ -129,6 +129,26 @@ def test_dragging_a_point_on_the_canvas_moves_it(
     window.close()
 
 
+def test_the_canvas_paints_an_arc_and_a_sector(
+    app: QApplication, controller: StudioController
+) -> None:
+    """The curved pieces of the circle family reach the screen."""
+    window = StudioWindow(controller)
+    window.resize(900, 600)
+    window.show()
+    app.processEvents()
+    controller.add_free_point(0, 0, "O")
+    controller.add_free_point(4, 0, "A")
+    controller.add_free_point(0, 4, "B")
+    controller.add_free_point(-4, 0, "C")
+    controller.construct("arc.three_points", ["A", "B", "C"], "\u5f27")
+    controller.construct("sector.three_points", ["O", "A", "B"], "\u6247")
+    app.processEvents()
+    image = window.canvas.grab()
+    assert image.width() > 0 and image.height() > 0
+    window.close()
+
+
 def test_the_canvas_paints_without_error(
     app: QApplication, controller: StudioController
 ) -> None:

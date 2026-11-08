@@ -5,39 +5,16 @@
     {
       "points": {
         "A": [
-          "-6",
-          "-4"
-        ],
-        "B": [
-          "5",
-          "-8"
-        ],
-        "C": [
-          "6",
-          "4"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "2"
-        ],
-        "B": [
           "3",
-          "4"
+          "-5"
+        ],
+        "B": [
+          "-5",
+          "-2"
         ],
         "C": [
-          "0",
-          "7"
+          "-5",
+          "8"
         ]
       },
       "args": [
@@ -51,39 +28,39 @@
     {
       "points": {
         "A": [
-          "-2",
-          "7"
+          "8",
+          "6"
         ],
         "B": [
-          "5",
+          "8",
+          "1"
+        ],
+        "C": [
+          "-1",
+          "-6"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "3",
           "5"
         ],
-        "C": [
-          "-4",
-          "-3"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
+        "B": [
           "4",
-          "0"
-        ],
-        "B": [
-          "6",
-          "0"
+          "6"
         ],
         "C": [
-          "1",
-          "0"
+          "-1",
+          "1"
         ]
       },
       "args": [
@@ -97,38 +74,15 @@
     {
       "points": {
         "A": [
-          "-1",
-          "-8"
+          "-7",
+          "-2"
         ],
         "B": [
-          "-4",
+          "-3",
           "-1"
         ],
         "C": [
-          "-2",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "8"
-        ],
-        "B": [
-          "-6",
-          "5"
-        ],
-        "C": [
-          "-3",
+          "7",
           "3"
         ]
       },
@@ -143,361 +97,62 @@
     {
       "points": {
         "A": [
-          "-3",
-          "-8"
-        ],
-        "B": [
           "-1",
-          "2"
-        ],
-        "C": [
-          "-1",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "5",
-          "1"
-        ],
-        "B": [
-          "-8",
-          "-2"
-        ],
-        "C": [
-          "-1",
-          "-6"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "-6",
-          "-7"
-        ],
-        "B": [
-          "-7",
-          "-2"
-        ],
-        "C": [
-          "-1",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "-2"
-        ],
-        "B": [
-          "-1",
-          "5"
-        ],
-        "C": [
-          "4",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "1"
-        ],
-        "B": [
-          "-6",
-          "-1"
-        ],
-        "C": [
-          "-5",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "-1"
-        ],
-        "B": [
-          "6",
-          "0"
-        ],
-        "C": [
-          "0",
-          "-1"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "-4"
-        ],
-        "B": [
-          "3",
-          "7"
-        ],
-        "C": [
-          "0",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
           "7"
         ],
         "B": [
-          "6",
-          "1"
-        ],
-        "C": [
-          "1",
-          "-4"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "-4"
-        ],
-        "B": [
-          "8",
-          "-1"
-        ],
-        "C": [
-          "0",
-          "2"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "0"
-        ],
-        "B": [
-          "4",
-          "-6"
-        ],
-        "C": [
-          "-3",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "-5"
-        ],
-        "B": [
-          "4",
-          "-2"
-        ],
-        "C": [
-          "1",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
           "-4",
-          "-6"
-        ],
-        "B": [
-          "4",
           "7"
-        ],
-        "C": [
-          "7",
-          "4"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-8"
-        ],
-        "B": [
-          "5",
-          "7"
-        ],
-        "C": [
-          "-3",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-8"
-        ],
-        "B": [
-          "4",
-          "-4"
-        ],
-        "C": [
-          "4",
-          "-6"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "4",
-          "-3"
-        ],
-        "B": [
-          "-5",
-          "-1"
-        ],
-        "C": [
-          "1",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "translate by a vector"
-    },
-    {
-      "points": {
-        "A": [
-          "-4",
-          "-1"
-        ],
-        "B": [
-          "7",
-          "-2"
         ],
         "C": [
           "-2",
-          "4"
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "3"
+        ],
+        "B": [
+          "-8",
+          "-5"
+        ],
+        "C": [
+          "1",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "0"
+        ],
+        "B": [
+          "-6",
+          "-7"
+        ],
+        "C": [
+          "5",
+          "-5"
         ]
       },
       "args": [
@@ -512,15 +167,222 @@
       "points": {
         "A": [
           "-7",
-          "5"
+          "-7"
+        ],
+        "B": [
+          "-3",
+          "-7"
+        ],
+        "C": [
+          "-5",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "3",
+          "3"
+        ],
+        "B": [
+          "7",
+          "-1"
+        ],
+        "C": [
+          "-5",
+          "7"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
+          "-2"
+        ],
+        "B": [
+          "-7",
+          "-2"
+        ],
+        "C": [
+          "7",
+          "-8"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "-3"
         ],
         "B": [
           "-1",
+          "-8"
+        ],
+        "C": [
+          "1",
+          "-5"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "-6"
+        ],
+        "B": [
+          "2",
+          "-3"
+        ],
+        "C": [
+          "-7",
+          "6"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "2"
+        ],
+        "B": [
+          "-7",
+          "3"
+        ],
+        "C": [
+          "-8",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "2"
+        ],
+        "B": [
+          "3",
+          "3"
+        ],
+        "C": [
+          "-6",
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "-4"
+        ],
+        "B": [
+          "-7",
+          "-7"
+        ],
+        "C": [
+          "-1",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "2"
+        ],
+        "B": [
+          "0",
           "-4"
         ],
         "C": [
-          "6",
-          "-2"
+          "-1",
+          "8"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "-4"
+        ],
+        "B": [
+          "-8",
+          "-4"
+        ],
+        "C": [
+          "-2",
+          "-5"
         ]
       },
       "args": [
@@ -535,15 +397,153 @@
       "points": {
         "A": [
           "5",
-          "6"
+          "3"
         ],
         "B": [
-          "-6",
+          "1",
+          "-4"
+        ],
+        "C": [
+          "3",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "-3"
+        ],
+        "B": [
+          "-3",
+          "-8"
+        ],
+        "C": [
+          "-5",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-4"
+        ],
+        "B": [
+          "-3",
+          "-6"
+        ],
+        "C": [
+          "2",
+          "7"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "-4"
+        ],
+        "B": [
+          "7",
           "-2"
         ],
         "C": [
+          "-3",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "8"
+        ],
+        "B": [
+          "-3",
+          "-3"
+        ],
+        "C": [
+          "3",
+          "2"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
           "-4",
-          "-7"
+          "-4"
+        ],
+        "B": [
+          "3",
+          "0"
+        ],
+        "C": [
+          "-3",
+          "8"
+        ]
+      },
+      "args": [
+        "A",
+        "B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "translate by a vector"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "3"
+        ],
+        "B": [
+          "-2",
+          "-4"
+        ],
+        "C": [
+          "-4",
+          "-2"
         ]
       },
       "args": [

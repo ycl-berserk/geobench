@@ -415,6 +415,46 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
                 "error",
                 "two vertices coincide",
             )
+    elif op_id == "arc.three_points":
+        for _ in range(TARGET):
+            pts = _non_degenerate_triangle(rng)
+            add(pts, ["A", "B", "C"], "normal", "value", "three points on a circle")
+        for _ in range(DEGENERATE):
+            pts = _collinear_triple(rng)
+            add(pts, ["A", "B", "C"], "degenerate", "error", "collinear: no circle")
+        add(
+            {"A": ("2", "0"), "B": ("0", "2"), "C": ("-2", "0")},
+            ["A", "B", "C"],
+            "edge",
+            "value",
+            "a semicircle",
+        )
+    elif op_id == "sector.three_points":
+        for _ in range(TARGET):
+            pts = _points(rng, 3)
+            add(
+                {"O": pts["A"], "A": pts["B"], "B": pts["C"]},
+                ["O", "A", "B"],
+                "normal",
+                "value",
+                "a centre and two ends",
+            )
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 3)
+            add(
+                {"O": pts["A"], "A": pts["A"], "B": pts["C"]},
+                ["O", "A", "B"],
+                "degenerate",
+                "error",
+                "the radius would be zero",
+            )
+        add(
+            {"O": ("0", "0"), "A": ("3", "4"), "B": ("-4", "3")},
+            ["O", "A", "B"],
+            "edge",
+            "value",
+            "the ends are not on the same circle",
+        )
     elif op_id == "transform.mirror":
         for _ in range(TARGET):
             pts = _points(rng, 3)
@@ -541,6 +581,8 @@ OPERATORS = [
     "circle.center_point",
     "circle.incircle",
     "polygon.free",
+    "arc.three_points",
+    "sector.three_points",
     "transform.mirror",
     "transform.translate",
     "transform.rotate",
