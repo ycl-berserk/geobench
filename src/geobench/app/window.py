@@ -43,6 +43,7 @@ from PySide6.QtWidgets import (
 
 from geobench.app.canvas import FigureCanvas
 from geobench.app.controller import StudioController
+from geobench.commands import by_id
 from geobench.errors import GeobenchError
 from geobench.judges import IDENTITY, INSTANCE, Verdict
 
@@ -60,7 +61,11 @@ class ToolSpec:
 
 @dataclass(frozen=True)
 class RelationSpec:
-    """A relation the window can check."""
+    """A relation the window can check.
+
+    The name and the number of objects come from the command table, so
+    the buttons cannot drift away from what the judges actually take.
+    """
 
     kind: str
     label: str
@@ -68,6 +73,19 @@ class RelationSpec:
     hint: str
     on_points: bool = True
 
+
+#: The relations the window offers. The command table knows how many
+#: objects each one takes; this list only says which ones to put on the
+#: toolbar.
+RELATION_IDS: tuple[str, ...] = (
+    "collinear",
+    "concyclic",
+    "equal_length",
+    "perpendicular",
+    "parallel",
+    "circumcenter_of",
+    "orthocenter_of",
+)
 
 #: The tools of the first version. Each one is an operator that already
 #: exists and has been cross-checked against an independent
@@ -96,6 +114,26 @@ TOOLS: tuple[ToolSpec, ...] = (
         "依次点三个点，作中间那个角的内角平分线",
     ),
 )
+
+
+def _relations() -> tuple[RelationSpec, ...]:
+    """The relation buttons, built from the command table."""
+    specs: list[RelationSpec] = []
+    for kind in RELATION_IDS:
+        command = by_id(kind)
+        if command is None:
+            continue
+        on_points = command.arg_kinds[0] == "point" if command.arg_kinds else True
+        specs.append(
+            RelationSpec(
+                kind=kind,
+                label=command.name_zh,
+                arg_count=command.arity,
+                hint=f"选 {command.arity} 个对象，检查{command.summary}",
+                on_points=on_points,
+            )
+        )
+    return tuple(specs)
 
 #: The relations the window can check.
 RELATIONS: tuple[RelationSpec, ...] = (
@@ -231,7 +269,7 @@ class StudioWindow(QMainWindow):
         row = QWidget()
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(0, 0, 0, 0)
-        for spec in RELATIONS:
+        for spec in _relations():
             button = QPushButton(spec.label)
             button.setToolTip(spec.hint)
             button.clicked.connect(

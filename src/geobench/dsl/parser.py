@@ -39,6 +39,7 @@ from geobench.commands import (
     JUDGEMENT,
     SELECTORS,
     CommandSpec,
+    by_id,
     lookup_all,
 )
 from geobench.dsl.errors import DSLParseError, Span
@@ -385,7 +386,7 @@ class Parser:
                     if not command.implemented:
                         unimplemented = True
                         continue
-                    return command
+                    return _resolve_alias(command)
                 continue
             if command.arity != len(args):
                 continue
@@ -393,7 +394,7 @@ class Parser:
                 unimplemented = True
                 continue
             if self._fits(command, args):
-                return command
+                return _resolve_alias(command)
         if unimplemented:
             raise self._fail(span, f"命令 {name!r} 尚未实现")
         raise self._fail(span, f"命令 {name!r} 不能接受这些参数")
@@ -543,6 +544,18 @@ _JUDGEMENT_FITS: dict[str, frozenset[str]] = {
     "circle": frozenset({"circle"}),
     "any": frozenset({"point", "line", "segment", "circle"}),
 }
+
+
+def _resolve_alias(command: CommandSpec) -> CommandSpec:
+    """The command a synonym points at.
+
+    ``全等`` is a synonym of ``相等``: it is the same relation, said in
+    another way. The alias resolves to the judge that implements it.
+    """
+    if command.alias_of is None:
+        return command
+    target = by_id(command.alias_of)
+    return target if target is not None else command
 
 
 def _judgement_fits(command: CommandSpec, args: list[Arg]) -> bool:

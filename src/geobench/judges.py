@@ -204,6 +204,124 @@ def _concurrent(ctx: JudgeContext, args: list[str]) -> Expr:
     return sp.Matrix(rows).det()
 
 
+def _squared_length(ctx: JudgeContext, first: str, second: str) -> Expr:
+    ax, ay = symbolic_coords(ctx.figure, first)
+    bx, by = symbolic_coords(ctx.figure, second)
+    return (ax - bx) ** 2 + (ay - by) ** 2
+
+
+def _dot_between(
+    ctx: JudgeContext,
+    p1: str,
+    p2: str,
+    q1: str,
+    q2: str,
+) -> Expr:
+    """The dot product of the vector p1p2 with the vector q1q2."""
+    x1, y1 = symbolic_coords(ctx.figure, p1)
+    x2, y2 = symbolic_coords(ctx.figure, p2)
+    x3, y3 = symbolic_coords(ctx.figure, q1)
+    x4, y4 = symbolic_coords(ctx.figure, q2)
+    return (x2 - x1) * (x4 - x3) + (y2 - y1) * (y4 - y3)
+
+
+def _parallel(ctx: JudgeContext, args: list[str]) -> Expr:
+    """Two lines are parallel iff their normals are proportional."""
+    a1, b1, _ = ctx.ctx.line(args[0])
+    a2, b2, _ = ctx.ctx.line(args[1])
+    return a1 * b2 - b1 * a2
+
+
+def _point_in(ctx: JudgeContext, args: list[str]) -> Expr:
+    """A point lies on a line, a segment or a circle."""
+    px, py = symbolic_coords(ctx.figure, args[0])
+    node = ctx.figure.node(args[1])
+    if node.kind == "circle":
+        cx, cy, r2 = ctx.ctx.circle(args[1])
+        return (px - cx) ** 2 + (py - cy) ** 2 - r2
+    a, b, c = ctx.ctx.as_line(args[1])
+    return a * px + b * py + c
+
+
+def _ratio_equal(ctx: JudgeContext, args: list[str]) -> Expr:
+    """Two ratios of segments are equal: AB/CD = EF/GH.
+
+    The lengths are squared, so the equation stays a polynomial: the
+    ratio of the squares is the square of the ratio.
+    """
+    ab = _squared_length(ctx, args[0], args[1])
+    cd = _squared_length(ctx, args[2], args[3])
+    ef = _squared_length(ctx, args[4], args[5])
+    gh = _squared_length(ctx, args[6], args[7])
+    return ab * gh - cd * ef
+
+
+def _circumcenter_of(ctx: JudgeContext, args: list[str]) -> Expr:
+    """O is the circumcentre of ABC: the three radii are equal.
+
+    Two equalities at once, written as the **sum of their squares** --
+    over the reals, a sum of squares vanishes only when every term does.
+    """
+    oa = _squared_length(ctx, args[0], args[1])
+    ob = _squared_length(ctx, args[0], args[2])
+    oc = _squared_length(ctx, args[0], args[3])
+    return (oa - ob) ** 2 + (ob - oc) ** 2
+
+
+def _orthocenter_of(ctx: JudgeContext, args: list[str]) -> Expr:
+    """H is the orthocentre of ABC: each altitude is perpendicular.
+
+    Three equalities at once, again as a sum of squares.
+    """
+    first = _dot_between(ctx, args[0], args[1], args[2], args[3])
+    second = _dot_between(ctx, args[0], args[2], args[1], args[3])
+    third = _dot_between(ctx, args[0], args[3], args[1], args[2])
+    return first**2 + second**2 + third**2
+
+
+def _centroid_of(ctx: JudgeContext, args: list[str]) -> Expr:
+    """G is the centroid of ABC: it is the average of the three vertices."""
+    gx, gy = symbolic_coords(ctx.figure, args[0])
+    ax, ay = symbolic_coords(ctx.figure, args[1])
+    bx, by = symbolic_coords(ctx.figure, args[2])
+    cx, cy = symbolic_coords(ctx.figure, args[3])
+    return (3 * gx - ax - bx - cx) ** 2 + (3 * gy - ay - by - cy) ** 2
+
+
+def _angle_equal(ctx: JudgeContext, args: list[str]) -> Expr:
+    """The angles ABC and DEF have the same measure.
+
+    The **cosine** is used, because it is injective on [0, 180] -- the
+    unsigned angle. The lengths enter through their square roots, which
+    is the price of keeping the sign: squaring the cosine would also
+    accept a pair of supplementary angles, and that would be a false
+    "proved".
+    """
+    first = _angle_parts(ctx, args[0], args[1], args[2])
+    second = _angle_parts(ctx, args[3], args[4], args[5])
+    return first[0] * sp.sqrt(second[2]) - second[0] * sp.sqrt(first[2])
+
+
+def _angle_parts(
+    ctx: JudgeContext, vertex: str, first: str, second: str
+) -> tuple[Expr, Expr, Expr]:
+    """The cosine numerator, the sine numerator and the length product.
+
+    For the angle at B between BA and BC: the dot product and the cross
+    product of the two rays, and |BA|^2 |BC|^2 -- the square of the
+    product of the two lengths.
+    """
+    bx, by = symbolic_coords(ctx.figure, vertex)
+    ax, ay = symbolic_coords(ctx.figure, first)
+    cx, cy = symbolic_coords(ctx.figure, second)
+    ux, uy = ax - bx, ay - by
+    vx, vy = cx - bx, cy - by
+    dot = ux * vx + uy * vy
+    cross = ux * vy - uy * vx
+    lengths = (ux * ux + uy * uy) * (vx * vx + vy * vy)
+    return dot, cross, lengths
+
+
 _JUDGES: list[JudgeSpec] = [
     JudgeSpec(
         id="collinear",
@@ -258,6 +376,48 @@ _JUDGES: list[JudgeSpec] = [
         args=("l1", "l2", "l3"),
         summary="three lines meet in one point",
         impl=_concurrent,
+    ),
+    JudgeSpec(
+        id="parallel",
+        args=("l1", "l2"),
+        summary="two lines are parallel",
+        impl=_parallel,
+    ),
+    JudgeSpec(
+        id="point_in",
+        args=("p", "object"),
+        summary="a point lies on a line, a segment or a circle",
+        impl=_point_in,
+    ),
+    JudgeSpec(
+        id="ratio_equal",
+        args=("a", "b", "c", "d", "e", "f", "g", "h"),
+        summary="two ratios of segments are equal: AB/CD = EF/GH",
+        impl=_ratio_equal,
+    ),
+    JudgeSpec(
+        id="circumcenter_of",
+        args=("o", "a", "b", "c"),
+        summary="o is the circumcentre of abc",
+        impl=_circumcenter_of,
+    ),
+    JudgeSpec(
+        id="orthocenter_of",
+        args=("h", "a", "b", "c"),
+        summary="h is the orthocentre of abc",
+        impl=_orthocenter_of,
+    ),
+    JudgeSpec(
+        id="centroid_of",
+        args=("g", "a", "b", "c"),
+        summary="g is the centroid of abc",
+        impl=_centroid_of,
+    ),
+    JudgeSpec(
+        id="angle_equal",
+        args=("a", "b", "c", "d", "e", "f"),
+        summary="the angles abc and def have the same measure",
+        impl=_angle_equal,
     ),
 ]
 
