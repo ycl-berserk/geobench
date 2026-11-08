@@ -20,6 +20,7 @@ from collections.abc import Callable
 from typing import Any
 
 from geobench import numeric
+from geobench.dsl import parse_dsl, to_dsl
 from geobench.errors import GeobenchError
 from geobench.evaluate import evaluate_figure, undefined_nodes
 from geobench.judges import IDENTITY, JudgeRegistry, Verdict, judge_relation
@@ -138,42 +139,64 @@ class StudioController:
 
     def construct(self, op: str, args: list[Any], node_id: str | None = None) -> str:
         """Apply one construction."""
+        if node_id is None:
+            node_id = self._name_for(op)
         result = self.store.apply(
             self.figure_id, [OpRequest(op=op, args=list(args), id=node_id)]
         )
         if not result.ok:
             raise GeobenchError(result.errors[0] if result.errors else f"{op} failed")
         self.evaluate()
-        self._label_new(op, result.created)
         self._changed()
         return result.created[0] if result.created else ""
 
-    def _label_new(self, op: str, created: list[str]) -> None:
-        """Give the new objects the names a teacher would use.
+    def _name_for(self, op: str) -> str | None:
+        """The name a construction gives its result.
 
         The midpoint is M, the circumcentre is O, the incentre is I, the
-        orthocentre is H -- the letters competition papers use. The
-        internal id stays as it is; this is the label that is drawn on
-        the figure and written in the steps pane.
+        orthocentre is H -- the letters competition papers use. The name
+        is the node's **id**, not just a label on it, so that it
+        survives being written to a file and read back.
         """
         base = _LABELS_BY_OP.get(op)
         if base is None:
-            return
-        figure = self.figure()
-        used = {
-            node.label
-            for node in figure.nodes.values()
-            if node.label and node.label != base
-        }
+            return None
+        used = set(self.figure().nodes)
         label = base
         counter = 1
         while label in used:
             label = f"{base}{counter}"
             counter += 1
-        for node_id in created:
-            node = figure.nodes.get(node_id)
-            if node is not None and not node.label:
-                node.label = label
+        return label
+
+    def to_text(self) -> str:
+        """The figure as text.
+
+        The DSL is the whole figure -- the free points with their
+        positions, the constructions, the relations -- so it is what a
+        file holds. A teacher can read it, edit it and hand it on.
+        """
+        return to_dsl(self.figure())
+
+    def load_text(self, source: str) -> None:
+        """Replace the figure with the one in the text.
+
+        The text is parsed strictly: a file that does not make sense is
+        refused with the line and the reason, and the figure on screen
+        is left alone.
+        """
+        parsed = parse_dsl(source)
+        figure = self.figure()
+        for node_id in list(figure.nodes):
+            figure.remove_node(node_id)
+        for relation in list(figure.relations):
+            figure.remove_relation(relation.id)
+        for node in parsed.nodes.values():
+            figure.add_node(node)
+        for relation in parsed.relations:
+            figure.add_relation(relation)
+        self.evaluate()
+        self._changed()
 
     def remove_node(self, node_id: str) -> None:
         """Remove an object and everything that depends on it."""

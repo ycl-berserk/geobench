@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -204,6 +206,7 @@ class StudioWindow(QMainWindow):
         self.resize(1180, 720)
         self._scope = IDENTITY
         self._verdicts: list[Verdict] = []
+        self._path: Path | None = None
 
         self.canvas = FigureCanvas(self.controller)
         self.canvas.constructRequested.connect(self._on_construct)
@@ -261,6 +264,7 @@ class StudioWindow(QMainWindow):
         self.setCentralWidget(central)
 
         self._build_toolbar()
+        self._build_menu()
         self.controller.on_change(self.refresh)
         self.refresh()
         # A tool is armed from the start. An empty toolbar and an idle
@@ -315,6 +319,83 @@ class StudioWindow(QMainWindow):
         layout.addWidget(self.judgements)
         layout.addWidget(self.evidence, 1)
         return panel
+
+    def _build_menu(self) -> None:
+        """The file menu.
+
+        A figure that cannot be saved is a figure that does not exist,
+        as far as the teacher is concerned: they close the window and
+        the work is gone. The file is the DSL, so the figure is written
+        in the same language a person would write it.
+        """
+        menu = self.menuBar()
+        file_menu = menu.addMenu("文件")
+        open_action = QAction("打开…", self)
+        open_action.setShortcut(QKeySequence.StandardKey.Open)
+        open_action.triggered.connect(self._open_file)
+        file_menu.addAction(open_action)
+        save_action = QAction("保存", self)
+        save_action.setShortcut(QKeySequence.StandardKey.Save)
+        save_action.triggered.connect(self._save_file)
+        file_menu.addAction(save_action)
+        save_as_action = QAction("另存为…", self)
+        save_as_action.setShortcut(QKeySequence.StandardKey.SaveAs)
+        save_as_action.triggered.connect(self._save_file_as)
+        file_menu.addAction(save_as_action)
+
+    def _open_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "打开图形", "", "Geobench 图形 (*.geobench);;所有文件 (*)"
+        )
+        if not path:
+            return
+        self._load_path(Path(path))
+
+    def _load_path(self, path: Path) -> None:
+        try:
+            source = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            self.status.showMessage(f"打不开这个文件：{exc}")
+            return
+        try:
+            self.controller.load_text(source)
+        except GeobenchError as exc:
+            self.status.showMessage(f"这个文件读不了：{exc}")
+            return
+        self._path = path
+        self._update_title()
+        self.status.showMessage(f"打开了 {path.name}")
+
+    def _save_file(self) -> None:
+        if self._path is None:
+            self._save_file_as()
+            return
+        self._write_path(self._path)
+
+    def _save_file_as(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self, "另存为", "", "Geobench 图形 (*.geobench);;所有文件 (*)"
+        )
+        if not path:
+            return
+        target = Path(path)
+        if target.suffix == "":
+            target = target.with_suffix(".geobench")
+        self._write_path(target)
+
+    def _write_path(self, path: Path) -> None:
+        try:
+            path.write_text(self.controller.to_text(), encoding="utf-8")
+        except OSError as exc:
+            self.status.showMessage(f"存不进去：{exc}")
+            return
+        self._path = path
+        self._update_title()
+        self.status.showMessage(f"存好了 {path.name}")
+
+    def _update_title(self) -> None:
+        name = self._path.name if self._path is not None else "未命名"
+        self.setWindowTitle(f"geobench — 竞赛几何命题工作台（{name}）")
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("构造")
