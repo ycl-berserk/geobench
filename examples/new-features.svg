@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="711" viewBox="0 0 640 711" font-family="Times New Roman, STIX Two Text, serif" font-size="10.0">
+<line x1="64.8354" y1="476.0549" x2="575.1646" y2="476.0549" stroke="#000000" stroke-width="0.4"/>
+<line x1="575.1646" y1="476.0549" x2="234.9451" y2="135.8354" stroke="#000000" stroke-width="0.4"/>
+<line x1="234.9451" y1="135.8354" x2="490.1097" y2="50.7806" stroke="#000000" stroke-width="0.4"/>
+<line x1="490.1097" y1="50.7806" x2="64.8354" y2="476.0549" stroke="#000000" stroke-width="0.4"/>
+<circle cx="320" cy="391" r="268.9671" fill="none" stroke="#000000" stroke-width="0.4"/>
+<path d="M 64.8354 476.0549 A 268.9671 268.9671 0 1 0 234.9451 135.8354" fill="none" stroke="#000000" stroke-width="0.4"/>
+<circle cx="64.8354" cy="476.0549" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
+<circle cx="575.1646" cy="476.0549" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
+<circle cx="234.9451" cy="135.8354" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
+<circle cx="490.1097" cy="50.7806" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
+<circle cx="64.8354" cy="476.0549" r="1.5" fill="#000000" stroke="#000000" stroke-width="0.4"/>
+<text x="324.0592" y="494.3213" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">6</text>
+<text x="324.0592" y="494.3213" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">21.89</text>
+<text x="356.6486" y="274.0303" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">7</text>
+<text x="591.7021" y="484.81" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">45</text>
+<text x="323.124" y="103.5835" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">3.16</text>
+<text x="49.4505" y="486.706" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">A</text>
+<text x="591.7021" y="484.81" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">B</text>
+<text x="230.0217" y="117.7827" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">C</text>
+<text x="501.337" y="35.8109" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">D</text>
+<text x="49.4505" y="486.706" text-anchor="middle" dominant-baseline="central" font-style="italic" fill="#000000">O</text>
+</svg>
