@@ -49,6 +49,7 @@ from geobench.model import (
     CIRCLE,
     FREE,
     LINE,
+    NUMBER,
     POINT,
     POLYGON,
     SECTOR,
@@ -129,6 +130,7 @@ _TYPE_FITS: dict[str, frozenset[str]] = {
     "line": frozenset({"line", "segment"}),
     "segment": frozenset({"segment"}),
     "circle": frozenset({"circle"}),
+    "polygon": frozenset({"polygon"}),
     "scalar": frozenset({"number"}),
     "selector": frozenset({"selector"}),
 }
@@ -518,6 +520,14 @@ _KIND_BY_COMMAND: dict[str, str] = {
     "polygon.free": POLYGON,
     "arc.three_points": ARC,
     "sector.three_points": SECTOR,
+    "measure.distance": NUMBER,
+    "measure.length": NUMBER,
+    "measure.area": NUMBER,
+    "measure.perimeter": NUMBER,
+    "measure.angle": NUMBER,
+    "measure.radius": NUMBER,
+    "measure.slope": NUMBER,
+    "measure.direction": NUMBER,
 }
 
 

@@ -31,7 +31,7 @@ from geobench.registry import OperatorRegistry
 
 # The argument types of an operator that name a node. The remaining types
 # ("scalar", "selector") are literals carried in the argument itself.
-_NODE_ARG_TYPES = frozenset({"point", "line", "circle", "segment"})
+_NODE_ARG_TYPES = frozenset({"point", "line", "circle", "segment", "polygon"})
 
 
 @dataclass

@@ -170,6 +170,7 @@ src/geobench/
 | T029 | 多边形族 | 算子 | `pytest tests/oracle -q` | `[x]` |
 | T030 | 变换族（平移/旋转/位似/镜像） | 算子 | `pytest tests/oracle -q` | `[x]` |
 | T031 | 轨迹 / 包络 / 参数曲线 | 算子 | `pytest tests/oracle -q` | `[ ]` |
+| T031b | 测量族（距离/长度/面积/周长/角度/半径/斜率/方向） | 算子 · 图元 | `pytest tests/unit/test_measurements.py -q` | `[x]` |
 | T032 | 圆锥曲线族 | 算子 | `pytest tests/oracle -q` | `[ ]` |
 | T033 | 判定器补齐（20+） | 判定器 | `pytest tests/unit/test_judges_new.py -q` | `[x]` |
 
@@ -277,7 +278,7 @@ src/geobench/
 | `Rotate` | 旋转 | `transform.rotate` | `[x]` |
 | `Dilate` | 位似 | `transform.dilate` | `[x]` |
 | `Mirror` | 镜像 | `transform.mirror` | `[x]` |
-| `Reflect` | 反射 | `transform.reflect` | `[ ]` |
+| `Reflect` | 反射 | `transform.reflect` | `[x]` |
 
 ### 6.6 轨迹与曲线
 
@@ -291,14 +292,14 @@ src/geobench/
 
 | GeoGebra | 中文 | 我们的算子 | 状态 |
 |---|---|---|---|
-| `Distance` | 距离 | `measure.distance` | `[ ]` |
-| `Length` | 长度 | `measure.length` | `[ ]` |
-| `Area` | 面积 | `measure.area` | `[ ]` |
-| `Perimeter` | 周长 | `measure.perimeter` | `[ ]` |
-| `Angle` | 角度 | `measure.angle` | `[ ]` |
-| `Radius` | 半径 | `measure.radius` | `[ ]` |
-| `Slope` | 斜率 | `measure.slope` | `[ ]` |
-| `Direction` | 方向 | `measure.direction` | `[ ]` |
+| `Distance` | 距离 | `measure.distance` | `[x]` |
+| `Length` | 长度 | `measure.length` | `[x]` |
+| `Area` | 面积 | `measure.area` | `[x]` |
+| `Perimeter` | 周长 | `measure.perimeter` | `[x]` |
+| `Angle` | 角度 | `measure.angle` | `[x]` |
+| `Radius` | 半径 | `measure.radius` | `[x]` |
+| `Slope` | 斜率 | `measure.slope` | `[x]` |
+| `Direction` | 方向 | `measure.direction` | `[x]` |
 
 ### 6.8 判定
 
@@ -411,14 +412,14 @@ src/geobench/
 
 ## 10. 当前状态快照
 
-- 内核：**28 个算子**、**16 个判定器**、MCP 三工具
-- 命令表：**77 条** GeoGebra 几何命令已登记（`src/geobench/commands.py`），**39 条已实现**；覆盖表由它生成
+- 内核：**36 个算子**、**16 个判定器**、MCP 三工具
+- 命令表：**77 条** GeoGebra 几何命令已登记（`src/geobench/commands.py`），**47 条已实现**；覆盖表由它生成
 - 求值：**已分层**（T015）—— 精确路径增量缓存，数值路径编译执行
 - 性能：**已有 CI 预算门禁**（T016）；**结论缓存**（T017）
 - 渲染：**原语列表 + 双后端**（T018）—— 屏幕与导出吃同一份
 - 画板：**能开窗了**（T019–T022）—— 拖点 · 工具栏构造 · 构造步骤表 · 判定面板
 - DSL：**函数式 + 中英文命令名**（T024）—— `M = 中点(A,B)`，`M=Midpoint(A,B)` 同样成立
-- 测试：471 通过；ruff / mypy --strict 干净；CI 绿
+- 测试：503 通过；ruff / mypy --strict 干净；CI 绿
 - 下一步：**M-C 的算子补齐**（T026 点族 · T028 圆弧扇形 · T029 多边形 · T030 变换 · T031 轨迹 · T032 圆锥曲线）
 
 ## 11. 变更记录
@@ -431,4 +432,5 @@ src/geobench/
 | 2026-11-07 | T018 完成：原语列表 + SVG/QPainter 双后端。**T019–T022 完成：桌面工作台能开窗了**（画板 · 工具栏 · 构造步骤表 · 判定面板）。`geobench-app` 命令已可用。 |
 | 2026-11-07 | 关系选择器改掉了"取前 N 个对象"的做法 —— 那样会悄悄检查一个没人提过的断言。判定面板加了**证据栏**（完整证明 / 反例）。CI 补上 Qt 的系统库与 app 依赖。 |
 | 2026-11-07 | **T024 + T025 完成：DSL 改函数式（中英文命令名都认），命令表成为唯一真源。** §6 的覆盖表改为**生成**的（`scripts/gen_coverage.py`，CI 盯）。句子式作废。 |
+| 2026-11-08 | **T031b 完成：测量族** —— 新增 `number` 图元 ✓；数字**写在被量的东西旁边** ✓（面积在里面、周长在边上 ✓，两个数不叠 ✓）；角度用度 ✓。顺手修掉一个**真 bug**：条件的符号表覆盖了载荷的符号表 ✓。
 | 2026-11-08 | **T028b 完成：弧与扇形** —— 新增 `arc` / `sector` 两种图元 ✓；**哪一段弧是画的时候才定的** ✓（角度由数值算出，只算一次 ✓，屏幕与导出因此一致 ✓）。**T029 完成：多边形族** —— 多边形**就是它的边** ✓（图里只有一个多边形对象，屏幕与导出画同一批图元 ✓）；算子契约支持**变长参数** ✓（顶点几个都行）。**T033 完成：判定器 9 → 16**（平行 · 点在 · 比例相等 · 外心/垂心/重心关系 · 角相等）。工具栏的关系按钮改为**从命令表生成** ✓。**T030 完成：变换族**（镜像 · 平移 · 旋转 · 位似）—— 角度用度，特殊角**保持精确**（cos60° = 1/2）。**T026 完成：点族补齐**（两圆交点 · 最近点）。**T027 完成：线族补齐**（中垂线 · 角平分线 · 切线）。**T028 完成：圆族**（圆心一点 · 内切圆）；弧与扇形另立 T028b（要新增图元种类）。 |

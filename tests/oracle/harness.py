@@ -157,6 +157,18 @@ def _build_figure(fixture: Fixture) -> Figure:
                 second.y,
             )
             fixture.args[index] = node_id
+        elif spec.startswith("polygon:"):
+            ids = spec.split(":")[1].split(",")
+            node_id = f"_p{index}"
+            vertices: list[Any] = []
+            for point_id in ids:
+                point = _sympy_point(figure, point_id)
+                vertices.extend((point.x, point.y))
+            figure.add_node(
+                Node(id=node_id, kind="polygon", role="free", op="polygon.free", args=ids)
+            )
+            figure.nodes[node_id].cache["polygon"] = tuple(vertices)
+            fixture.args[index] = node_id
         elif spec.startswith("circle:"):
             ids = spec.split(":")[1].split(",")
             node_id = f"_c{index}"
@@ -291,6 +303,7 @@ _PAYLOAD_ORDER = (
     "polygon",
     "arc",
     "sector",
+    "value",
 )
 
 

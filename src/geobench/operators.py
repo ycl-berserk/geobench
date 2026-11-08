@@ -85,6 +85,17 @@ class OpContext:
             )
         return cast(tuple[Expr, Expr, Expr, Expr], data)
 
+    def polygon(self, node_id: str) -> tuple[Expr, ...]:
+        node = self.figure.node(node_id)
+        if node.kind != "polygon":
+            raise StateError(f"node {node_id!r} is not a polygon")
+        data = node.cache.get("polygon")
+        if data is None:
+            raise OpNotImplementedError(
+                f"polygon {node_id!r} has not been evaluated yet; run evaluate_figure() first"
+            )
+        return cast(tuple[Expr, ...], data)
+
     def as_line(self, node_id: str) -> LineCoeffs:
         """The supporting line of a line *or* a segment.
 
@@ -679,6 +690,128 @@ def op_circle_incicle(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {"kind": "circle", "circle": (ix, iy, r2)}
 
 
+# -- measurement -------------------------------------------------------------
+
+
+def _length_between(ax: Expr, ay: Expr, bx: Expr, by: Expr) -> Expr:
+    """The distance between two points, exactly."""
+    return sp.sqrt((ax - bx) ** 2 + (ay - by) ** 2)
+
+
+def _polygon_sides(vertices: tuple[Expr, ...]) -> list[tuple[Expr, Expr, Expr, Expr]]:
+    """The sides of a polygon, as pairs of endpoints."""
+    count = len(vertices) // 2
+    sides: list[tuple[Expr, Expr, Expr, Expr]] = []
+    for index in range(count):
+        x1, y1 = vertices[2 * index], vertices[2 * index + 1]
+        following = (index + 1) % count
+        x2, y2 = vertices[2 * following], vertices[2 * following + 1]
+        sides.append((x1, y1, x2, y2))
+    return sides
+
+
+def op_measure_distance(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The distance between two points (距离)."""
+    ax, ay = ctx.point(args[0])
+    bx, by = ctx.point(args[1])
+    return {"kind": "number", "value": (_length_between(ax, ay, bx, by),)}
+
+
+def op_measure_length(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The length of a segment (长度)."""
+    ax, ay, bx, by = ctx.segment(args[0])
+    return {"kind": "number", "value": (_length_between(ax, ay, bx, by),)}
+
+
+def op_measure_area(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The area of a polygon (面积).
+
+    The shoelace formula: the sum of the cross products of the sides.
+    The area is positive whatever way round the vertices are written,
+    so the absolute value is taken -- which also keeps the sign of the
+    cross product from mattering.
+    """
+    vertices = ctx.polygon(args[0])
+    total: Expr = sp.Integer(0)
+    for x1, y1, x2, y2 in _polygon_sides(vertices):
+        total += x1 * y2 - x2 * y1
+    return {"kind": "number", "value": (sp.Abs(total) / 2,)}
+
+
+def op_measure_perimeter(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The perimeter of a polygon (周长)."""
+    vertices = ctx.polygon(args[0])
+    total: Expr = sp.Integer(0)
+    for x1, y1, x2, y2 in _polygon_sides(vertices):
+        total += _length_between(x1, y1, x2, y2)
+    return {"kind": "number", "value": (total,)}
+
+
+def op_measure_angle(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The angle at the second point, in degrees (角度).
+
+    The cosine of the angle is the dot product of the two rays over the
+    product of their lengths. The angle comes out in radians and is
+    turned into degrees -- the same unit GeoGebra uses, so "60" means
+    sixty degrees and not one and a bit radians.
+    """
+    ax, ay = ctx.point(args[0])
+    bx, by = ctx.point(args[1])
+    cx, cy = ctx.point(args[2])
+    ux, uy = ax - bx, ay - by
+    vx, vy = cx - bx, cy - by
+    first = sp.sqrt(ux**2 + uy**2)
+    second = sp.sqrt(vx**2 + vy**2)
+    if first * second == 0:
+        raise DegenerateError("the two rays have no length")
+    cosine = (ux * vx + uy * vy) / (first * second)
+    return {"kind": "number", "value": (sp.acos(cosine) * 180 / sp.pi,)}
+
+
+def op_measure_radius(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The radius of a circle (半径)."""
+    _, _, r2 = ctx.circle(args[0])
+    return {"kind": "number", "value": (sp.sqrt(r2),)}
+
+
+def op_measure_slope(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The slope of a line (斜率).
+
+    The line is written a*x + b*y + c = 0, and its slope is -a/b. A
+    vertical line has no finite slope, and that is refused rather than
+    dressed up as a large number.
+    """
+    a, b, _ = ctx.line(args[0])
+    if b == 0:
+        raise DegenerateError("the line is vertical; its slope is not finite")
+    return {
+        "kind": "number",
+        "value": (-a / b,),
+        # A line is vertical for some placements, not identically, so the
+        # condition is published for the evaluation pass to check.
+        "must_be_nonzero": {"b": b},
+    }
+
+
+def op_measure_direction(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The direction of a line, in degrees (方向).
+
+    A line has no orientation: the equation a*x + b*y + c = 0 is the
+    same line whether it is written with (a, b) or with (-a, -b), and
+    the two spellings give directions a half turn apart. So the
+    direction is taken from the line's **defining points** -- from the
+    first to the second -- which is the way the line was drawn and the
+    way a teacher means it.
+    """
+    node = ctx.figure.node(args[0])
+    if len(node.args) >= 2:
+        ax, ay = ctx.point(node.args[0])
+        bx, by = ctx.point(node.args[1])
+        return {"kind": "number", "value": (sp.atan2(by - ay, bx - ax) * 180 / sp.pi,)}
+    a, b, _ = ctx.line(args[0])
+    return {"kind": "number", "value": (sp.atan2(-a, b) * 180 / sp.pi,)}
+
+
 # -- registry --------------------------------------------------------------
 
 _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
@@ -853,6 +986,98 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="the polygon is its edges: the oracle checks the vertices",
         ),
         op_polygon_free,
+    ),
+    (
+        OpSpec(
+            id="measure.distance",
+            kind="number",
+            args=(ArgSpec("a", "point"), ArgSpec("b", "point")),
+            returns="number",
+            degenerate_when=(),
+            oracle="the distance between two points",
+        ),
+        op_measure_distance,
+    ),
+    (
+        OpSpec(
+            id="measure.length",
+            kind="number",
+            args=(ArgSpec("segment", "segment"),),
+            returns="number",
+            degenerate_when=(),
+            oracle="the length of a segment",
+        ),
+        op_measure_length,
+    ),
+    (
+        OpSpec(
+            id="measure.area",
+            kind="number",
+            args=(ArgSpec("polygon", "polygon"),),
+            returns="number",
+            degenerate_when=(),
+            oracle="the area of a polygon, by the shoelace formula",
+        ),
+        op_measure_area,
+    ),
+    (
+        OpSpec(
+            id="measure.perimeter",
+            kind="number",
+            args=(ArgSpec("polygon", "polygon"),),
+            returns="number",
+            degenerate_when=(),
+            oracle="the perimeter of a polygon",
+        ),
+        op_measure_perimeter,
+    ),
+    (
+        OpSpec(
+            id="measure.angle",
+            kind="number",
+            args=(
+                ArgSpec("a", "point"),
+                ArgSpec("b", "point"),
+                ArgSpec("c", "point"),
+            ),
+            returns="number",
+            degenerate_when=("one of the rays has no length",),
+            oracle="the angle at the second point, in degrees",
+        ),
+        op_measure_angle,
+    ),
+    (
+        OpSpec(
+            id="measure.radius",
+            kind="number",
+            args=(ArgSpec("circle", "circle"),),
+            returns="number",
+            degenerate_when=(),
+            oracle="the radius of a circle",
+        ),
+        op_measure_radius,
+    ),
+    (
+        OpSpec(
+            id="measure.slope",
+            kind="number",
+            args=(ArgSpec("line", "line"),),
+            returns="number",
+            degenerate_when=("the line is vertical",),
+            oracle="the slope of a line",
+        ),
+        op_measure_slope,
+    ),
+    (
+        OpSpec(
+            id="measure.direction",
+            kind="number",
+            args=(ArgSpec("line", "line"),),
+            returns="number",
+            degenerate_when=(),
+            oracle="the direction of a line, in degrees",
+        ),
+        op_measure_direction,
     ),
     (
         OpSpec(
