@@ -17,7 +17,7 @@ import math
 from dataclasses import dataclass
 
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen
+from PySide6.QtGui import QBrush, QColor, QFont, QKeyEvent, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from geobench.app.controller import StudioController
@@ -93,6 +93,8 @@ class FigureCanvas(QWidget):
         self._tool_arg_count = 0
         self._tool_args: list[str] = []
         self._hint = ""
+        self._tool_min_args = 0
+        self._tool_variable = False
         controller.on_change(self.update)
 
     # -- the viewport ------------------------------------------------------
@@ -256,7 +258,14 @@ class FigureCanvas(QWidget):
 
     # -- interaction -------------------------------------------------------
 
-    def set_tool(self, op: str | None, arg_count: int = 0, hint: str = "") -> None:
+    def set_tool(
+        self,
+        op: str | None,
+        arg_count: int = 0,
+        hint: str = "",
+        min_args: int = 0,
+        variable: bool = False,
+    ) -> None:
         """Arm a construction tool, or disarm it with ``None``.
 
         A tool with ``arg_count`` arguments waits for that many points to
@@ -270,6 +279,8 @@ class FigureCanvas(QWidget):
         self._tool_arg_count = arg_count
         self._tool_args = []
         self._hint = hint
+        self._tool_min_args = min_args
+        self._tool_variable = variable
         self.setCursor(
             Qt.CursorShape.CrossCursor
             if op == "point.free"
@@ -284,6 +295,10 @@ class FigureCanvas(QWidget):
         if self._tool == "point.free":
             return self._hint
         waiting = len(self._tool_args)
+        if self._tool_variable:
+            if waiting == 0:
+                return self._hint
+            return f"{self._hint}（已经点了 {waiting} 个，按回车结束）"
         needed = max(self._tool_arg_count, 1)
         if waiting == 0:
             return self._hint
@@ -372,6 +387,24 @@ class FigureCanvas(QWidget):
     def mouseReleaseEvent(self, _event: object) -> None:
         self._dragging = None
 
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """The return key finishes a variable tool."""
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self._finish_variable_tool()
+            return
+        super().keyPressEvent(event)
+
+    def _finish_variable_tool(self) -> None:
+        """Build what the variable tool has collected so far."""
+        if not self._tool_variable or self._tool is None:
+            return
+        if len(self._tool_args) < self._tool_min_args:
+            return
+        args = list(self._tool_args)
+        self._tool_args = []
+        self.constructRequested.emit(self._tool, args)
+        self.update()
+
     def wheelEvent(self, event: object) -> None:
         delta = event.angleDelta().y()  # type: ignore[attr-defined]
         if delta == 0:
@@ -394,6 +427,11 @@ class FigureCanvas(QWidget):
         if node_id is None:
             return
         self._tool_args.append(node_id)
+        if self._tool_variable:
+            # A variable tool waits for the user to say they have
+            # finished; the return key does it.
+            self.update()
+            return
         if len(self._tool_args) >= self._tool_arg_count:
             args = list(self._tool_args)
             self._tool_args = []

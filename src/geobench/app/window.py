@@ -53,13 +53,21 @@ from geobench.judges import IDENTITY, INSTANCE, Verdict
 
 @dataclass(frozen=True)
 class ToolSpec:
-    """One construction tool."""
+    """One construction tool.
+
+    A tool usually wants a fixed number of points. A **variable** tool
+    wants any number above a minimum -- a polygon has three, four or
+    five vertices, and enumerating the cases would be silly -- so it
+    waits for the user to say when they have finished.
+    """
 
     key: str
     label: str
     op: str
     arg_count: int
     hint: str
+    min_args: int = 0
+    variable: bool = False
 
 
 @dataclass(frozen=True)
@@ -115,6 +123,43 @@ TOOLS: tuple[ToolSpec, ...] = (
         "line.angle_bisector",
         3,
         "依次点三个点，作中间那个角的内角平分线",
+    ),
+    ToolSpec(
+        "polygon",
+        "多边形",
+        "polygon.free",
+        0,
+        "依次点三个以上的点，按回车结束",
+        min_args=3,
+        variable=True,
+    ),
+    ToolSpec(
+        "arc",
+        "圆弧",
+        "arc.three_points",
+        3,
+        "依次点三个点：第一个是起点，第二个是弧上的点，第三个是终点",
+    ),
+    ToolSpec(
+        "sector",
+        "扇形",
+        "sector.three_points",
+        3,
+        "依次点三个点：第一个是圆心，第二、第三个是扇形的两个端点",
+    ),
+    ToolSpec(
+        "distance",
+        "距离",
+        "measure.distance",
+        2,
+        "依次点两个点，把两点之间的距离写在图上",
+    ),
+    ToolSpec(
+        "angle",
+        "角度",
+        "measure.angle",
+        3,
+        "依次点三个点，把中间那个角的大小写在图上",
     ),
 )
 
@@ -417,7 +462,13 @@ class StudioWindow(QMainWindow):
     # -- interaction -------------------------------------------------------
 
     def _arm(self, tool: ToolSpec) -> None:
-        self.canvas.set_tool(tool.op, tool.arg_count, f"{tool.label}：{tool.hint}")
+        self.canvas.set_tool(
+            tool.op,
+            tool.arg_count,
+            f"{tool.label}：{tool.hint}",
+            min_args=tool.min_args,
+            variable=tool.variable,
+        )
         self.status.showMessage(f"{tool.label}：{tool.hint}")
 
     def _on_construct(self, op: str, args: list[str]) -> None:

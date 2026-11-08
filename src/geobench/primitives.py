@@ -197,7 +197,12 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
             position = _number_position(figure, node)
             if position is None:
                 continue
-            offset = _label_offset(figure, position[0], position[1])
+            # The opposite way from the point labels: a point and the
+            # measurement taken from it both sit at the same place --
+            # the midpoint of a segment, the vertex of an angle -- and
+            # two labels on top of each other are unreadable.
+            dx, dy = _label_offset(figure, position[0], position[1])
+            offset = (-dx, -dy)
             labels.append(
                 LabelPrimitive(
                     position[0],

@@ -17,7 +17,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 try:
     from PySide6.QtCore import QPoint, Qt
     from PySide6.QtTest import QTest
-    from PySide6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication, QToolBar
 except ImportError as exc:  # pragma: no cover - depends on the machine
     pytest.skip(f"Qt is not usable on this machine: {exc}", allow_module_level=True)
 
@@ -133,4 +133,90 @@ def test_the_canvas_says_what_a_click_will_do(
     window.show()
     app.processEvents()
     assert "点" in window.canvas.armed_hint()
+    window.close()
+
+
+def _arm(window: StudioWindow, name: str) -> None:
+    """Arm a tool the way the user does: from the toolbar."""
+    toolbar = window.findChildren(QToolBar)[0]
+    for action in toolbar.actions():
+        if action.text() == name:
+            action.trigger()
+            return
+    raise AssertionError(f"there is no tool called {name!r}")
+
+
+def test_a_variable_tool_waits_for_the_return_key(
+    app: QApplication, controller: StudioController
+) -> None:
+    """A polygon has three, four or five vertices: the user says when to stop."""
+    window = StudioWindow(controller)
+    window.resize(900, 600)
+    window.show()
+    app.processEvents()
+    canvas = window.canvas
+
+    corners = ((120, 420), (420, 420), (270, 180))
+    for x, y in corners:
+        QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=QPoint(x, y))
+        app.processEvents()
+    assert len(controller.figure().nodes) == 3
+
+    _arm(window, "多边形")
+    for x, y in corners:
+        QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=QPoint(x, y))
+        app.processEvents()
+    # Nothing is built yet: the tool is still collecting.
+    assert len(controller.figure().nodes) == 3
+    assert canvas.pending_args() == ["A", "B", "C"]
+
+    QTest.keyClick(canvas, Qt.Key.Key_Return)
+    app.processEvents()
+    assert len(controller.figure().nodes) == 4
+    assert any(node.kind == "polygon" for node in controller.figure().nodes.values())
+    window.close()
+
+
+def test_the_return_key_with_too_few_points_does_nothing(
+    app: QApplication, controller: StudioController
+) -> None:
+    window = StudioWindow(controller)
+    window.resize(900, 600)
+    window.show()
+    app.processEvents()
+    canvas = window.canvas
+
+    QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=QPoint(120, 420))
+    app.processEvents()
+    _arm(window, "多边形")
+    QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=QPoint(120, 420))
+    app.processEvents()
+    QTest.keyClick(canvas, Qt.Key.Key_Return)
+    app.processEvents()
+    # A polygon needs three vertices.
+    assert len(controller.figure().nodes) == 1
+    window.close()
+
+
+def test_a_measurement_tool_writes_the_number_on_the_figure(
+    app: QApplication, controller: StudioController
+) -> None:
+    window = StudioWindow(controller)
+    window.resize(900, 600)
+    window.show()
+    app.processEvents()
+    canvas = window.canvas
+
+    for x, y in ((120, 420), (420, 420)):
+        QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=QPoint(x, y))
+        app.processEvents()
+    _arm(window, "距离")
+    for x, y in ((120, 420), (420, 420)):
+        QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=QPoint(x, y))
+        app.processEvents()
+
+    numbers = [
+        node for node in controller.figure().nodes.values() if node.kind == "number"
+    ]
+    assert len(numbers) == 1
     window.close()
