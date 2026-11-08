@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from geobench import numeric
 from geobench.errors import GeobenchError
 from geobench.evaluate import evaluate_figure, undefined_nodes
 from geobench.judges import IDENTITY, JudgeRegistry, Verdict, judge_relation
@@ -30,6 +31,25 @@ from geobench.state import FigureStore, OpRequest
 from geobench.style import COMPETITION, FigureStyle
 
 DEFAULT_FIGURE_ID = "figure"
+
+
+#: The label each construction gives its result, the way a competition
+#: paper names it.
+_LABELS_BY_OP: dict[str, str] = {
+    "point.midpoint": "M",
+    "point.centroid": "G",
+    "point.circumcenter": "O",
+    "point.incenter": "I",
+    "point.orthocenter": "H",
+    "point.foot": "F",
+    "point.affine_ratio": "P",
+    "point.polygon_vertex": "V",
+    "circle.through": "ω",
+    "circle.incircle": "ω",
+    "line.perpendicular_bisector": "m",
+    "line.angle_bisector": "l",
+    "line.polar": "p",
+}
 
 
 class StudioController:
@@ -85,9 +105,18 @@ class StudioController:
     def add_free_point(self, x: float, y: float, label: str | None = None) -> str:
         """Put a free point on the canvas."""
         node_id = label or self._new_label()
+        # The coordinates are rounded for reading: the exact values live
+        # in the symbolic expressions, and a list of seventeen decimal
+        # places is noise in the steps pane.
         result = self.store.apply(
             self.figure_id,
-            [OpRequest(op="point.free", args=[repr(x), repr(y)], id=node_id)],
+            [
+                OpRequest(
+                    op="point.free",
+                    args=[numeric.format_float(x), numeric.format_float(y)],
+                    id=node_id,
+                )
+            ],
         )
         if not result.ok:
             raise GeobenchError(result.errors[0] if result.errors else "cannot add a point")
@@ -115,8 +144,36 @@ class StudioController:
         if not result.ok:
             raise GeobenchError(result.errors[0] if result.errors else f"{op} failed")
         self.evaluate()
+        self._label_new(op, result.created)
         self._changed()
         return result.created[0] if result.created else ""
+
+    def _label_new(self, op: str, created: list[str]) -> None:
+        """Give the new objects the names a teacher would use.
+
+        The midpoint is M, the circumcentre is O, the incentre is I, the
+        orthocentre is H -- the letters competition papers use. The
+        internal id stays as it is; this is the label that is drawn on
+        the figure and written in the steps pane.
+        """
+        base = _LABELS_BY_OP.get(op)
+        if base is None:
+            return
+        figure = self.figure()
+        used = {
+            node.label
+            for node in figure.nodes.values()
+            if node.label and node.label != base
+        }
+        label = base
+        counter = 1
+        while label in used:
+            label = f"{base}{counter}"
+            counter += 1
+        for node_id in created:
+            node = figure.nodes.get(node_id)
+            if node is not None and not node.label:
+                node.label = label
 
     def remove_node(self, node_id: str) -> None:
         """Remove an object and everything that depends on it."""
