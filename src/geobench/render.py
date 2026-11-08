@@ -238,7 +238,7 @@ def render_svg(
             )
 
     # Labels last, so they are never covered by a stroke.
-    offset = style.label_offset * scale
+    offset = style.label_offset
     for primitive in primitives:
         if not isinstance(primitive, LabelPrimitive):
             continue

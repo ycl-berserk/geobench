@@ -58,7 +58,9 @@ def test_the_steps_pane_lists_the_construction(app: QApplication, controller: St
     window.refresh()
     texts = [window.steps.item(row).text() for row in range(window.steps.count())]
     assert any("A" in text for text in texts)
-    assert any("point.midpoint" in text for text in texts)
+    # The steps pane speaks the teacher's language: the Chinese command
+    # name, not the operator's internal id.
+    assert any("中点" in text for text in texts)
     window.close()
 
 

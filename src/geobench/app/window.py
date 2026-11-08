@@ -16,6 +16,7 @@ objects (decision D19).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from PySide6.QtCore import Qt
@@ -114,6 +115,17 @@ TOOLS: tuple[ToolSpec, ...] = (
         "依次点三个点，作中间那个角的内角平分线",
     ),
 )
+
+
+def _short(value: str) -> str:
+    """A coordinate as short as it can be and still be exact enough to read."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return value
+    if number == int(number):
+        return str(int(number))
+    return f"{number:.4f}".rstrip("0").rstrip(".")
 
 
 def _relations() -> tuple[RelationSpec, ...]:
@@ -235,6 +247,12 @@ class StudioWindow(QMainWindow):
         splitter.addWidget(self._panel("画板", self.canvas))
         splitter.addWidget(self._panel("判定", self._judgement_panel()))
         splitter.setSizes([250, 540, 390])
+        # The default handle is a fat black bar, which reads as a hole
+        # in the window.
+        splitter.setHandleWidth(8)
+        # The default handle is a fat black bar, which reads as a hole
+        # in the window.
+        splitter.setStyleSheet("QSplitter::handle { background: #e3e3e3; }")
 
         central = QWidget()
         layout = QVBoxLayout(central)
@@ -245,6 +263,10 @@ class StudioWindow(QMainWindow):
         self._build_toolbar()
         self.controller.on_change(self.refresh)
         self.refresh()
+        # A tool is armed from the start. An empty toolbar and an idle
+        # canvas look like a program that is not working: a click with
+        # no tool armed does nothing, and nothing says so.
+        self._arm(TOOLS[0])
 
     # -- layout ------------------------------------------------------------
 
@@ -314,7 +336,7 @@ class StudioWindow(QMainWindow):
     # -- interaction -------------------------------------------------------
 
     def _arm(self, tool: ToolSpec) -> None:
-        self.canvas.set_tool(tool.op, tool.arg_count)
+        self.canvas.set_tool(tool.op, tool.arg_count, f"{tool.label}：{tool.hint}")
         self.status.showMessage(f"{tool.label}：{tool.hint}")
 
     def _on_construct(self, op: str, args: list[str]) -> None:
@@ -372,18 +394,23 @@ class StudioWindow(QMainWindow):
         figure = self.controller.figure()
         undefined = dict(self.controller.undefined())
         for node_id, node in figure.nodes.items():
+            name = node.label or node_id
             if node.role == "free":
                 placement = node.placement or ("?", "?")
-                text = f"{node_id}  ({placement[0]}, {placement[1]})"
+                text = f"{name}  ({_short(placement[0])}, {_short(placement[1])})"
             else:
-                text = f"{node_id} = {node.op}({', '.join(node.args)})"
+                command = by_id(node.op) if node.op else None
+                call = command.name_zh if command is not None else (node.op or "?")
+                text = f"{name} = {call}({', '.join(node.args)})"
             item = QListWidgetItem(text)
             if node_id in undefined:
                 item.setForeground(Qt.GlobalColor.darkGray)
                 item.setToolTip(f"在这个摆放下没有值：{undefined[node_id]}")
             self.steps.addItem(item)
         for relation in figure.relations:
-            item = QListWidgetItem(f"断言 {relation.kind}({', '.join(relation.args)})")
+            item = QListWidgetItem(
+                f"断言 {_relation_name(relation.kind)}({', '.join(relation.args)})"
+            )
             item.setForeground(Qt.GlobalColor.darkBlue)
             self.steps.addItem(item)
 
@@ -393,9 +420,9 @@ class StudioWindow(QMainWindow):
         self.judgements.blockSignals(True)
         self.judgements.setRowCount(len(verdicts))
         for row, verdict in enumerate(verdicts):
-            self.judgements.setItem(row, 0, QTableWidgetItem(verdict.kind))
+            self.judgements.setItem(row, 0, QTableWidgetItem(_relation_name(verdict.kind)))
             self.judgements.setItem(row, 1, QTableWidgetItem(_verdict_text(verdict.verdict)))
-            self.judgements.setItem(row, 2, QTableWidgetItem(verdict.evidence[:120]))
+            self.judgements.setItem(row, 2, QTableWidgetItem(_evidence_text(verdict.evidence)[:120]))
         self.judgements.blockSignals(False)
         if verdicts:
             self.judgements.selectRow(0)
@@ -411,7 +438,10 @@ class StudioWindow(QMainWindow):
         if index < 0 or index >= len(self._verdicts):
             return
         verdict = self._verdicts[index]
-        text = f"{verdict.kind} — {verdict.verdict}\n\n{verdict.evidence}"
+        text = (
+            f"{_relation_name(verdict.kind)} —— {_verdict_text(verdict.verdict)}"
+            f"\n\n{_evidence_text(verdict.evidence)}"
+        )
         if verdict.witness:
             text += "\n\n反例（一个不满足的摆放）：\n" + "\n".join(
                 f"  {key}: {value}" for key, value in sorted(verdict.witness.items())
@@ -423,6 +453,56 @@ class StudioWindow(QMainWindow):
         self._scope = INSTANCE if self._scope == IDENTITY else IDENTITY
         self.scope_label.setText(SCOPE_LABELS[self._scope])
         self._refresh_judgements()
+
+
+def _relation_name(kind: str) -> str:
+    """The Chinese name of a relation, as the command table has it."""
+    command = by_id(kind)
+    if command is not None:
+        return command.name_zh
+    return kind
+
+
+#: The evidence the kernel writes, in the language the kernel writes it
+#: in -- the kernel is a library, and its messages are its own. The
+#: window shows them in the teacher's language. The expressions inside
+#: are symbolic and need no translation.
+_EVIDENCE_ZH: tuple[tuple[str, str], ...] = (
+    (
+        "the relation holds for the given configuration:",
+        "在这张图的摆放下成立：",
+    ),
+    (
+        "the relation fails for the given configuration:",
+        "在这张图的摆放下不成立：",
+    ),
+    (
+        "the relation does not hold identically; counterexample:",
+        "不是恒等式；反例：",
+    ),
+    (
+        "the expression reduces to 0 identically:",
+        "表达式恒等于 0：",
+    ),
+    ("substitution failed:", "代入失败："),
+)
+
+_SAMPLES_ZH = re.compile(
+    r"the relation holds in all (\d+) samples but the expression did not reduce "
+    r"to 0 identically \(size (\d+) ops\): (.*)"
+)
+
+
+def _evidence_text(evidence: str) -> str:
+    """The evidence, in Chinese."""
+    match = _SAMPLES_ZH.match(evidence)
+    if match is not None:
+        count, size, expression = match.groups()
+        return f"在全部 {count} 个样本里都成立，但表达式没能化简成恒等于 0（{size} 个运算）：{expression}"
+    for english, chinese in _EVIDENCE_ZH:
+        if evidence.startswith(english):
+            return chinese + evidence[len(english) :].strip()
+    return evidence
 
 
 def _verdict_text(verdict: str) -> str:

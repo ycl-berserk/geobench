@@ -26,12 +26,17 @@ class FigureStyle:
     stroke: str = "#000000"
     stroke_width: float = 0.4
     auxiliary_stroke_width: float = 0.25
-    point_radius: float = 1.5
-    derived_point_radius: float = 1.5
+    # A point has to be visible to be clicked on, and a one-and-a-half
+    # pixel dot is not: it is smaller than the letter beside it.
+    point_radius: float = 3.0
+    derived_point_radius: float = 2.6
     derived_point_filled: bool = True
     font_family: str = "Times New Roman, STIX Two Text, serif"
     font_size: float = 10.0
-    label_offset: float = 0.22
+    # How far a label sits from its point, in **pixels**. In figure
+    # units it would grow with the zoom, and a label would fly away
+    # from the point it belongs to.
+    label_offset: float = 11.0
     background: str = "none"
     sector_fill: str = "#e9e9e9"
     padding: float = 0.6

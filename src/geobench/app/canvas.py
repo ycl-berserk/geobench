@@ -32,6 +32,10 @@ from geobench.primitives import (
 from geobench.render import View, fit_view
 from geobench.style import FigureStyle
 
+#: The view the canvas starts with: a square of ten units, which is
+#: about the size of a competition figure before anything is drawn.
+DEFAULT_VIEW = View(-10.0, -10.0, 10.0, 10.0)
+
 #: How far a click may miss a point and still grab it, in pixels.
 GRAB_RADIUS_PX = 8.0
 
@@ -74,7 +78,12 @@ class FigureCanvas(QWidget):
         self.setMinimumSize(360, 280)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self._view: View | None = None
+        # The view is **fixed**. If it were recomputed from the figure
+        # every time, the picture would jump under the cursor as soon as
+        # a point was added -- and the click would land on a different
+        # point than the one the user aimed at. "适应窗口" recomputes it
+        # when the user asks for it.
+        self._view: View = DEFAULT_VIEW
         self._zoom = 1.0
         self._pan = (0.0, 0.0)
         self._dragging: str | None = None
@@ -83,19 +92,20 @@ class FigureCanvas(QWidget):
         self._tool: str | None = None
         self._tool_arg_count = 0
         self._tool_args: list[str] = []
+        self._hint = ""
         controller.on_change(self.update)
 
     # -- the viewport ------------------------------------------------------
 
     def fit(self) -> None:
         """Fit the whole figure into the widget."""
-        self._view = None
+        self._view = fit_view(self.controller.figure(), self.controller.style.padding)
         self._zoom = 1.0
         self._pan = (0.0, 0.0)
         self.update()
 
     def _viewport(self) -> Viewport:
-        view = self._view or fit_view(self.controller.figure(), self.controller.style.padding)
+        view = self._view
         width = view.width * self._zoom
         height = view.height * self._zoom
         # Keep the aspect ratio of the widget, so nothing is squashed.
@@ -137,6 +147,22 @@ class FigureCanvas(QWidget):
                 self._draw_point(painter, viewport, primitive, style)
             elif isinstance(primitive, LabelPrimitive):
                 self._draw_label(painter, viewport, primitive, style)
+        self._draw_hint(painter, style)
+
+    def _draw_hint(self, painter: QPainter, style: FigureStyle) -> None:
+        """Say, on the canvas itself, what a click will do.
+
+        The status bar is at the bottom of the window and easy to miss;
+        the canvas is where the eye is.
+        """
+        hint = self.armed_hint()
+        if not hint:
+            return
+        font = QFont()
+        font.setPointSizeF(style.font_size)
+        painter.setFont(font)
+        painter.setPen(QColor("#666666"))
+        painter.drawText(QPointF(10.0, 18.0), hint)
 
     def _pen(self, auxiliary: bool, style: FigureStyle) -> QPen:
         width = style.auxiliary_stroke_width if auxiliary else style.stroke_width
@@ -217,7 +243,7 @@ class FigureCanvas(QWidget):
         self, painter: QPainter, viewport: Viewport, primitive: LabelPrimitive, style: FigureStyle
     ) -> None:
         x, y = viewport.to_screen(primitive.x, primitive.y)
-        offset = style.label_offset * viewport.scale
+        offset = style.label_offset
         font = QFont()
         font.setItalic(True)
         font.setPointSizeF(style.font_size)
@@ -230,16 +256,38 @@ class FigureCanvas(QWidget):
 
     # -- interaction -------------------------------------------------------
 
-    def set_tool(self, op: str | None, arg_count: int = 0) -> None:
+    def set_tool(self, op: str | None, arg_count: int = 0, hint: str = "") -> None:
         """Arm a construction tool, or disarm it with ``None``.
 
         A tool with ``arg_count`` arguments waits for that many points to
         be clicked, then asks the window to build it.
+
+        The hint is shown on the canvas, because the toolbar does not
+        say which tool is armed and a click with no tool armed does
+        nothing at all -- which looks exactly like a broken program.
         """
         self._tool = op
         self._tool_arg_count = arg_count
         self._tool_args = []
+        self._hint = hint
+        self.setCursor(
+            Qt.CursorShape.CrossCursor
+            if op == "point.free"
+            else Qt.CursorShape.PointingHandCursor
+        )
         self.update()
+
+    def armed_hint(self) -> str:
+        """What the canvas is waiting for."""
+        if self._tool is None:
+            return ""
+        if self._tool == "point.free":
+            return self._hint
+        waiting = len(self._tool_args)
+        needed = max(self._tool_arg_count, 1)
+        if waiting == 0:
+            return self._hint
+        return f"{self._hint}（已经选了 {waiting} 个，还要 {needed - waiting} 个）"
 
     def tool(self) -> str | None:
         return self._tool
@@ -261,22 +309,41 @@ class FigureCanvas(QWidget):
         return best
 
     def mousePressEvent(self, event: object) -> None:
+        """What a press means.
+
+        Three rules, and they are worth writing down because they are
+        what a drawing program is expected to do:
+
+        - the middle button pans, always;
+        - a press on an **existing point** grabs that point, so it can
+          be dragged -- unless another tool is armed and waiting for
+          arguments, in which case the press *picks* the point;
+        - a press on empty canvas does what the armed tool says, and
+          with no tool armed it does nothing.
+        """
         position = event.position()  # type: ignore[attr-defined]
         px, py = position.x(), position.y()
         if event.button() == Qt.MouseButton.MiddleButton:  # type: ignore[attr-defined]
             self._dragging = "__pan__"
             self._drag_offset = (px, py)
             return
-        if self._tool is not None:
-            self._tool_click(px, py)
-            return
         node_id = self._hit_point(px, py)
-        if node_id is not None and node_id in self.controller.free_points():
+        if (
+            node_id is not None
+            and node_id in self.controller.free_points()
+            and (self._tool is None or self._tool == "point.free")
+        ):
+            # Grab it. The point tool is the one tool whose clicks on a
+            # point mean "move it" rather than "use it as an argument".
             self._dragging = node_id
             viewport = self._viewport()
             fx, fy = viewport.to_figure(px, py)
             current = self.controller.point_positions()[node_id]
             self._drag_offset = (fx - current[0], fy - current[1])
+            return
+        if self._tool is not None:
+            self._tool_click(px, py)
+            return
 
     def mouseMoveEvent(self, event: object) -> None:
         position = event.position()  # type: ignore[attr-defined]
@@ -316,11 +383,15 @@ class FigureCanvas(QWidget):
     def _tool_click(self, px: float, py: float) -> None:
         """A click while a construction tool is armed."""
         viewport = self._viewport()
+        if self._tool == "point.free":
+            # The point tool always places a point, even where one
+            # already is: clicking on top of a point is still a request
+            # for a new one.
+            fx, fy = viewport.to_figure(px, py)
+            self.controller.add_free_point(fx, fy)
+            return
         node_id = self._hit_point(px, py)
         if node_id is None:
-            if self._tool == "point.free":
-                fx, fy = viewport.to_figure(px, py)
-                self.controller.add_free_point(fx, fy)
             return
         self._tool_args.append(node_id)
         if len(self._tool_args) >= self._tool_arg_count:
