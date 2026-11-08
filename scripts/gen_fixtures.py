@@ -52,6 +52,14 @@ def _distinct_pair(rng: random.Random) -> dict[str, tuple[str, str]]:
             return points
 
 
+def _slanted_pair(rng: random.Random) -> dict[str, tuple[str, str]]:
+    """Two points whose line is neither vertical nor horizontal."""
+    while True:
+        points = _points(rng, 2)
+        if points["A"][0] != points["B"][0] and points["A"][1] != points["B"][1]:
+            return points
+
+
 def _distinct_points(rng: random.Random, count: int) -> dict[str, tuple[str, str]]:
     """Points that are all different from each other."""
     names = ["A", "B", "C", "D", "E", "F"][:count]
@@ -455,6 +463,192 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
             "value",
             "the ends are not on the same circle",
         )
+    elif op_id == "measure.distance":
+        for _ in range(TARGET):
+            pts = _distinct_pair(rng)
+            add(pts, ["A", "B"], "normal", "value", "two points")
+        add(
+            {"A": ("2", "3"), "B": ("2", "3")},
+            ["A", "B"],
+            "edge",
+            "value",
+            "the distance from a point to itself",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("12", "0")},
+            ["A", "B"],
+            "edge",
+            "value",
+            "a horizontal pair",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("3", "4")},
+            ["A", "B"],
+            "edge",
+            "value",
+            "a three-four-five pair",
+        )
+    elif op_id == "measure.length":
+        for _ in range(TARGET):
+            pts = _distinct_pair(rng)
+            add(pts, ["segment:A,B"], "normal", "value", "a segment")
+        add(
+            {"A": ("1", "1"), "B": ("1", "1")},
+            ["segment:A,B"],
+            "edge",
+            "value",
+            "a segment of no length",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("5", "0")},
+            ["segment:A,B"],
+            "edge",
+            "value",
+            "a horizontal segment",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("0", "7")},
+            ["segment:A,B"],
+            "edge",
+            "value",
+            "a vertical segment",
+        )
+    elif op_id in {"measure.area", "measure.perimeter"}:
+        for _ in range(TARGET):
+            pts = _points(rng, 4)
+            add(pts, ["polygon:A,B,C,D"], "normal", "value", "a quadrilateral")
+        add(
+            {"A": ("0", "0"), "B": ("1", "0"), "C": ("2", "0"), "D": ("3", "0")},
+            ["polygon:A,B,C,D"],
+            "edge",
+            "value",
+            "a flat polygon",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("4", "0"), "C": ("2", "3")},
+            ["polygon:A,B,C"],
+            "edge",
+            "value",
+            "a triangle",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("2", "0"), "C": ("2", "2"), "D": ("0", "2")},
+            ["polygon:A,B,C,D"],
+            "edge",
+            "value",
+            "a square",
+        )
+    elif op_id == "measure.angle":
+        for _ in range(TARGET):
+            pts = _non_degenerate_triangle(rng)
+            add(pts, ["A", "B", "C"], "normal", "value", "the angle of a triangle")
+        add(
+            {"A": ("0", "0"), "B": ("1", "0"), "C": ("1", "1")},
+            ["A", "B", "C"],
+            "edge",
+            "value",
+            "a right angle",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("1", "0"), "C": ("2", "1/1000")},
+            ["A", "B", "C"],
+            "edge",
+            "value",
+            "a very small angle",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("1", "1"), "C": ("-1", "1")},
+            ["A", "B", "C"],
+            "edge",
+            "value",
+            "a right angle at the vertex",
+        )
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 3)
+            add(
+                {"A": pts["A"], "B": pts["A"], "C": pts["C"]},
+                ["A", "B", "C"],
+                "degenerate",
+                "error",
+                "the vertex lies on one of the other points",
+            )
+    elif op_id == "measure.radius":
+        for _ in range(TARGET):
+            pts = _non_degenerate_triangle(rng)
+            add(pts, ["circle:A,B,C"], "normal", "value", "the circle through three points")
+        add(
+            {"A": ("0", "0"), "B": ("1", "0"), "C": ("0", "1")},
+            ["circle:A,B,C"],
+            "edge",
+            "value",
+            "a circle of radius one",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("10", "0"), "C": ("0", "10")},
+            ["circle:A,B,C"],
+            "edge",
+            "value",
+            "a big circle",
+        )
+        add(
+            {"O": ("0", "0")},
+            ["circle:O,25"],
+            "edge",
+            "value",
+            "a circle of radius five about a given centre",
+        )
+    elif op_id == "measure.slope":
+        for _ in range(TARGET):
+            pts = _slanted_pair(rng)
+            add(pts, ["line:A,B"], "normal", "value", "a slanting line")
+        add(
+            {"A": ("0", "0"), "B": ("5", "0")},
+            ["line:A,B"],
+            "edge",
+            "value",
+            "a horizontal line",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("1", "1")},
+            ["line:A,B"],
+            "edge",
+            "value",
+            "a line at forty-five degrees",
+        )
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 2)
+            add(
+                {"A": pts["A"], "B": (pts["A"][0], "7")},
+                ["line:A,B"],
+                "degenerate",
+                "error",
+                "a vertical line has no finite slope",
+            )
+    elif op_id == "measure.direction":
+        for _ in range(TARGET):
+            pts = _distinct_pair(rng)
+            add(pts, ["line:A,B"], "normal", "value", "a slanting line")
+        add(
+            {"A": ("0", "0"), "B": ("0", "5")},
+            ["line:A,B"],
+            "edge",
+            "value",
+            "a vertical line",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("5", "0")},
+            ["line:A,B"],
+            "edge",
+            "value",
+            "a horizontal line",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("1", "1")},
+            ["line:A,B"],
+            "edge",
+            "value",
+            "a line at forty-five degrees",
+        )
     elif op_id == "transform.mirror":
         for _ in range(TARGET):
             pts = _points(rng, 3)
@@ -583,6 +777,14 @@ OPERATORS = [
     "polygon.free",
     "arc.three_points",
     "sector.three_points",
+    "measure.distance",
+    "measure.length",
+    "measure.area",
+    "measure.perimeter",
+    "measure.angle",
+    "measure.radius",
+    "measure.slope",
+    "measure.direction",
     "transform.mirror",
     "transform.translate",
     "transform.rotate",

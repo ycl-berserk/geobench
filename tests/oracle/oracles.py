@@ -279,6 +279,94 @@ def oracle_sector_three_points(ctx: OpContext, args: list[str]) -> tuple[Any, ..
     return centre.x, centre.y, r2, start.x, start.y, end.x, end.y
 
 
+def oracle_measure_distance(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """sympy's own distance between two points."""
+    return (_point(ctx, args[0]).distance(_point(ctx, args[1])),)
+
+
+def oracle_measure_length(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """sympy's own length of the segment."""
+    x1, y1, x2, y2 = ctx.segment(args[0])
+    return (sp.Point(x1, y1).distance(sp.Point(x2, y2)),)
+
+
+def _polygon_points(ctx: OpContext, node_id: str) -> list[sp.Point]:
+    vertices = ctx.polygon(node_id)
+    return [
+        sp.Point(vertices[2 * index], vertices[2 * index + 1])
+        for index in range(len(vertices) // 2)
+    ]
+
+
+def _shoelace(points: list[sp.Point]) -> Any:
+    """The area of a polygon, from the shoelace formula.
+
+    sympy reduces a polygon whose vertices are all on one line to a
+    segment, which has no area to report, so the closed form is used
+    for that case.
+    """
+    total = sp.Integer(0)
+    for index, point in enumerate(points):
+        following = points[(index + 1) % len(points)]
+        total += point.x * following.y - following.x * point.y
+    return sp.Abs(total) / 2
+
+
+def oracle_measure_area(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """sympy's own area of the polygon."""
+    points = _polygon_points(ctx, args[0])
+    polygon = sp.Polygon(*points)
+    if not isinstance(polygon, sp.Polygon):
+        return (_shoelace(points),)
+    # sympy's area is signed: the sign says which way round the
+    # vertices were written. An area is not signed, so it is taken
+    # positive here.
+    return (sp.Abs(polygon.area),)
+
+
+def oracle_measure_perimeter(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """sympy's own perimeter of the polygon."""
+    points = _polygon_points(ctx, args[0])
+    polygon = sp.Polygon(*points)
+    if not isinstance(polygon, sp.Polygon):
+        total = sp.Integer(0)
+        for index, point in enumerate(points):
+            following = points[(index + 1) % len(points)]
+            total += point.distance(following)
+        return (total,)
+    return (polygon.perimeter,)
+
+
+def oracle_measure_angle(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """sympy's own angle at the second point, in degrees."""
+    triangle = sp.Triangle(_point(ctx, args[0]), _point(ctx, args[1]), _point(ctx, args[2]))
+    vertex = _point(ctx, args[1])
+    return (triangle.angles[vertex] * 180 / sp.pi,)
+
+
+def oracle_measure_radius(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """sympy's own radius of the circle."""
+    _, _, r2 = ctx.circle(args[0])
+    return (sp.sqrt(r2),)
+
+
+def oracle_measure_slope(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """sympy's own slope of the line."""
+    return (_line(ctx, args[0]).slope,)
+
+
+def oracle_measure_direction(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """sympy's own direction of the line, in degrees.
+
+    The line is rebuilt from its defining points, the way it was
+    drawn: a line has no orientation of its own, and the direction
+    follows the order of the points.
+    """
+    node = ctx.figure.node(args[0])
+    direction = sp.Line(_point(ctx, node.args[0]), _point(ctx, node.args[1])).direction
+    return (sp.atan2(direction.y, direction.x) * 180 / sp.pi,)
+
+
 def oracle_polygon_free(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
     """A polygon is its edges; the oracle checks the vertices it carries."""
     out: list[Any] = []
@@ -341,6 +429,14 @@ ORACLES = {
     "circle.center_point": oracle_circle_center_point,
     "circle.incircle": oracle_circle_incicle,
     "polygon.free": oracle_polygon_free,
+    "measure.distance": oracle_measure_distance,
+    "measure.length": oracle_measure_length,
+    "measure.area": oracle_measure_area,
+    "measure.perimeter": oracle_measure_perimeter,
+    "measure.angle": oracle_measure_angle,
+    "measure.radius": oracle_measure_radius,
+    "measure.slope": oracle_measure_slope,
+    "measure.direction": oracle_measure_direction,
     "arc.three_points": oracle_arc_three_points,
     "sector.three_points": oracle_sector_three_points,
     "transform.mirror": oracle_transform_mirror,

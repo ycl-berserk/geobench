@@ -38,10 +38,20 @@ CACHE_FN = "numeric_fn"
 CACHE_SYMBOLS = "numeric_symbols"
 CACHE_VALUES = "numeric"
 CACHE_CONDITION_FN = "numeric_condition_fn"
+CACHE_CONDITION_SYMBOLS = "numeric_condition_symbols"
 CACHE_UNDEFINED = "undefined"
 
 #: The payload a node contributes to the picture, in order.
-_PAYLOAD_KEYS = ("coords", "line", "circle", "segment", "polygon", "arc", "sector")
+_PAYLOAD_KEYS = (
+    "coords",
+    "line",
+    "circle",
+    "segment",
+    "polygon",
+    "arc",
+    "sector",
+    "value",
+)
 
 
 def payload_expressions(node: Node) -> tuple[Expr, ...]:
@@ -122,7 +132,10 @@ def compile_conditions(node: Node, symbols: tuple[sp.Symbol, ...]) -> None:
     expressions = tuple(expression for _, expression, _ in checks)
     vanish = tuple(flag for _, _, flag in checks)
     used = _used_symbols(expressions, symbols)
-    node.cache[CACHE_SYMBOLS] = used
+    # The condition has its own list of symbols: the payload's list says
+    # which values the compiled payload takes, and overwriting it would
+    # hand the payload the wrong arguments.
+    node.cache[CACHE_CONDITION_SYMBOLS] = used
     node.cache[CACHE_CONDITION_FN] = (
         names,
         vanish,
@@ -192,7 +205,7 @@ def failing_condition(node: Node, values: dict[sp.Symbol, float]) -> str | None:
     if compiled is None:
         return None
     names, vanish, function = compiled
-    symbols = node.cache.get(CACHE_SYMBOLS) or ()
+    symbols = node.cache.get(CACHE_CONDITION_SYMBOLS) or ()
     try:
         arguments = [values[symbol] for symbol in symbols]
         result = function(*arguments)

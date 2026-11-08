@@ -28,7 +28,7 @@ from geobench.evaluate import (
     numeric_line,
     numeric_segment,
 )
-from geobench.model import Figure
+from geobench.model import Figure, Node
 from geobench.style import FigureStyle
 
 
@@ -42,6 +42,9 @@ def _numeric_payload(
     payload = values.get(key)
     if payload is None:
         return None
+    if isinstance(payload, (int, float)):
+        # A measurement is a single number, not a list of them.
+        return (float(payload),)
     return tuple(payload)
 
 
@@ -183,6 +186,28 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                 )
             )
             continue
+        elif node.kind == "number":
+            # A measurement is a number written on the figure. Where it
+            # goes depends on what was measured: the middle of the
+            # segment, the vertex of the angle, the middle of the
+            # polygon.
+            value = _numeric_payload(figure, node_id, "value")
+            if value is None:
+                continue
+            position = _number_position(figure, node)
+            if position is None:
+                continue
+            offset = _label_offset(figure, position[0], position[1])
+            labels.append(
+                LabelPrimitive(
+                    position[0],
+                    position[1],
+                    _format_number(value[0]),
+                    offset[0],
+                    offset[1],
+                )
+            )
+            continue
         elif node.kind == "polygon":
             # A polygon is its edges: the primitive list carries the
             # segments between its vertices, so the screen and the export
@@ -240,7 +265,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
     for point in points:
         if not point.label:
             continue
-        dx, dy = _label_offset(figure, point)
+        dx, dy = _label_offset(figure, point.x, point.y)
         labels.append(LabelPrimitive(point.x, point.y, point.label, dx, dy))
 
     return [*auxiliary, *main, *points, *labels]
@@ -282,12 +307,70 @@ def _arc_angles(
     return math.degrees(end), math.degrees(2 * math.pi - counter_clockwise)
 
 
-def _label_offset(figure: Figure, point: PointPrimitive) -> tuple[float, float]:
-    """Place a label away from the figure's centroid, so it does not sit on a stroke.
+def _format_number(value: float) -> str:
+    """A number as it is written on a figure.
 
-    The centroid is taken over the points that *have* a position: one
-    unplaceable point must not push every label off the canvas.
+    A whole number is written as a whole number, and everything else to
+    two decimals. A measurement that says 3.14159 is not more useful
+    than one that says 3.14, and it is harder to read.
     """
+    if not math.isfinite(value):
+        return "?"
+    if abs(value - round(value)) < 1e-9:
+        return str(round(value))
+    return f"{value:.2f}".rstrip("0").rstrip(".")
+
+
+def _number_position(figure: Figure, node: Node) -> tuple[float, float] | None:
+    """Where the label of a measurement goes.
+
+    The rule follows what was measured: the middle of a segment, the
+    vertex of an angle, the inside of a polygon for its area and the
+    middle of one of its sides for its perimeter -- so the two numbers
+    a polygon produces do not land on top of each other.
+    """
+    args = node.args
+    try:
+        if len(args) == 3:
+            # An angle: the label belongs at the vertex.
+            return numeric_coords(figure, args[1])
+        if len(args) == 2:
+            first = numeric_coords(figure, args[0])
+            second = numeric_coords(figure, args[1])
+            return ((first[0] + second[0]) / 2, (first[1] + second[1]) / 2)
+        if len(args) == 1:
+            kind = figure.node(args[0]).kind
+            if kind == "segment":
+                x1, y1, x2, y2 = numeric_segment(figure, args[0])
+                return ((x1 + x2) / 2, (y1 + y2) / 2)
+            if kind == "polygon":
+                vertices = _numeric_payload(figure, args[0], "polygon")
+                if not vertices:
+                    return None
+                count = len(vertices) // 2
+                centre = (
+                    sum(vertices[2 * i] for i in range(count)) / count,
+                    sum(vertices[2 * i + 1] for i in range(count)) / count,
+                )
+                if node.op == "measure.perimeter":
+                    # The perimeter belongs on the boundary, not inside.
+                    x1, y1 = vertices[0], vertices[1]
+                    x2, y2 = vertices[2], vertices[3]
+                    return ((x1 + x2) / 2, (y1 + y2) / 2)
+                return centre
+            if kind == "circle":
+                cx, cy, r2 = numeric_circle(figure, args[0])
+                return (cx, cy + math.sqrt(r2))
+            if kind == "line":
+                return _point_on_line_near(figure, args[0])
+    except Exception:  # pragma: no cover - defensive
+        return None
+    return None
+
+
+def _point_on_line_near(figure: Figure, node_id: str) -> tuple[float, float] | None:
+    """A point on a line, as close as possible to the middle of the figure."""
+    a, b, c = numeric_line(figure, node_id)
     xs: list[float] = []
     ys: list[float] = []
     for node in figure.nodes.values():
@@ -302,10 +385,40 @@ def _label_offset(figure: Figure, point: PointPrimitive) -> tuple[float, float]:
         xs.append(x)
         ys.append(y)
     if not xs:
+        return None
+    cx = sum(xs) / len(xs)
+    cy = sum(ys) / len(ys)
+    denominator = a * a + b * b
+    if denominator == 0:
+        return None
+    distance = (a * cx + b * cy + c) / denominator
+    return (cx - a * distance, cy - b * distance)
+
+
+def _label_offset(figure: Figure, x: float, y: float) -> tuple[float, float]:
+    """Place a label away from the figure's centroid, so it does not sit on a stroke.
+
+    The centroid is taken over the points that *have* a position: one
+    unplaceable point must not push every label off the canvas.
+    """
+    xs: list[float] = []
+    ys: list[float] = []
+    for node in figure.nodes.values():
+        if node.kind != "point":
+            continue
+        try:
+            px, py = numeric_coords(figure, node.id)
+        except Exception:  # pragma: no cover - defensive
+            continue
+        if not (math.isfinite(px) and math.isfinite(py)):
+            continue
+        xs.append(px)
+        ys.append(py)
+    if not xs:
         return 0.0, 0.0
     cx = sum(xs) / len(xs)
     cy = sum(ys) / len(ys)
-    dx, dy = point.x - cx, point.y - cy
+    dx, dy = x - cx, y - cy
     norm = math.hypot(dx, dy)
     if norm < 1e-9:
         return 0.0, 1.0
