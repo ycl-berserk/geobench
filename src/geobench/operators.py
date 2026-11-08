@@ -377,6 +377,66 @@ def op_nearest_on_object(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {"kind": "point", "coords": (x1 + clamped * dx, y1 + clamped * dy)}
 
 
+def op_transform_mirror(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The reflection of a point in a line (镜像).
+
+    The reflection is twice the foot of the perpendicular minus the point
+    itself -- the foot is the midpoint of the point and its mirror.
+    """
+    (px, py) = ctx.point(args[0])
+    a, b, c = ctx.as_line(args[1])
+    denominator = a * a + b * b
+    if denominator == 0:
+        raise DegenerateError("degenerate line")
+    shift = (a * px + b * py + c) / denominator
+    return {"kind": "point", "coords": (px - 2 * shift * a, py - 2 * shift * b)}
+
+
+def op_transform_translate(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """A translation by a vector (平移).
+
+    The vector is written as a point, the way GeoGebra writes it: the
+    coordinates of that point are the offsets.
+    """
+    (px, py) = ctx.point(args[0])
+    (dx, dy) = ctx.point(args[1])
+    return {"kind": "point", "coords": (px + dx, py + dy)}
+
+
+def op_transform_rotate(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """A rotation about a point (旋转).
+
+    The angle is in **degrees**, as in GeoGebra. It is kept exact: the
+    angle in radians is ``theta * pi / 180``, and sympy evaluates the
+    cosine of the special angles to exact values -- the cosine of 60
+    degrees is 1/2, not 0.5000000001.
+    """
+    (px, py) = ctx.point(args[0])
+    degrees = FIELD.coerce(args[1])
+    (cx, cy) = ctx.point(args[2])
+    radians = degrees * sp.pi / 180
+    cosine, sine = sp.cos(radians), sp.sin(radians)
+    dx, dy = px - cx, py - cy
+    return {
+        "kind": "point",
+        "coords": (
+            cx + dx * cosine - dy * sine,
+            cy + dx * sine + dy * cosine,
+        ),
+    }
+
+
+def op_transform_dilate(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """A homothety about a point (位似)."""
+    (px, py) = ctx.point(args[0])
+    factor = FIELD.coerce(args[1])
+    (cx, cy) = ctx.point(args[2])
+    return {
+        "kind": "point",
+        "coords": (cx + factor * (px - cx), cy + factor * (py - cy)),
+    }
+
+
 def op_intersect_circles(ctx: OpContext, args: list[str]) -> dict[str, object]:
     """The intersection points of two circles (两圆交点).
 
@@ -649,6 +709,55 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="sympy.geometry:Triangle.incircle",
         ),
         op_circle_incicle,
+    ),
+    (
+        OpSpec(
+            id="transform.mirror",
+            kind="point",
+            args=(ArgSpec("p", "point"), ArgSpec("line", "line")),
+            returns="point",
+            degenerate_when=("degenerate line",),
+            oracle="sympy.geometry:Point.reflect",
+        ),
+        op_transform_mirror,
+    ),
+    (
+        OpSpec(
+            id="transform.translate",
+            kind="point",
+            args=(ArgSpec("p", "point"), ArgSpec("vector", "point")),
+            returns="point",
+            oracle="sympy.geometry:Point.translate",
+        ),
+        op_transform_translate,
+    ),
+    (
+        OpSpec(
+            id="transform.rotate",
+            kind="point",
+            args=(
+                ArgSpec("p", "point"),
+                ArgSpec("degrees", "scalar"),
+                ArgSpec("centre", "point"),
+            ),
+            returns="point",
+            oracle="sympy.geometry:Point.rotate",
+        ),
+        op_transform_rotate,
+    ),
+    (
+        OpSpec(
+            id="transform.dilate",
+            kind="point",
+            args=(
+                ArgSpec("p", "point"),
+                ArgSpec("factor", "scalar"),
+                ArgSpec("centre", "point"),
+            ),
+            returns="point",
+            oracle="sympy.geometry:Point.scale",
+        ),
+        op_transform_dilate,
     ),
     (
         OpSpec(

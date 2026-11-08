@@ -237,6 +237,38 @@ def oracle_circle_incicle(ctx: OpContext, args: list[str]) -> tuple[Any, Any, An
     return circle.center.x, circle.center.y, circle.radius**2
 
 
+def oracle_transform_mirror(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
+    reflected = _point(ctx, args[0]).reflect(_line(ctx, args[1]))
+    return reflected.x, reflected.y
+
+
+def oracle_transform_translate(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
+    dx, dy = ctx.point(args[1])
+    moved = _point(ctx, args[0]).translate(dx, dy)
+    return moved.x, moved.y
+
+
+def oracle_transform_rotate(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
+    degrees = sp.sympify(args[1])
+    centre = _point(ctx, args[2])
+    # sympy rotates counter-clockwise by radians.
+    moved = _point(ctx, args[0]).rotate(degrees * sp.pi / 180, centre)
+    return moved.x, moved.y
+
+
+def oracle_transform_dilate(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
+    """The homothety about a point.
+
+    sympy's ``Point.scale`` scales the *coordinates*, not the point
+    about a centre, so the oracle uses sympy's own vector arithmetic on
+    points instead.
+    """
+    factor = sp.sympify(args[1])
+    centre = _point(ctx, args[2])
+    moved = centre + factor * (_point(ctx, args[0]) - centre)
+    return moved.x, moved.y
+
+
 def oracle_intersect_line_circle(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
     """The intersections of a line and a circle.
 
@@ -276,5 +308,9 @@ ORACLES = {
     "circle.through": oracle_circle_through,
     "circle.center_point": oracle_circle_center_point,
     "circle.incircle": oracle_circle_incicle,
+    "transform.mirror": oracle_transform_mirror,
+    "transform.translate": oracle_transform_translate,
+    "transform.rotate": oracle_transform_rotate,
+    "transform.dilate": oracle_transform_dilate,
     "circle.free": oracle_circle_free,
 }
