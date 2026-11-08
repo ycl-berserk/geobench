@@ -256,6 +256,29 @@ def oracle_transform_rotate(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
     return moved.x, moved.y
 
 
+def oracle_arc_three_points(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """The arc lies on the circle through the three points.
+
+    The oracle builds that circle with sympy and checks the centre, the
+    squared radius and the three points the arc carries.
+    """
+    a = _point(ctx, args[0])
+    b = _point(ctx, args[1])
+    c = _point(ctx, args[2])
+    circle = sp.Circle(a, b, c)
+    r2 = circle.radius ** 2
+    return circle.center.x, circle.center.y, r2, a.x, a.y, c.x, c.y, b.x, b.y
+
+
+def oracle_sector_three_points(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """The sector: a centre, a squared radius and the two end points."""
+    centre = _point(ctx, args[0])
+    start = _point(ctx, args[1])
+    end = _point(ctx, args[2])
+    r2 = start.distance(centre) ** 2
+    return centre.x, centre.y, r2, start.x, start.y, end.x, end.y
+
+
 def oracle_polygon_free(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
     """A polygon is its edges; the oracle checks the vertices it carries."""
     out: list[Any] = []
@@ -318,6 +341,8 @@ ORACLES = {
     "circle.center_point": oracle_circle_center_point,
     "circle.incircle": oracle_circle_incicle,
     "polygon.free": oracle_polygon_free,
+    "arc.three_points": oracle_arc_three_points,
+    "sector.three_points": oracle_sector_three_points,
     "transform.mirror": oracle_transform_mirror,
     "transform.translate": oracle_transform_translate,
     "transform.rotate": oracle_transform_rotate,

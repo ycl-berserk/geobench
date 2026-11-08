@@ -88,6 +88,29 @@ class CirclePrimitive:
 
 
 @dataclass(frozen=True)
+class ArcPrimitive:
+    """A circular arc, by its centre, its radius and its angles.
+
+    The angles are in **degrees**, measured counter-clockwise from the
+    positive x-axis of the *figure* coordinates (where y points up). The
+    span is signed: positive means counter-clockwise.
+
+    The angles are worked out here, once, so that the screen and the
+    export draw the same arc (decision D20). Which of the two arcs of a
+    circle is meant depends on where the points are, so it is settled
+    from the numbers rather than from the symbols.
+    """
+
+    cx: float
+    cy: float
+    radius: float
+    start_angle: float
+    span_angle: float
+    auxiliary: bool = False
+    filled: bool = False
+
+
+@dataclass(frozen=True)
 class LabelPrimitive:
     """A piece of text, already placed."""
 
@@ -98,7 +121,14 @@ class LabelPrimitive:
     offset_y: float = 0.0
 
 
-Primitive = PointPrimitive | SegmentPrimitive | LinePrimitive | CirclePrimitive | LabelPrimitive
+Primitive = (
+    PointPrimitive
+    | SegmentPrimitive
+    | LinePrimitive
+    | CirclePrimitive
+    | ArcPrimitive
+    | LabelPrimitive
+)
 
 
 def is_auxiliary(node_id: str, style: FigureStyle) -> bool:
@@ -169,6 +199,40 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                     SegmentPrimitive(x1, y1, x2, y2, aux)
                 )
             continue
+        elif node.kind == "arc":
+            payload = _numeric_payload(figure, node_id, "arc")
+            if payload is None or len(payload) != 9:
+                continue
+            ox, oy, r2 = payload[0], payload[1], payload[2]
+            if r2 <= 0:
+                continue
+            start, span = _arc_angles(
+                ox,
+                oy,
+                payload[3],
+                payload[4],
+                payload[5],
+                payload[6],
+                (payload[7], payload[8]),
+            )
+            primitive = ArcPrimitive(ox, oy, math.sqrt(r2), start, span, aux)
+        elif node.kind == "sector":
+            payload = _numeric_payload(figure, node_id, "sector")
+            if payload is None or len(payload) != 7:
+                continue
+            ox, oy, r2 = payload[0], payload[1], payload[2]
+            if r2 <= 0:
+                continue
+            start, span = _arc_angles(
+                ox,
+                oy,
+                payload[3],
+                payload[4],
+                payload[5],
+                payload[6],
+                None,
+            )
+            primitive = ArcPrimitive(ox, oy, math.sqrt(r2), start, span, aux, True)
         else:
             continue
         (auxiliary if aux else main).append(primitive)
@@ -180,6 +244,42 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
         labels.append(LabelPrimitive(point.x, point.y, point.label, dx, dy))
 
     return [*auxiliary, *main, *points, *labels]
+
+
+def _arc_angles(
+    ox: float,
+    oy: float,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    through: tuple[float, float] | None,
+) -> tuple[float, float]:
+    """The start angle and the span of an arc, in degrees.
+
+    The arc runs from the first point to the second. When a third point
+    is given, the arc is the one that passes through it -- of the two
+    arcs between the endpoints, the one that contains the third point
+    is meant, and which one that is depends on the order of the three
+    points around the circle.
+
+    The angles are measured counter-clockwise in figure coordinates,
+    where y points up.
+    """
+    start = math.atan2(y1 - oy, x1 - ox)
+    end = math.atan2(y2 - oy, x2 - ox)
+    counter_clockwise = (end - start) % (2 * math.pi)
+    if through is None:
+        return math.degrees(start), math.degrees(counter_clockwise)
+    xm, ym = through
+    middle = math.atan2(ym - oy, xm - ox)
+    offset = (middle - start) % (2 * math.pi)
+    if offset <= counter_clockwise + 1e-9:
+        # The middle point lies on the counter-clockwise arc.
+        return math.degrees(start), math.degrees(counter_clockwise)
+    # Otherwise the arc goes the other way: counter-clockwise from the
+    # end point to the start point.
+    return math.degrees(end), math.degrees(2 * math.pi - counter_clockwise)
 
 
 def _label_offset(figure: Figure, point: PointPrimitive) -> tuple[float, float]:

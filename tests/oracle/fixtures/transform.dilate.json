@@ -5,16 +5,232 @@
     {
       "points": {
         "A": [
-          "-5",
+          "7",
           "1"
         ],
         "B": [
-          "-6",
-          "-3"
+          "-7",
+          "-2"
         ],
         "C": [
-          "-5",
+          "8",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "1"
+        ],
+        "B": [
+          "-7",
+          "-2"
+        ],
+        "C": [
+          "8",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "1"
+        ],
+        "B": [
+          "-7",
+          "-2"
+        ],
+        "C": [
+          "8",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-1"
+        ],
+        "B": [
+          "6",
+          "8"
+        ],
+        "C": [
+          "-7",
+          "-3"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-1"
+        ],
+        "B": [
+          "6",
+          "8"
+        ],
+        "C": [
+          "-7",
+          "-3"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-1"
+        ],
+        "B": [
+          "6",
+          "8"
+        ],
+        "C": [
+          "-7",
+          "-3"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-2"
+        ],
+        "B": [
+          "3",
           "-8"
+        ],
+        "C": [
+          "0",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-2"
+        ],
+        "B": [
+          "3",
+          "-8"
+        ],
+        "C": [
+          "0",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-2"
+        ],
+        "B": [
+          "3",
+          "-8"
+        ],
+        "C": [
+          "0",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "8"
+        ],
+        "B": [
+          "-7",
+          "2"
+        ],
+        "C": [
+          "2",
+          "-6"
         ]
       },
       "args": [
@@ -30,15 +246,15 @@
       "points": {
         "A": [
           "-5",
-          "1"
+          "8"
         ],
         "B": [
-          "-6",
-          "-3"
+          "-7",
+          "2"
         ],
         "C": [
-          "-5",
-          "-8"
+          "2",
+          "-6"
         ]
       },
       "args": [
@@ -54,14 +270,806 @@
       "points": {
         "A": [
           "-5",
-          "1"
+          "8"
+        ],
+        "B": [
+          "-7",
+          "2"
+        ],
+        "C": [
+          "2",
+          "-6"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "-2"
+        ],
+        "B": [
+          "-1",
+          "-7"
+        ],
+        "C": [
+          "-8",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "-2"
+        ],
+        "B": [
+          "-1",
+          "-7"
+        ],
+        "C": [
+          "-8",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "-2"
+        ],
+        "B": [
+          "-1",
+          "-7"
+        ],
+        "C": [
+          "-8",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "-1"
         ],
         "B": [
           "-6",
-          "-3"
+          "0"
         ],
         "C": [
+          "2",
+          "-6"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "-1"
+        ],
+        "B": [
+          "-6",
+          "0"
+        ],
+        "C": [
+          "2",
+          "-6"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "-1"
+        ],
+        "B": [
+          "-6",
+          "0"
+        ],
+        "C": [
+          "2",
+          "-6"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "-8"
+        ],
+        "B": [
+          "-6",
+          "0"
+        ],
+        "C": [
+          "-7",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "-8"
+        ],
+        "B": [
+          "-6",
+          "0"
+        ],
+        "C": [
+          "-7",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "-8"
+        ],
+        "B": [
+          "-6",
+          "0"
+        ],
+        "C": [
+          "-7",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "4"
+        ],
+        "B": [
+          "3",
+          "4"
+        ],
+        "C": [
+          "4",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "4"
+        ],
+        "B": [
+          "3",
+          "4"
+        ],
+        "C": [
+          "4",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "4"
+        ],
+        "B": [
+          "3",
+          "4"
+        ],
+        "C": [
+          "4",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "-7"
+        ],
+        "B": [
+          "-4",
+          "1"
+        ],
+        "C": [
+          "-6",
+          "-6"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "-7"
+        ],
+        "B": [
+          "-4",
+          "1"
+        ],
+        "C": [
+          "-6",
+          "-6"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "-7"
+        ],
+        "B": [
+          "-4",
+          "1"
+        ],
+        "C": [
+          "-6",
+          "-6"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "6"
+        ],
+        "B": [
+          "-8",
+          "-8"
+        ],
+        "C": [
+          "4",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "6"
+        ],
+        "B": [
+          "-8",
+          "-8"
+        ],
+        "C": [
+          "4",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "6"
+        ],
+        "B": [
+          "-8",
+          "-8"
+        ],
+        "C": [
+          "4",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
           "-5",
+          "-7"
+        ],
+        "B": [
+          "8",
+          "-8"
+        ],
+        "C": [
+          "8",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "-7"
+        ],
+        "B": [
+          "8",
+          "-8"
+        ],
+        "C": [
+          "8",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "-7"
+        ],
+        "B": [
+          "8",
+          "-8"
+        ],
+        "C": [
+          "8",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "-8"
+        ],
+        "B": [
+          "-6",
+          "6"
+        ],
+        "C": [
+          "2",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "-8"
+        ],
+        "B": [
+          "-6",
+          "6"
+        ],
+        "C": [
+          "2",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "-8"
+        ],
+        "B": [
+          "-6",
+          "6"
+        ],
+        "C": [
+          "2",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "7"
+        ],
+        "B": [
+          "1",
+          "8"
+        ],
+        "C": [
+          "0",
+          "-4"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "7"
+        ],
+        "B": [
+          "1",
+          "8"
+        ],
+        "C": [
+          "0",
+          "-4"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "7"
+        ],
+        "B": [
+          "1",
+          "8"
+        ],
+        "C": [
+          "0",
+          "-4"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-3"
+        ],
+        "B": [
+          "3",
+          "2"
+        ],
+        "C": [
+          "0",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-3"
+        ],
+        "B": [
+          "3",
+          "2"
+        ],
+        "C": [
+          "0",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-3"
+        ],
+        "B": [
+          "3",
+          "2"
+        ],
+        "C": [
+          "0",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "-2"
+        ],
+        "B": [
+          "-1",
+          "-1"
+        ],
+        "C": [
+          "3",
+          "-8"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "-2"
+        ],
+        "B": [
+          "-1",
+          "-1"
+        ],
+        "C": [
+          "3",
+          "-8"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "-2"
+        ],
+        "B": [
+          "-1",
+          "-1"
+        ],
+        "C": [
+          "3",
           "-8"
         ]
       },
@@ -77,12 +1085,156 @@
     {
       "points": {
         "A": [
-          "6",
-          "-8"
+          "1",
+          "3"
         ],
         "B": [
-          "-6",
+          "6",
+          "5"
+        ],
+        "C": [
+          "-4",
+          "7"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "3"
+        ],
+        "B": [
+          "6",
+          "5"
+        ],
+        "C": [
+          "-4",
+          "7"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "3"
+        ],
+        "B": [
+          "6",
+          "5"
+        ],
+        "C": [
+          "-4",
+          "7"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "3",
           "6"
+        ],
+        "B": [
+          "5",
+          "-1"
+        ],
+        "C": [
+          "4",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "3",
+          "6"
+        ],
+        "B": [
+          "5",
+          "-1"
+        ],
+        "C": [
+          "4",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "3",
+          "6"
+        ],
+        "B": [
+          "5",
+          "-1"
+        ],
+        "C": [
+          "4",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "6"
+        ],
+        "B": [
+          "-5",
+          "1"
         ],
         "C": [
           "6",
@@ -101,15 +1253,159 @@
     {
       "points": {
         "A": [
-          "6",
-          "-8"
+          "0",
+          "6"
         ],
         "B": [
-          "-6",
-          "6"
+          "-5",
+          "1"
         ],
         "C": [
           "6",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "6"
+        ],
+        "B": [
+          "-5",
+          "1"
+        ],
+        "C": [
+          "6",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
+          "-8"
+        ],
+        "B": [
+          "-3",
+          "0"
+        ],
+        "C": [
+          "3",
+          "2"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
+          "-8"
+        ],
+        "B": [
+          "-3",
+          "0"
+        ],
+        "C": [
+          "3",
+          "2"
+        ]
+      },
+      "args": [
+        "A",
+        "-1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a half turn"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
+          "-8"
+        ],
+        "B": [
+          "-3",
+          "0"
+        ],
+        "C": [
+          "3",
+          "2"
+        ]
+      },
+      "args": [
+        "A",
+        "1",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the identity"
+    },
+    {
+      "points": {
+        "A": [
+          "-8",
+          "3"
+        ],
+        "B": [
+          "-5",
+          "-7"
+        ],
+        "C": [
+          "-5",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "2",
+        "C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a factor of two"
+    },
+    {
+      "points": {
+        "A": [
+          "-8",
+          "3"
+        ],
+        "B": [
+          "-5",
+          "-7"
+        ],
+        "C": [
+          "-5",
           "4"
         ]
       },
@@ -125,15 +1421,15 @@
     {
       "points": {
         "A": [
-          "6",
-          "-8"
+          "-8",
+          "3"
         ],
         "B": [
-          "-6",
-          "6"
+          "-5",
+          "-7"
         ],
         "C": [
-          "6",
+          "-5",
           "4"
         ]
       },
@@ -149,447 +1445,15 @@
     {
       "points": {
         "A": [
-          "-5",
-          "-5"
-        ],
-        "B": [
-          "-1",
-          "-7"
-        ],
-        "C": [
-          "4",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-5"
-        ],
-        "B": [
-          "-1",
-          "-7"
-        ],
-        "C": [
-          "4",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-5"
-        ],
-        "B": [
-          "-1",
-          "-7"
-        ],
-        "C": [
-          "4",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "-4"
-        ],
-        "B": [
-          "5",
-          "-4"
-        ],
-        "C": [
-          "1",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "-4"
-        ],
-        "B": [
-          "5",
-          "-4"
-        ],
-        "C": [
-          "1",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "-4"
-        ],
-        "B": [
-          "5",
-          "-4"
-        ],
-        "C": [
-          "1",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "1"
-        ],
-        "B": [
-          "6",
-          "-2"
-        ],
-        "C": [
-          "-6",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "1"
-        ],
-        "B": [
-          "6",
-          "-2"
-        ],
-        "C": [
-          "-6",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "1"
-        ],
-        "B": [
-          "6",
-          "-2"
-        ],
-        "C": [
-          "-6",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-1"
-        ],
-        "B": [
           "-8",
-          "7"
+          "8"
+        ],
+        "B": [
+          "-6",
+          "-4"
         ],
         "C": [
-          "0",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
           "1",
-          "-1"
-        ],
-        "B": [
-          "-8",
-          "7"
-        ],
-        "C": [
-          "0",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-1"
-        ],
-        "B": [
-          "-8",
-          "7"
-        ],
-        "C": [
-          "0",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-5"
-        ],
-        "B": [
-          "-5",
-          "-2"
-        ],
-        "C": [
-          "-6",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-5"
-        ],
-        "B": [
-          "-5",
-          "-2"
-        ],
-        "C": [
-          "-6",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-5"
-        ],
-        "B": [
-          "-5",
-          "-2"
-        ],
-        "C": [
-          "-6",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "-5"
-        ],
-        "B": [
-          "-5",
-          "-2"
-        ],
-        "C": [
-          "-5",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "-5"
-        ],
-        "B": [
-          "-5",
-          "-2"
-        ],
-        "C": [
-          "-5",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "-5"
-        ],
-        "B": [
-          "-5",
-          "-2"
-        ],
-        "C": [
-          "-5",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "6"
-        ],
-        "B": [
-          "8",
-          "1"
-        ],
-        "C": [
-          "-1",
           "-6"
         ]
       },
@@ -605,15 +1469,15 @@
     {
       "points": {
         "A": [
-          "8",
-          "6"
+          "-8",
+          "8"
         ],
         "B": [
-          "8",
-          "1"
+          "-6",
+          "-4"
         ],
         "C": [
-          "-1",
+          "1",
           "-6"
         ]
       },
@@ -629,15 +1493,15 @@
     {
       "points": {
         "A": [
-          "8",
-          "6"
+          "-8",
+          "8"
         ],
         "B": [
-          "8",
-          "1"
+          "-6",
+          "-4"
         ],
         "C": [
-          "-1",
+          "1",
           "-6"
         ]
       },
@@ -653,16 +1517,16 @@
     {
       "points": {
         "A": [
-          "3",
-          "5"
+          "8",
+          "-4"
         ],
         "B": [
           "4",
-          "6"
+          "1"
         ],
         "C": [
-          "-1",
-          "1"
+          "-3",
+          "5"
         ]
       },
       "args": [
@@ -677,16 +1541,16 @@
     {
       "points": {
         "A": [
-          "3",
-          "5"
+          "8",
+          "-4"
         ],
         "B": [
           "4",
-          "6"
+          "1"
         ],
         "C": [
-          "-1",
-          "1"
+          "-3",
+          "5"
         ]
       },
       "args": [
@@ -701,807 +1565,15 @@
     {
       "points": {
         "A": [
-          "3",
-          "5"
+          "8",
+          "-4"
         ],
         "B": [
           "4",
-          "6"
-        ],
-        "C": [
-          "-1",
           "1"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-2"
         ],
-        "B": [
+        "C": [
           "-3",
-          "-1"
-        ],
-        "C": [
-          "7",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-2"
-        ],
-        "B": [
-          "-3",
-          "-1"
-        ],
-        "C": [
-          "7",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-2"
-        ],
-        "B": [
-          "-3",
-          "-1"
-        ],
-        "C": [
-          "7",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "7"
-        ],
-        "B": [
-          "-4",
-          "7"
-        ],
-        "C": [
-          "-2",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "7"
-        ],
-        "B": [
-          "-4",
-          "7"
-        ],
-        "C": [
-          "-2",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "7"
-        ],
-        "B": [
-          "-4",
-          "7"
-        ],
-        "C": [
-          "-2",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "-2",
-          "3"
-        ],
-        "B": [
-          "-8",
-          "-5"
-        ],
-        "C": [
-          "1",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "-2",
-          "3"
-        ],
-        "B": [
-          "-8",
-          "-5"
-        ],
-        "C": [
-          "1",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "-2",
-          "3"
-        ],
-        "B": [
-          "-8",
-          "-5"
-        ],
-        "C": [
-          "1",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "0"
-        ],
-        "B": [
-          "-6",
-          "-7"
-        ],
-        "C": [
-          "5",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "0"
-        ],
-        "B": [
-          "-6",
-          "-7"
-        ],
-        "C": [
-          "5",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "0"
-        ],
-        "B": [
-          "-6",
-          "-7"
-        ],
-        "C": [
-          "5",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-7"
-        ],
-        "B": [
-          "-3",
-          "-7"
-        ],
-        "C": [
-          "-5",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-7"
-        ],
-        "B": [
-          "-3",
-          "-7"
-        ],
-        "C": [
-          "-5",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-7"
-        ],
-        "B": [
-          "-3",
-          "-7"
-        ],
-        "C": [
-          "-5",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "3"
-        ],
-        "B": [
-          "7",
-          "-1"
-        ],
-        "C": [
-          "-5",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "3"
-        ],
-        "B": [
-          "7",
-          "-1"
-        ],
-        "C": [
-          "-5",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "3"
-        ],
-        "B": [
-          "7",
-          "-1"
-        ],
-        "C": [
-          "-5",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "-2"
-        ],
-        "B": [
-          "-7",
-          "-2"
-        ],
-        "C": [
-          "7",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "-2"
-        ],
-        "B": [
-          "-7",
-          "-2"
-        ],
-        "C": [
-          "7",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "-2"
-        ],
-        "B": [
-          "-7",
-          "-2"
-        ],
-        "C": [
-          "7",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "-3"
-        ],
-        "B": [
-          "-1",
-          "-8"
-        ],
-        "C": [
-          "1",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "-3"
-        ],
-        "B": [
-          "-1",
-          "-8"
-        ],
-        "C": [
-          "1",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "-3"
-        ],
-        "B": [
-          "-1",
-          "-8"
-        ],
-        "C": [
-          "1",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-6"
-        ],
-        "B": [
-          "2",
-          "-3"
-        ],
-        "C": [
-          "-7",
-          "6"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-6"
-        ],
-        "B": [
-          "2",
-          "-3"
-        ],
-        "C": [
-          "-7",
-          "6"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-6"
-        ],
-        "B": [
-          "2",
-          "-3"
-        ],
-        "C": [
-          "-7",
-          "6"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "2"
-        ],
-        "B": [
-          "-7",
-          "3"
-        ],
-        "C": [
-          "-8",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "2"
-        ],
-        "B": [
-          "-7",
-          "3"
-        ],
-        "C": [
-          "-8",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "2"
-        ],
-        "B": [
-          "-7",
-          "3"
-        ],
-        "C": [
-          "-8",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "2"
-        ],
-        "B": [
-          "3",
-          "3"
-        ],
-        "C": [
-          "-6",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "2"
-        ],
-        "B": [
-          "3",
-          "3"
-        ],
-        "C": [
-          "-6",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "2"
-        ],
-        "B": [
-          "3",
-          "3"
-        ],
-        "C": [
-          "-6",
           "5"
         ]
       },
@@ -1517,16 +1589,16 @@
     {
       "points": {
         "A": [
-          "8",
-          "-4"
+          "1",
+          "0"
         ],
         "B": [
-          "-7",
-          "-7"
+          "2",
+          "-8"
         ],
         "C": [
-          "-1",
-          "0"
+          "3",
+          "-5"
         ]
       },
       "args": [
@@ -1541,16 +1613,16 @@
     {
       "points": {
         "A": [
-          "8",
-          "-4"
+          "1",
+          "0"
         ],
         "B": [
-          "-7",
-          "-7"
+          "2",
+          "-8"
         ],
         "C": [
-          "-1",
-          "0"
+          "3",
+          "-5"
         ]
       },
       "args": [
@@ -1565,88 +1637,16 @@
     {
       "points": {
         "A": [
-          "8",
-          "-4"
-        ],
-        "B": [
-          "-7",
-          "-7"
-        ],
-        "C": [
-          "-1",
+          "1",
           "0"
-        ]
-      },
-      "args": [
-        "A",
-        "1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the identity"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "2"
         ],
         "B": [
-          "0",
-          "-4"
+          "2",
+          "-8"
         ],
         "C": [
-          "-1",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "2",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a factor of two"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "2"
-        ],
-        "B": [
-          "0",
-          "-4"
-        ],
-        "C": [
-          "-1",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "-1",
-        "C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a half turn"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "2"
-        ],
-        "B": [
-          "0",
-          "-4"
-        ],
-        "C": [
-          "-1",
-          "8"
+          "3",
+          "-5"
         ]
       },
       "args": [
@@ -1662,15 +1662,15 @@
       "points": {
         "A": [
           "-3",
-          "-4"
+          "8"
         ],
         "B": [
-          "-8",
-          "-4"
+          "-3",
+          "1"
         ],
         "C": [
-          "-2",
-          "-5"
+          "-6",
+          "-3"
         ]
       },
       "args": [
@@ -1686,15 +1686,15 @@
       "points": {
         "A": [
           "-3",
-          "-4"
+          "8"
         ],
         "B": [
-          "-8",
-          "-4"
+          "-3",
+          "1"
         ],
         "C": [
-          "-2",
-          "-5"
+          "-6",
+          "-3"
         ]
       },
       "args": [
@@ -1710,15 +1710,15 @@
       "points": {
         "A": [
           "-3",
-          "-4"
+          "8"
         ],
         "B": [
-          "-8",
-          "-4"
+          "-3",
+          "1"
         ],
         "C": [
-          "-2",
-          "-5"
+          "-6",
+          "-3"
         ]
       },
       "args": [

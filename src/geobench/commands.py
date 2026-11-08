@@ -297,10 +297,10 @@ COMMANDS: tuple[CommandSpec, ...] = (
     _c("circle.through", "外接圆", "Circumcircle", "圆", CONSTRUCTION, 3, "过三点的圆", True),
     _c("circle.incircle", "内切圆", "Incircle", "圆", CONSTRUCTION, 3, "三角形的内切圆", True),
     _c("arc.free", "弧", "Arc", "圆", CONSTRUCTION, 3, "圆弧"),
-    _c("arc.three_points", "圆弧", "CircularArc", "圆", CONSTRUCTION, 3, "三点确定的弧"),
+    _c("arc.three_points", "圆弧", "CircularArc", "圆", CONSTRUCTION, 3, "三点确定的弧", True),
     _c("sector.circular", "圆扇形", "CircularSector", "圆", CONSTRUCTION, 3, "圆扇形"),
     _c("sector.free", "扇形", "Sector", "圆", CONSTRUCTION, 3, "扇形"),
-    _c("sector.three_points", "三点扇形", "SectorThreePoints", "圆", CONSTRUCTION, 3, "三点扇形"),
+    _c("sector.three_points", "三点扇形", "SectorThreePoints", "圆", CONSTRUCTION, 3, "三点扇形", True),
     _c("circle.osculating", "密切圆", "OsculatingCircle", "圆", CONSTRUCTION, 2, "密切圆"),
     # -- 多边形 ------------------------------------------------------------
     _c("polygon.free", "多边形", "Polygon", "多边形", CONSTRUCTION, 3, "多边形", True),

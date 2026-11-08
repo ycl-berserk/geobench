@@ -15,12 +15,14 @@ drift apart (decision D20).
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 from geobench.evaluate import numeric_circle, numeric_coords
 from geobench.model import Figure
 from geobench.primitives import (
+    ArcPrimitive,
     CirclePrimitive,
     LabelPrimitive,
     LinePrimitive,
@@ -213,6 +215,8 @@ def render_svg(
                 f'stroke-width="{_stroke_width(primitive.auxiliary, style)}"'
                 f'{_dash(primitive.auxiliary)}/>'
             )
+        elif isinstance(primitive, ArcPrimitive):
+            parts.append(_svg_arc(tx, ty, primitive, scale, style))
         elif isinstance(primitive, PointPrimitive):
             if not (math.isfinite(primitive.x) and math.isfinite(primitive.y)):
                 # A point that could not be placed has no sensible
@@ -247,6 +251,50 @@ def render_svg(
 
     parts.append("</svg>")
     return "\n".join(parts)
+
+
+def _svg_arc(
+    tx: Callable[[float], float],
+    ty: Callable[[float], float],
+    primitive: ArcPrimitive,
+    scale: float,
+    style: FigureStyle,
+) -> str:
+    """One arc as an SVG path.
+
+    The angles are worked out in the figure's coordinates, where y
+    points up. The screen's y points down, so a counter-clockwise arc
+    in the figure is drawn with the opposite sweep flag.
+    """
+    radius = primitive.radius
+    start = math.radians(primitive.start_angle)
+    end = start + math.radians(primitive.span_angle)
+    x1 = tx(primitive.cx + radius * math.cos(start))
+    y1 = ty(primitive.cy + radius * math.sin(start))
+    x2 = tx(primitive.cx + radius * math.cos(end))
+    y2 = ty(primitive.cy + radius * math.sin(end))
+    large = 1 if abs(primitive.span_angle) > 180.0 else 0
+    sweep = 0 if primitive.span_angle >= 0 else 1
+    scaled = radius * scale
+    if primitive.filled:
+        # A sector: the arc plus the two radii back to the centre.
+        path = (
+            f"M {_fmt(tx(primitive.cx))} {_fmt(ty(primitive.cy))} "
+            f"L {_fmt(x1)} {_fmt(y1)} "
+            f"A {_fmt(scaled)} {_fmt(scaled)} 0 {large} {sweep} {_fmt(x2)} {_fmt(y2)} Z"
+        )
+        fill = style.sector_fill
+    else:
+        path = (
+            f"M {_fmt(x1)} {_fmt(y1)} "
+            f"A {_fmt(scaled)} {_fmt(scaled)} 0 {large} {sweep} {_fmt(x2)} {_fmt(y2)}"
+        )
+        fill = "none"
+    return (
+        f'<path d="{path}" fill="{fill}" stroke="{style.stroke}" '
+        f'stroke-width="{_stroke_width(primitive.auxiliary, style)}"'
+        f"{_dash(primitive.auxiliary)}/>"
+    )
 
 
 def _stroke_width(auxiliary: bool, style: FigureStyle) -> float:

@@ -20,11 +20,13 @@ LINE = "line"
 SEGMENT = "segment"
 CIRCLE = "circle"
 POLYGON = "polygon"
+ARC = "arc"
+SECTOR = "sector"
 
 FREE = "free"
 DERIVED = "derived"
 
-_KINDS = (POINT, LINE, SEGMENT, CIRCLE, POLYGON)
+_KINDS = (POINT, LINE, SEGMENT, CIRCLE, POLYGON, ARC, SECTOR)
 _ROLES = (FREE, DERIVED)
 
 
