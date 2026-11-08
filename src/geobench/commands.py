@@ -216,6 +216,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         CONSTRUCTION,
         2,
         "多边形的顶点",
+        True,
     ),
     _c(
         "point.affine_ratio",
@@ -225,6 +226,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         CONSTRUCTION,
         4,
         "按比例分割线段",
+        True,
     ),
     _c(
         "point.in_region",
@@ -278,7 +280,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         True,
     ),
     _c("line.tangent", "切线", "Tangent", "线", CONSTRUCTION, 2, "圆的切线", True),
-    _c("line.polar", "极线", "Polar", "线", CONSTRUCTION, 2, "点的极线"),
+    _c("line.polar", "极线", "Polar", "线", CONSTRUCTION, 2, "点的极线", True),
     _c("ray.free", "射线", "Ray", "线", CONSTRUCTION, 2, "射线"),
     _c("segment.free", "线段", "Segment", "线", CONSTRUCTION, 2, "线段", True),
     _c("polyline.free", "折线", "PolyLine", "线", CONSTRUCTION, 2, "折线"),

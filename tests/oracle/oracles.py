@@ -279,6 +279,53 @@ def oracle_sector_three_points(ctx: OpContext, args: list[str]) -> tuple[Any, ..
     return centre.x, centre.y, r2, start.x, start.y, end.x, end.y
 
 
+def oracle_polygon_vertex(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
+    """The nth vertex of the polygon, counted from one."""
+    vertices = ctx.polygon(args[0])
+    index = int(sp.sympify(args[1]))
+    return vertices[2 * (index - 1)], vertices[2 * (index - 1) + 1]
+
+
+def oracle_affine_ratio(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
+    """The point that divides the segment in the ratio m : n.
+
+    sympy's Segment has a point-at-a-fraction method, and the fraction
+    is m / (m + n).
+    """
+    first = _point(ctx, args[0])
+    second = _point(ctx, args[1])
+    m = sp.sympify(args[2])
+    n = sp.sympify(args[3])
+    # sympy's points add and scale, so the point at the fraction t from
+    # the first end is written the way a person would write it.
+    point = first + (m / (m + n)) * (second - first)
+    return point.x, point.y
+
+
+def oracle_polar(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any]:
+    """The polar of the point with respect to the circle.
+
+    The polar passes through the *inverse* of the point -- the point
+    on the ray from the centre with the centre-to-point distance
+    multiplied by the ratio r^2 / d -- and is perpendicular to that
+    ray.
+    """
+    point = _point(ctx, args[0])
+    centre_x, centre_y, r2 = ctx.circle(args[1])
+    dx = point.x - centre_x
+    dy = point.y - centre_y
+    squared = dx**2 + dy**2
+    if squared == 0:
+        raise ValueError("the centre has no polar")
+    factor = r2 / squared
+    inverse_x = centre_x + factor * dx
+    inverse_y = centre_y + factor * dy
+    a = dx
+    b = dy
+    c = -a * inverse_x - b * inverse_y
+    return a, b, c
+
+
 def oracle_measure_distance(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
     """sympy's own distance between two points."""
     return (_point(ctx, args[0]).distance(_point(ctx, args[1])),)
@@ -429,6 +476,9 @@ ORACLES = {
     "circle.center_point": oracle_circle_center_point,
     "circle.incircle": oracle_circle_incicle,
     "polygon.free": oracle_polygon_free,
+    "point.polygon_vertex": oracle_polygon_vertex,
+    "point.affine_ratio": oracle_affine_ratio,
+    "line.polar": oracle_polar,
     "measure.distance": oracle_measure_distance,
     "measure.length": oracle_measure_length,
     "measure.area": oracle_measure_area,

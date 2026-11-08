@@ -5,315 +5,16 @@
     {
       "points": {
         "A": [
-          "1",
-          "-6"
+          "-5",
+          "3"
         ],
         "B": [
-          "-1",
-          "-5"
-        ],
-        "C": [
-          "6",
-          "-4"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "-6"
-        ],
-        "B": [
-          "6",
-          "7"
-        ],
-        "C": [
-          "-6",
-          "6"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "4"
-        ],
-        "B": [
-          "-7",
-          "-4"
-        ],
-        "C": [
-          "-1",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "-6",
-          "-1"
-        ],
-        "B": [
-          "-7",
-          "-6"
-        ],
-        "C": [
-          "-2",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-4"
-        ],
-        "B": [
-          "2",
-          "-3"
-        ],
-        "C": [
-          "7",
-          "0"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "-6"
-        ],
-        "B": [
-          "1",
-          "-7"
-        ],
-        "C": [
-          "-6",
-          "-5"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "7"
-        ],
-        "B": [
-          "-7",
-          "5"
-        ],
-        "C": [
           "3",
           "-6"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-6"
-        ],
-        "B": [
-          "-8",
-          "4"
         ],
         "C": [
-          "-8",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-6"
-        ],
-        "B": [
-          "6",
-          "8"
-        ],
-        "C": [
-          "8",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-8"
-        ],
-        "B": [
-          "4",
-          "-3"
-        ],
-        "C": [
-          "-7",
-          "4"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "-2",
-          "-4"
-        ],
-        "B": [
-          "1",
-          "-4"
-        ],
-        "C": [
-          "-8",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-5"
-        ],
-        "B": [
-          "-4",
-          "-3"
-        ],
-        "C": [
-          "-6",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "0"
-        ],
-        "B": [
-          "4",
-          "7"
-        ],
-        "C": [
-          "-1",
-          "4"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "4",
-          "-8"
-        ],
-        "B": [
-          "-5",
+          "7",
           "6"
-        ],
-        "C": [
-          "4",
-          "7"
         ]
       },
       "args": [
@@ -327,108 +28,16 @@
     {
       "points": {
         "A": [
-          "-4",
-          "8"
-        ],
-        "B": [
-          "-1",
-          "-4"
-        ],
-        "C": [
-          "2",
-          "0"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "4"
+          "5",
+          "-2"
         ],
         "B": [
           "-5",
-          "6"
-        ],
-        "C": [
-          "-8",
-          "-4"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "1"
-        ],
-        "B": [
-          "2",
-          "4"
-        ],
-        "C": [
-          "-3",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "5"
-        ],
-        "B": [
-          "4",
-          "-4"
-        ],
-        "C": [
-          "-3",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "line:B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "reflect a point in a line"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
           "2"
         ],
-        "B": [
-          "4",
-          "1"
-        ],
         "C": [
-          "-8",
-          "8"
+          "-6",
+          "3"
         ]
       },
       "args": [
@@ -442,16 +51,39 @@
     {
       "points": {
         "A": [
-          "4",
-          "-3"
+          "-3",
+          "5"
         ],
         "B": [
-          "-7",
-          "3"
+          "-6",
+          "-6"
         ],
         "C": [
-          "-4",
-          "-6"
+          "1",
+          "1"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "6",
+          "-5"
+        ],
+        "B": [
+          "2",
+          "4"
+        ],
+        "C": [
+          "-6",
+          "3"
         ]
       },
       "args": [
@@ -469,11 +101,57 @@
           "-8"
         ],
         "B": [
-          "-7",
-          "7"
+          "3",
+          "-2"
         ],
         "C": [
-          "-2",
+          "1",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "5"
+        ],
+        "B": [
+          "-6",
+          "3"
+        ],
+        "C": [
+          "4",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "3",
+          "-6"
+        ],
+        "B": [
+          "-8",
+          "-3"
+        ],
+        "C": [
+          "6",
           "5"
         ]
       },
@@ -488,16 +166,16 @@
     {
       "points": {
         "A": [
-          "0",
-          "3"
+          "3",
+          "-2"
         ],
         "B": [
-          "3",
-          "-4"
+          "-7",
+          "-1"
         ],
         "C": [
-          "-5",
-          "1"
+          "0",
+          "-2"
         ]
       },
       "args": [
@@ -512,14 +190,83 @@
       "points": {
         "A": [
           "-3",
-          "6"
+          "-3"
         ],
         "B": [
-          "3",
-          "4"
+          "-8",
+          "-5"
+        ],
+        "C": [
+          "6",
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-1"
+        ],
+        "B": [
+          "6",
+          "5"
         ],
         "C": [
           "0",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "-8",
+          "-2"
+        ],
+        "B": [
+          "5",
+          "2"
+        ],
+        "C": [
+          "8",
+          "-8"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "6",
+          "0"
+        ],
+        "B": [
+          "3",
+          "7"
+        ],
+        "C": [
+          "2",
           "-5"
         ]
       },
@@ -534,16 +281,269 @@
     {
       "points": {
         "A": [
-          "4",
-          "-1"
+          "1",
+          "-6"
         ],
         "B": [
-          "-2",
+          "1",
           "1"
         ],
         "C": [
+          "-1",
+          "-5"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
           "-8",
           "7"
+        ],
+        "B": [
+          "-5",
+          "1"
+        ],
+        "C": [
+          "8",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "3",
+          "-2"
+        ],
+        "B": [
+          "-3",
+          "-2"
+        ],
+        "C": [
+          "-4",
+          "-5"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "-8"
+        ],
+        "B": [
+          "-6",
+          "2"
+        ],
+        "C": [
+          "1",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "-5"
+        ],
+        "B": [
+          "4",
+          "-2"
+        ],
+        "C": [
+          "-2",
+          "1"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-8"
+        ],
+        "B": [
+          "-5",
+          "-7"
+        ],
+        "C": [
+          "0",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "6",
+          "1"
+        ],
+        "B": [
+          "6",
+          "-8"
+        ],
+        "C": [
+          "8",
+          "7"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "0"
+        ],
+        "B": [
+          "-6",
+          "8"
+        ],
+        "C": [
+          "-5",
+          "2"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "7"
+        ],
+        "B": [
+          "4",
+          "1"
+        ],
+        "C": [
+          "-6",
+          "1"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "3",
+          "-5"
+        ],
+        "B": [
+          "5",
+          "-8"
+        ],
+        "C": [
+          "6",
+          "-3"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "4"
+        ],
+        "B": [
+          "-7",
+          "-7"
+        ],
+        "C": [
+          "-7",
+          "-8"
+        ]
+      },
+      "args": [
+        "A",
+        "line:B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "reflect a point in a line"
+    },
+    {
+      "points": {
+        "A": [
+          "-6",
+          "-4"
+        ],
+        "B": [
+          "1",
+          "8"
+        ],
+        "C": [
+          "5",
+          "-1"
         ]
       },
       "args": [
@@ -580,16 +580,16 @@
     {
       "points": {
         "A": [
-          "-2",
-          "5"
-        ],
-        "B": [
-          "7",
-          "5"
-        ],
-        "C": [
           "7",
           "6"
+        ],
+        "B": [
+          "6",
+          "6"
+        ],
+        "C": [
+          "8",
+          "-6"
         ]
       },
       "args": [
@@ -603,16 +603,16 @@
     {
       "points": {
         "A": [
-          "4",
+          "-8",
           "5"
         ],
         "B": [
-          "-5",
-          "-1"
+          "2",
+          "0"
         ],
         "C": [
-          "-5",
-          "-4"
+          "-7",
+          "0"
         ]
       },
       "args": [
@@ -627,15 +627,15 @@
       "points": {
         "A": [
           "5",
-          "6"
-        ],
-        "B": [
-          "6",
           "5"
         ],
+        "B": [
+          "0",
+          "-6"
+        ],
         "C": [
-          "-2",
-          "0"
+          "-3",
+          "1"
         ]
       },
       "args": [
@@ -649,16 +649,16 @@
     {
       "points": {
         "A": [
-          "3",
-          "-7"
-        ],
-        "B": [
-          "4",
+          "0",
           "0"
         ],
+        "B": [
+          "-7",
+          "7"
+        ],
         "C": [
-          "1",
-          "-4"
+          "-4",
+          "1"
         ]
       },
       "args": [
