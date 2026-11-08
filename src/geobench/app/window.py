@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QMenu,
     QPlainTextEdit,
     QPushButton,
     QSizePolicy,
@@ -260,9 +261,19 @@ class StudioWindow(QMainWindow):
 
         self.canvas = FigureCanvas(self.controller)
         self.canvas.constructRequested.connect(self._on_construct)
+        self.canvas.deleteRequested.connect(self._delete_node)
 
         self.steps = QListWidget()
-        self.steps.setToolTip("构造步骤：这张图是怎么一步步造出来的")
+        self.steps.setToolTip("构造步骤：这张图是怎么一步步造出来的（右键删除）")
+        self.steps.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.steps.customContextMenuRequested.connect(self._steps_menu)
+        # The delete key works on the selected step, which is what a
+        # list of objects invites.
+        delete_key = QAction("删除", self)
+        delete_key.setShortcut(QKeySequence.StandardKey.Delete)
+        delete_key.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        delete_key.triggered.connect(self._delete_selected_step)
+        self.steps.addAction(delete_key)
 
         self.judgements = QTableWidget(0, 3)
         self.judgements.setHorizontalHeaderLabels(["关系", "结论", "证据"])
@@ -564,6 +575,7 @@ class StudioWindow(QMainWindow):
                 call = command.name_zh if command is not None else (node.op or "?")
                 text = f"{name} = {call}({', '.join(node.args)})"
             item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, ("node", node_id))
             if node_id in undefined:
                 item.setForeground(Qt.GlobalColor.darkGray)
                 item.setToolTip(f"在这个摆放下没有值：{undefined[node_id]}")
@@ -572,6 +584,7 @@ class StudioWindow(QMainWindow):
             item = QListWidgetItem(
                 f"断言 {_relation_name(relation.kind)}({', '.join(relation.args)})"
             )
+            item.setData(Qt.ItemDataRole.UserRole, ("relation", relation.id))
             item.setForeground(Qt.GlobalColor.darkBlue)
             self.steps.addItem(item)
 
@@ -589,6 +602,54 @@ class StudioWindow(QMainWindow):
             self.judgements.selectRow(0)
         else:
             self.evidence.clear()
+
+    def _delete_node(self, node_id: str) -> None:
+        """Delete one object, with everything that depends on it."""
+        try:
+            self.controller.remove_node(node_id)
+        except GeobenchError as exc:
+            self.status.showMessage(f"删不掉：{exc}")
+            return
+        self.canvas.reset_pending()
+        self.status.showMessage(f"删掉了 {node_id}")
+
+    def _steps_menu(self, position: QPoint) -> None:
+        """Right-click on a step: delete it."""
+        item = self.steps.itemAt(position)
+        if item is None:
+            return
+        self.steps.setCurrentItem(item)
+        menu = QMenu(self)
+        delete_action = menu.addAction("删除")
+        chosen = menu.exec(self.steps.mapToGlobal(position))
+        if chosen is delete_action:
+            self._delete_selected_step()
+
+    def _delete_selected_step(self) -> None:
+        """Delete whatever the steps pane has selected.
+
+        Deleting a point deletes what depends on it and the claims
+        about it: an object and everything that only exists because of
+        it go together, and leaving half of it behind is worse than
+        leaving all of it.
+        """
+        selected = self.steps.selectedItems()
+        if not selected:
+            return
+        payload = selected[0].data(Qt.ItemDataRole.UserRole)
+        if not payload:
+            return
+        kind, identifier = payload
+        try:
+            if kind == "relation":
+                self.controller.remove_relation(identifier)
+            else:
+                self.controller.remove_node(identifier)
+        except GeobenchError as exc:
+            self.status.showMessage(f"删不掉：{exc}")
+            return
+        self.canvas.reset_pending()
+        self.status.showMessage(f"删掉了 {identifier}")
 
     def _show_evidence(self) -> None:
         """Show the full evidence of the selected relation."""

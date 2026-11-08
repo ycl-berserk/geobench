@@ -298,22 +298,45 @@ class StudioController:
         """
         self.push_undo()
         figure = self.figure()
-        dependents = [
-            other.id
-            for other in figure.nodes.values()
-            if node_id in other.args
-        ]
-        for dependent in dependents:
-            figure.remove_node(dependent)
-        gone = {node_id, *dependents}
+        gone = self._with_dependents(figure, node_id)
+        # The claims first: the model will not leave a relation pointing
+        # at nothing, and it is right not to.
         figure.relations = [
             relation
             for relation in figure.relations
             if not (set(relation.args) & gone)
         ]
-        figure.remove_node(node_id)
+        # Then the objects, the dependents before what they depend on --
+        # which is the order the model insists on.
+        while gone:
+            # "Ready" means nothing that is still in the figure uses it.
+            # Reading the figure rather than the `gone` set matters: a
+            # dependent is gone only once it has actually been removed.
+            ready = [
+                candidate
+                for candidate in gone
+                if not any(candidate in other.args for other in figure.nodes.values())
+            ]
+            if not ready:  # pragma: no cover - a cycle cannot happen here
+                break
+            for candidate in ready:
+                figure.remove_node(candidate)
+                gone.discard(candidate)
         self.evaluate()
         self._changed()
+
+    @staticmethod
+    def _with_dependents(figure: Figure, node_id: str) -> set[str]:
+        """The object and everything that only exists because of it."""
+        gone = {node_id}
+        changed = True
+        while changed:
+            changed = False
+            for node in figure.nodes.values():
+                if node.id not in gone and set(node.args) & gone:
+                    gone.add(node.id)
+                    changed = True
+        return gone
 
     def add_relation(self, kind: str, args: list[str]) -> str:
         """Add a relation to be judged."""

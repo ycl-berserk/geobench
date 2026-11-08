@@ -71,6 +71,7 @@ class FigureCanvas(QWidget):
     """Draws the figure and lets the user drag its free points."""
 
     constructRequested = Signal(str, list)
+    deleteRequested = Signal(str)
 
     def __init__(self, controller: StudioController, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -396,6 +397,13 @@ class FigureCanvas(QWidget):
 
     def mouseReleaseEvent(self, _event: object) -> None:
         self._dragging = None
+
+    def contextMenuEvent(self, event) -> None:  # type: ignore[no-untyped-def]
+        """Right-click on a point: ask the window to delete it."""
+        node_id = self._hit_point(event.pos().x(), event.pos().y())
+        if node_id is None:
+            return
+        self.deleteRequested.emit(node_id)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """The return key finishes a variable tool."""
