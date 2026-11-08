@@ -136,6 +136,22 @@ TOOLS: tuple[ToolSpec, ...] = (
         variable=True,
     ),
     ToolSpec(
+        "ray",
+        "射线",
+        "ray.free",
+        2,
+        "先点起点，再点射线上的一点",
+    ),
+    ToolSpec(
+        "polyline",
+        "折线",
+        "polyline.free",
+        0,
+        "依次点两个以上的点，按回车结束",
+        min_args=2,
+        variable=True,
+    ),
+    ToolSpec(
         "arc",
         "圆弧",
         "arc.three_points",
