@@ -690,6 +690,63 @@ def op_circle_incicle(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {"kind": "circle", "circle": (ix, iy, r2)}
 
 
+def op_polygon_vertex(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The nth vertex of a polygon (顶点).
+
+    The count starts at one, the way a person counts, and the vertices
+    are in the order they were written.
+    """
+    vertices = ctx.polygon(args[0])
+    index = int(FIELD.coerce(args[1]))
+    count = len(vertices) // 2
+    if index < 1 or index > count:
+        raise DegenerateError(f"the polygon has {count} vertices; there is no vertex {index}")
+    return {
+        "kind": "point",
+        "coords": (vertices[2 * (index - 1)], vertices[2 * (index - 1) + 1]),
+    }
+
+
+def op_affine_ratio(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The point that divides a segment in a ratio (仿射比).
+
+    The four arguments are the two ends of the segment and the two
+    parts of the ratio: the point P with AP : PB = m : n. The point
+    lies between the ends, so the ratio is one of the two halves of
+    the segment.
+    """
+    ax, ay = ctx.point(args[0])
+    bx, by = ctx.point(args[1])
+    first = sp.Integer(FIELD.coerce(args[2]))
+    second = sp.Integer(FIELD.coerce(args[3]))
+    if first == 0 and second == 0:
+        raise DegenerateError("the ratio is 0 : 0, which divides nothing")
+    total = first + second
+    if total == 0:
+        raise DegenerateError("the two parts of the ratio cancel out")
+    px = (second * ax + first * bx) / total
+    py = (second * ay + first * by) / total
+    return {"kind": "point", "coords": (px, py)}
+
+
+def op_polar(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The polar of a point with respect to a circle (极线).
+
+    For the circle with centre O and squared radius r2, the polar of
+    the point P is the line (P - O) . (X - O) = r2. A point on the
+    circle has its tangent as its polar, which is the same line the
+    tangent command draws.
+    """
+    px, py = ctx.point(args[0])
+    ox, oy, r2 = ctx.circle(args[1])
+    a = px - ox
+    b = py - oy
+    if a == 0 and b == 0:
+        raise DegenerateError("the centre has no polar")
+    c = -a * ox - b * oy - r2
+    return {"kind": "line", "line": (a, b, c)}
+
+
 # -- measurement -------------------------------------------------------------
 
 
@@ -986,6 +1043,44 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="the polygon is its edges: the oracle checks the vertices",
         ),
         op_polygon_free,
+    ),
+    (
+        OpSpec(
+            id="point.polygon_vertex",
+            kind="point",
+            args=(ArgSpec("polygon", "polygon"), ArgSpec("index", "scalar")),
+            returns="point",
+            degenerate_when=("there is no such vertex",),
+            oracle="the nth vertex of the polygon",
+        ),
+        op_polygon_vertex,
+    ),
+    (
+        OpSpec(
+            id="point.affine_ratio",
+            kind="point",
+            args=(
+                ArgSpec("a", "point"),
+                ArgSpec("b", "point"),
+                ArgSpec("m", "scalar"),
+                ArgSpec("n", "scalar"),
+            ),
+            returns="point",
+            degenerate_when=("the ratio divides nothing",),
+            oracle="the point that divides the segment in the ratio m : n",
+        ),
+        op_affine_ratio,
+    ),
+    (
+        OpSpec(
+            id="line.polar",
+            kind="line",
+            args=(ArgSpec("point", "point"), ArgSpec("circle", "circle")),
+            returns="line",
+            degenerate_when=("the centre has no polar",),
+            oracle="the polar of the point with respect to the circle",
+        ),
+        op_polar,
     ),
     (
         OpSpec(

@@ -463,6 +463,112 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
             "value",
             "the ends are not on the same circle",
         )
+    elif op_id == "point.polygon_vertex":
+        for _ in range(TARGET):
+            pts = _points(rng, 4)
+            add(pts, ["polygon:A,B,C,D", "1"], "normal", "value", "the first vertex")
+            add(pts, ["polygon:A,B,C,D", "3"], "normal", "value", "the third vertex")
+        add(
+            {"A": ("0", "0"), "B": ("2", "0"), "C": ("2", "2"), "D": ("0", "2")},
+            ["polygon:A,B,C,D", "4"],
+            "edge",
+            "value",
+            "the last vertex",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("2", "0"), "C": ("2", "2"), "D": ("0", "2")},
+            ["polygon:A,B,C,D", "5"],
+            "degenerate",
+            "error",
+            "there is no fifth vertex",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("2", "0"), "C": ("2", "2"), "D": ("0", "2")},
+            ["polygon:A,B,C,D", "0"],
+            "degenerate",
+            "error",
+            "the vertices are counted from one",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("2", "0"), "C": ("2", "2"), "D": ("0", "2")},
+            ["polygon:A,B,C,D", "-1"],
+            "degenerate",
+            "error",
+            "a negative vertex number",
+        )
+    elif op_id == "point.affine_ratio":
+        for _ in range(TARGET):
+            pts = _distinct_pair(rng)
+            add(pts, ["A", "B", "1", "1"], "normal", "value", "the midpoint")
+            add(pts, ["A", "B", "2", "1"], "normal", "value", "twice as far along")
+        add(
+            {"A": ("0", "0"), "B": ("6", "0")},
+            ["A", "B", "1", "2"],
+            "edge",
+            "value",
+            "one part in three",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("6", "0")},
+            ["A", "B", "0", "0"],
+            "degenerate",
+            "error",
+            "the ratio 0 : 0 divides nothing",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("6", "0")},
+            ["A", "B", "1", "-1"],
+            "degenerate",
+            "error",
+            "the two parts of the ratio cancel out",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("6", "0")},
+            ["A", "B", "2", "-2"],
+            "degenerate",
+            "error",
+            "the two parts of the ratio cancel out again",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("6", "0")},
+            ["A", "B", "0", "2"],
+            "edge",
+            "value",
+            "the point is the first end itself",
+        )
+    elif op_id == "line.polar":
+        for _ in range(TARGET):
+            pts = _non_degenerate_triangle(rng)
+            pts["P"] = _points(rng, 4)["D"]
+            add(pts, ["P", "circle:A,B,C"], "normal", "value", "the polar of a point")
+        add(
+            {"A": ("0", "0"), "B": ("3", "0"), "C": ("0", "4")},
+            ["A", "circle:A,B,C"],
+            "edge",
+            "value",
+            "a point on the circle: its polar is the tangent",
+        )
+        add(
+            {"O": ("0", "0")},
+            ["O", "circle:O,25"],
+            "degenerate",
+            "error",
+            "the centre of the circle has no polar",
+        )
+        add(
+            {"O": ("0", "0")},
+            ["O", "circle:O,0"],
+            "degenerate",
+            "error",
+            "a circle of no radius has no polar",
+        )
+        add(
+            {"O": ("3", "4")},
+            ["O", "circle:O,25"],
+            "degenerate",
+            "error",
+            "the centre of the circle has no polar",
+        )
     elif op_id == "measure.distance":
         for _ in range(TARGET):
             pts = _distinct_pair(rng)
@@ -777,6 +883,9 @@ OPERATORS = [
     "polygon.free",
     "arc.three_points",
     "sector.three_points",
+    "point.polygon_vertex",
+    "point.affine_ratio",
+    "line.polar",
     "measure.distance",
     "measure.length",
     "measure.area",

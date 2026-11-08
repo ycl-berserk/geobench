@@ -176,6 +176,15 @@ def _build_figure(fixture: Fixture) -> Figure:
                 # A circle with a centre and a squared radius.
                 centre = _sympy_point(figure, ids[0])
                 r2 = sp.sympify(ids[1])
+                if r2 == 0:
+                    # sympy has no circle of no radius; the centre and
+                    # the radius are all that is needed.
+                    figure.add_node(
+                        Node(id=node_id, kind="circle", role="free", op="circle.free", args=ids)
+                    )
+                    figure.nodes[node_id].cache["circle"] = (centre.x, centre.y, r2)
+                    fixture.args[index] = node_id
+                    continue
                 circle = sp.Circle(centre, sp.sqrt(r2))
                 figure.add_node(
                     Node(id=node_id, kind="circle", role="free", op="circle.free", args=ids)
