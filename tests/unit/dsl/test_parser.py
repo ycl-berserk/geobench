@@ -216,7 +216,7 @@ def test_unknown_statement_is_refused() -> None:
 
 def test_unimplemented_command_is_refused() -> None:
     with pytest.raises(DSLParseError) as excinfo:
-        parse_dsl("点 A(0,0) B(4,0)\nP = 射线(A,B)")
+        parse_dsl("点 A(0,0) B(4,0)\nP = 区域内点(A,B)")
     assert "尚未实现" in str(excinfo.value)
 
 

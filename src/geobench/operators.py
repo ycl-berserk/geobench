@@ -699,6 +699,70 @@ def op_circle_incicle(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {"kind": "circle", "circle": (ix, iy, r2)}
 
 
+def op_ray_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The half-line from the first point through the second (射线).
+
+    A ray is a line that starts somewhere: it has a beginning and no
+    end. It carries both points, so the drawing layer knows where it
+    starts and which way it goes.
+    """
+    x0, y0 = ctx.point(args[0])
+    x1, y1 = ctx.point(args[1])
+    if x0 == x1 and y0 == y1:
+        raise DegenerateError("the two points coincide; the ray has no direction")
+    return {"kind": "ray", "ray": (x0, y0, x1, y1)}
+
+
+def op_polyline_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """A chain of segments through the given points (折线).
+
+    A polyline is a polygon that is not closed, and it is drawn the
+    same way: its edges, and nothing else.
+    """
+    if len(args) < 2:
+        raise DegenerateError("a polyline needs at least two points")
+    vertices: list[Expr] = []
+    for node_id in args:
+        x, y = ctx.point(node_id)
+        vertices.extend((x, y))
+    for index in range(len(args) - 1):
+        first = 2 * index
+        second = 2 * (index + 1)
+        if vertices[first] == vertices[second] and vertices[first + 1] == vertices[second + 1]:
+            raise DegenerateError("two neighbouring points of the polyline coincide")
+    return {"kind": "polyline", "polyline": tuple(vertices)}
+
+
+def op_polygon_regular(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """A regular polygon: a centre, one vertex and how many vertices (正多边形).
+
+    The vertices are the first one turned about the centre by 360/n
+    each time. The turning is exact -- sympy writes cos(2*pi*k/n) as a
+    radical where it can -- so a regular pentagon keeps its sqrt(5)
+    rather than turning into decimals.
+    """
+    ox, oy = ctx.point(args[0])
+    vx, vy = ctx.point(args[1])
+    count = int(FIELD.coerce(args[2]))
+    if count < 3:
+        raise DegenerateError("a regular polygon needs at least three vertices")
+    dx, dy = vx - ox, vy - oy
+    if dx == 0 and dy == 0:
+        raise DegenerateError("the vertex is the centre, so there is no radius")
+    vertices: list[Expr] = []
+    for index in range(count):
+        angle = 2 * sp.pi * index / count
+        cosine = sp.cos(angle)
+        sine = sp.sin(angle)
+        vertices.extend(
+            (
+                ox + cosine * dx - sine * dy,
+                oy + sine * dx + cosine * dy,
+            )
+        )
+    return {"kind": "polygon", "polygon": tuple(vertices)}
+
+
 def op_polygon_vertex(ctx: OpContext, args: list[str]) -> dict[str, object]:
     """The nth vertex of a polygon (顶点).
 
@@ -1052,6 +1116,47 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="the polygon is its edges: the oracle checks the vertices",
         ),
         op_polygon_free,
+    ),
+    (
+        OpSpec(
+            id="ray.free",
+            kind="ray",
+            args=(ArgSpec("start", "point"), ArgSpec("through", "point")),
+            returns="ray",
+            degenerate_when=("the two points coincide",),
+            oracle="the half-line from the first point through the second",
+        ),
+        op_ray_free,
+    ),
+    (
+        OpSpec(
+            id="polyline.free",
+            kind="polyline",
+            args=(
+                ArgSpec("a", "point"),
+                ArgSpec("b", "point"),
+                ArgSpec("...", "point", variadic=True),
+            ),
+            returns="polyline",
+            degenerate_when=("fewer than two points", "two neighbours coincide"),
+            oracle="the polyline is its edges",
+        ),
+        op_polyline_free,
+    ),
+    (
+        OpSpec(
+            id="polygon.regular",
+            kind="polygon",
+            args=(
+                ArgSpec("centre", "point"),
+                ArgSpec("vertex", "point"),
+                ArgSpec("count", "scalar"),
+            ),
+            returns="polygon",
+            degenerate_when=("fewer than three vertices", "the vertex is the centre"),
+            oracle="the vertices are the first one turned about the centre",
+        ),
+        op_polygon_regular,
     ),
     (
         OpSpec(

@@ -174,6 +174,8 @@ def evaluate_numeric(figure: Figure) -> Figure:
             "polygon": tuple(numbers) if node.kind == "polygon" else None,
             "arc": tuple(numbers) if node.kind == "arc" else None,
             "sector": tuple(numbers) if node.kind == "sector" else None,
+            "ray": tuple(numbers) if node.kind == "ray" else None,
+            "polyline": tuple(numbers) if node.kind == "polyline" else None,
             "value": numbers[0] if node.kind == "number" else None,
         }
         if node.kind == "point" and len(numbers) >= 2:

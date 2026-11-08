@@ -23,11 +23,13 @@ POLYGON = "polygon"
 ARC = "arc"
 SECTOR = "sector"
 NUMBER = "number"
+RAY = "ray"
+POLYLINE = "polyline"
 
 FREE = "free"
 DERIVED = "derived"
 
-_KINDS = (POINT, LINE, SEGMENT, CIRCLE, POLYGON, ARC, SECTOR, NUMBER)
+_KINDS = (POINT, LINE, SEGMENT, CIRCLE, POLYGON, ARC, SECTOR, NUMBER, RAY, POLYLINE)
 _ROLES = (FREE, DERIVED)
 
 

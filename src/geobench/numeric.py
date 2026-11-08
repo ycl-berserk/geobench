@@ -50,6 +50,8 @@ _PAYLOAD_KEYS = (
     "polygon",
     "arc",
     "sector",
+    "ray",
+    "polyline",
     "value",
 )
 

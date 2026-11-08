@@ -281,9 +281,9 @@ COMMANDS: tuple[CommandSpec, ...] = (
     ),
     _c("line.tangent", "切线", "Tangent", "线", CONSTRUCTION, 2, "圆的切线", True),
     _c("line.polar", "极线", "Polar", "线", CONSTRUCTION, 2, "点的极线", True),
-    _c("ray.free", "射线", "Ray", "线", CONSTRUCTION, 2, "射线"),
+    _c("ray.free", "射线", "Ray", "线", CONSTRUCTION, 2, "射线", True),
     _c("segment.free", "线段", "Segment", "线", CONSTRUCTION, 2, "线段", True),
-    _c("polyline.free", "折线", "PolyLine", "线", CONSTRUCTION, 2, "折线"),
+    _c("polyline.free", "折线", "PolyLine", "线", CONSTRUCTION, 2, "折线", True),
     # -- 圆 ---------------------------------------------------------------
     _c("circle.free", "圆", "Circle", "圆", CONSTRUCTION, 2, "以一点为圆心的圆", True),
     _c(
@@ -306,7 +306,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     _c("circle.osculating", "密切圆", "OsculatingCircle", "圆", CONSTRUCTION, 2, "密切圆"),
     # -- 多边形 ------------------------------------------------------------
     _c("polygon.free", "多边形", "Polygon", "多边形", CONSTRUCTION, 3, "多边形", True),
-    _c("polygon.regular", "正多边形", "RegularPolygon", "多边形", CONSTRUCTION, 3, "正多边形"),
+    _c("polygon.regular", "正多边形", "RegularPolygon", "多边形", CONSTRUCTION, 3, "正多边形", True),
     _c("polygon.rigid", "刚性多边形", "RigidPolygon", "多边形", CONSTRUCTION, 3, "刚性多边形"),
     # -- 变换 --------------------------------------------------------------
     _c("transform.translate", "平移", "Translate", "变换", CONSTRUCTION, 2, "平移", True),

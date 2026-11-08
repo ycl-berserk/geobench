@@ -27,9 +27,10 @@ from geobench.primitives import (
     LabelPrimitive,
     LinePrimitive,
     PointPrimitive,
+    RayPrimitive,
     SegmentPrimitive,
 )
-from geobench.render import View, fit_view
+from geobench.render import View, clip_ray, fit_view
 from geobench.style import FigureStyle
 
 #: The view the canvas starts with: a square of ten units, which is
@@ -142,6 +143,8 @@ class FigureCanvas(QWidget):
                 self._draw_line(painter, viewport, primitive, style)
             elif isinstance(primitive, SegmentPrimitive):
                 self._draw_segment(painter, viewport, primitive, style)
+            elif isinstance(primitive, RayPrimitive):
+                self._draw_ray(painter, viewport, primitive, style)
             elif isinstance(primitive, CirclePrimitive):
                 self._draw_circle(painter, viewport, primitive, style)
             elif isinstance(primitive, ArcPrimitive):
@@ -191,6 +194,19 @@ class FigureCanvas(QWidget):
     ) -> None:
         x1, y1 = viewport.to_screen(primitive.x1, primitive.y1)
         x2, y2 = viewport.to_screen(primitive.x2, primitive.y2)
+        painter.setPen(self._pen(primitive.auxiliary, style))
+        painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+    def _draw_ray(
+        self, painter: QPainter, viewport: Viewport, primitive: RayPrimitive, style: FigureStyle
+    ) -> None:
+        clipped = clip_ray(
+            primitive.x0, primitive.y0, primitive.x1, primitive.y1, viewport.view
+        )
+        if clipped is None:
+            return
+        x1, y1 = viewport.to_screen(clipped[0], clipped[1])
+        x2, y2 = viewport.to_screen(clipped[2], clipped[3])
         painter.setPen(self._pen(primitive.auxiliary, style))
         painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 

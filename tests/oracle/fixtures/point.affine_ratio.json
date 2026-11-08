@@ -5,221 +5,11 @@
     {
       "points": {
         "A": [
-          "-1",
-          "7"
-        ],
-        "B": [
-          "-4",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "7"
-        ],
-        "B": [
-          "-4",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "-2",
-          "-7"
-        ],
-        "B": [
-          "-2",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "-2",
-          "-7"
-        ],
-        "B": [
-          "-2",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-5"
-        ],
-        "B": [
-          "1",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-5"
-        ],
-        "B": [
-          "1",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
+          "3",
           "0"
         ],
         "B": [
-          "-6",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "0"
-        ],
-        "B": [
-          "-6",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "5",
-          "-5"
-        ],
-        "B": [
-          "-7",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "5",
-          "-5"
-        ],
-        "B": [
-          "-7",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "-7"
-        ],
-        "B": [
-          "-5",
+          "3",
           "3"
         ]
       },
@@ -232,36 +22,204 @@
       "kind": "normal",
       "expect": "value",
       "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "-7"
-        ],
-        "B": [
-          "-5",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
     },
     {
       "points": {
         "A": [
           "3",
-          "3"
+          "0"
         ],
         "B": [
-          "7",
+          "3",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "-5"
+        ],
+        "B": [
+          "-4",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "-5"
+        ],
+        "B": [
+          "-4",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "-6"
+        ],
+        "B": [
+          "-3",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "-6"
+        ],
+        "B": [
+          "-3",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-2"
+        ],
+        "B": [
+          "-8",
+          "2"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-2"
+        ],
+        "B": [
+          "-8",
+          "2"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "0"
+        ],
+        "B": [
+          "4",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "0"
+        ],
+        "B": [
+          "4",
+          "-2"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "0"
+        ],
+        "B": [
+          "-8",
           "-1"
         ]
       },
@@ -278,11 +236,11 @@
     {
       "points": {
         "A": [
-          "3",
-          "3"
+          "4",
+          "0"
         ],
         "B": [
-          "7",
+          "-8",
           "-1"
         ]
       },
@@ -299,12 +257,12 @@
     {
       "points": {
         "A": [
+          "1",
+          "-8"
+        ],
+        "B": [
           "-5",
-          "7"
-        ],
-        "B": [
-          "-1",
-          "-2"
+          "1"
         ]
       },
       "args": [
@@ -320,264 +278,12 @@
     {
       "points": {
         "A": [
+          "1",
+          "-8"
+        ],
+        "B": [
           "-5",
-          "7"
-        ],
-        "B": [
-          "-1",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-2"
-        ],
-        "B": [
-          "7",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-2"
-        ],
-        "B": [
-          "7",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "-3"
-        ],
-        "B": [
-          "-1",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "-3"
-        ],
-        "B": [
-          "-1",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-5"
-        ],
-        "B": [
-          "1",
-          "-6"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-5"
-        ],
-        "B": [
-          "1",
-          "-6"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "-3"
-        ],
-        "B": [
-          "-7",
-          "6"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "-3"
-        ],
-        "B": [
-          "-7",
-          "6"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "2"
-        ],
-        "B": [
-          "-7",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "2"
-        ],
-        "B": [
-          "-7",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "3"
-        ],
-        "B": [
-          "2",
-          "2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "3"
-        ],
-        "B": [
-          "2",
-          "2"
+          "1"
         ]
       },
       "args": [
@@ -594,11 +300,11 @@
       "points": {
         "A": [
           "3",
-          "3"
+          "2"
         ],
         "B": [
-          "-6",
-          "5"
+          "-1",
+          "1"
         ]
       },
       "args": [
@@ -615,11 +321,11 @@
       "points": {
         "A": [
           "3",
-          "3"
+          "2"
         ],
         "B": [
-          "-6",
-          "5"
+          "-1",
+          "1"
         ]
       },
       "args": [
@@ -635,11 +341,11 @@
     {
       "points": {
         "A": [
-          "8",
-          "-4"
+          "-1",
+          "3"
         ],
         "B": [
-          "-7",
+          "-5",
           "-7"
         ]
       },
@@ -656,11 +362,11 @@
     {
       "points": {
         "A": [
-          "8",
-          "-4"
+          "-1",
+          "3"
         ],
         "B": [
-          "-7",
+          "-5",
           "-7"
         ]
       },
@@ -677,54 +383,12 @@
     {
       "points": {
         "A": [
-          "-1",
-          "0"
-        ],
-        "B": [
-          "7",
-          "2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "0"
-        ],
-        "B": [
-          "7",
-          "2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "-4"
-        ],
-        "B": [
-          "-1",
+          "-5",
           "8"
+        ],
+        "B": [
+          "1",
+          "7"
         ]
       },
       "args": [
@@ -740,33 +404,33 @@
     {
       "points": {
         "A": [
-          "0",
-          "-4"
+          "-5",
+          "8"
+        ],
+        "B": [
+          "1",
+          "7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "-6",
+          "7"
         ],
         "B": [
           "-1",
-          "8"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "-4"
-        ],
-        "B": [
-          "-8",
-          "-4"
+          "-6"
         ]
       },
       "args": [
@@ -782,54 +446,12 @@
     {
       "points": {
         "A": [
-          "-3",
-          "-4"
+          "-6",
+          "7"
         ],
         "B": [
-          "-8",
-          "-4"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "twice as far along"
-    },
-    {
-      "points": {
-        "A": [
-          "-2",
-          "-5"
-        ],
-        "B": [
-          "5",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "1",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the midpoint"
-    },
-    {
-      "points": {
-        "A": [
-          "-2",
-          "-5"
-        ],
-        "B": [
-          "5",
-          "3"
+          "-1",
+          "-6"
         ]
       },
       "args": [
@@ -846,10 +468,10 @@
       "points": {
         "A": [
           "1",
-          "-4"
+          "0"
         ],
         "B": [
-          "3",
+          "4",
           "4"
         ]
       },
@@ -867,10 +489,10 @@
       "points": {
         "A": [
           "1",
-          "-4"
+          "0"
         ],
         "B": [
-          "3",
+          "4",
           "4"
         ]
       },
@@ -887,12 +509,12 @@
     {
       "points": {
         "A": [
-          "-3",
-          "-3"
+          "-1",
+          "-7"
         ],
         "B": [
           "-3",
-          "-8"
+          "-3"
         ]
       },
       "args": [
@@ -908,12 +530,12 @@
     {
       "points": {
         "A": [
-          "-3",
-          "-3"
+          "-1",
+          "-7"
         ],
         "B": [
           "-3",
-          "-8"
+          "-3"
         ]
       },
       "args": [
@@ -929,11 +551,221 @@
     {
       "points": {
         "A": [
-          "-5",
-          "-1"
+          "-2",
+          "-3"
         ],
         "B": [
           "-7",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-3"
+        ],
+        "B": [
+          "-7",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "-8"
+        ],
+        "B": [
+          "5",
+          "-5"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "-8"
+        ],
+        "B": [
+          "5",
+          "-5"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "6"
+        ],
+        "B": [
+          "4",
+          "6"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "6"
+        ],
+        "B": [
+          "4",
+          "6"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "-5"
+        ],
+        "B": [
+          "-5",
+          "8"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "-5"
+        ],
+        "B": [
+          "-5",
+          "8"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-5"
+        ],
+        "B": [
+          "-4",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-5"
+        ],
+        "B": [
+          "-4",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "-4"
+        ],
+        "B": [
+          "6",
           "-4"
         ]
       },
@@ -950,11 +782,11 @@
     {
       "points": {
         "A": [
-          "-5",
-          "-1"
+          "7",
+          "-4"
         ],
         "B": [
-          "-7",
+          "6",
           "-4"
         ]
       },
@@ -971,11 +803,53 @@
     {
       "points": {
         "A": [
-          "-3",
-          "-6"
+          "8",
+          "1"
         ],
         "B": [
-          "2",
+          "7",
+          "1"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "1"
+        ],
+        "B": [
+          "7",
+          "1"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "7"
+        ],
+        "B": [
+          "-7",
           "7"
         ]
       },
@@ -992,12 +866,138 @@
     {
       "points": {
         "A": [
-          "-3",
-          "-6"
+          "8",
+          "7"
         ],
         "B": [
-          "2",
+          "-7",
           "7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "0"
+        ],
+        "B": [
+          "7",
+          "6"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "0"
+        ],
+        "B": [
+          "7",
+          "6"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-1"
+        ],
+        "B": [
+          "-3",
+          "6"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-1"
+        ],
+        "B": [
+          "-3",
+          "6"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "twice as far along"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "-7"
+        ],
+        "B": [
+          "1",
+          "-4"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "1",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the midpoint"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "-7"
+        ],
+        "B": [
+          "1",
+          "-4"
         ]
       },
       "args": [

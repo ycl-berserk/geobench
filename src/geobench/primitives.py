@@ -72,6 +72,21 @@ class SegmentPrimitive:
 
 
 @dataclass(frozen=True)
+class RayPrimitive:
+    """A half-line: it starts at ``(x0, y0)`` and passes through ``(x1, y1)``.
+
+    Both points are carried, because which end is the beginning is the
+    only thing that tells a ray from a line.
+    """
+
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+    auxiliary: bool = False
+
+
+@dataclass(frozen=True)
 class LinePrimitive:
     """An infinite line, as ``a*x + b*y + c = 0``."""
 
@@ -130,6 +145,7 @@ Primitive = (
     | SegmentPrimitive
     | LinePrimitive
     | CirclePrimitive
+    | RayPrimitive
     | ArcPrimitive
     | LabelPrimitive
 )
@@ -229,6 +245,22 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                     offset[1],
                 )
             )
+            continue
+        elif node.kind == "ray":
+            payload = _numeric_payload(figure, node_id, "ray")
+            if payload is None or len(payload) != 4:
+                continue
+            primitive = RayPrimitive(*payload[:4], aux)
+        elif node.kind == "polyline":
+            # A polyline is its edges, and they are not closed.
+            vertices = _numeric_payload(figure, node_id, "polyline")
+            if vertices is None or len(vertices) < 4:
+                continue
+            count = len(vertices) // 2
+            for index in range(count - 1):
+                x1, y1 = vertices[2 * index], vertices[2 * index + 1]
+                x2, y2 = vertices[2 * index + 2], vertices[2 * index + 3]
+                (auxiliary if aux else main).append(SegmentPrimitive(x1, y1, x2, y2, aux))
             continue
         elif node.kind == "polygon":
             # A polygon is its edges: the primitive list carries the

@@ -463,6 +463,77 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
             "value",
             "the ends are not on the same circle",
         )
+    elif op_id == "ray.free":
+        for _ in range(TARGET):
+            pts = _distinct_pair(rng)
+            add(pts, ["A", "B"], "normal", "value", "a ray through two points")
+        add(
+            {"A": ("0", "0"), "B": ("1", "0")},
+            ["A", "B"],
+            "edge",
+            "value",
+            "a horizontal ray",
+        )
+        add(
+            {"A": ("0", "0"), "B": ("0", "1")},
+            ["A", "B"],
+            "edge",
+            "value",
+            "a vertical ray",
+        )
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 2)
+            add(
+                {"A": pts["A"], "B": pts["A"]},
+                ["A", "B"],
+                "degenerate",
+                "error",
+                "the two points coincide",
+            )
+    elif op_id == "polyline.free":
+        for _ in range(TARGET):
+            pts = _points(rng, 4)
+            add(pts, ["A", "B", "C"], "normal", "value", "three points")
+            add(pts, ["A", "B", "C", "D"], "normal", "value", "four points")
+        add(
+            {"A": ("0", "0"), "B": ("2", "0"), "C": ("4", "0")},
+            ["A", "B", "C"],
+            "edge",
+            "value",
+            "a straight polyline",
+        )
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 4)
+            add(
+                {"A": pts["A"], "B": pts["A"], "C": pts["C"]},
+                ["A", "B", "C"],
+                "degenerate",
+                "error",
+                "two neighbours coincide",
+            )
+    elif op_id == "polygon.regular":
+        for _ in range(TARGET):
+            pts = _distinct_pair(rng)
+            add(pts, ["A", "B", "3"], "normal", "value", "a triangle")
+            add(pts, ["A", "B", "4"], "normal", "value", "a square")
+            add(pts, ["A", "B", "5"], "normal", "value", "a pentagon")
+        add(
+            {"A": ("0", "0"), "B": ("2", "0")},
+            ["A", "B", "6"],
+            "edge",
+            "value",
+            "a hexagon",
+        )
+        for _ in range(DEGENERATE):
+            pts = _distinct_pair(rng)
+            add(pts, ["A", "B", "2"], "degenerate", "error", "two vertices")
+        add(
+            {"A": ("1", "1"), "B": ("1", "1")},
+            ["A", "B", "4"],
+            "degenerate",
+            "error",
+            "the vertex is the centre",
+        )
     elif op_id == "point.polygon_vertex":
         for _ in range(TARGET):
             pts = _points(rng, 4)
@@ -621,7 +692,7 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
         )
     elif op_id in {"measure.area", "measure.perimeter"}:
         for _ in range(TARGET):
-            pts = _points(rng, 4)
+            pts = _distinct_points(rng, 4)
             add(pts, ["polygon:A,B,C,D"], "normal", "value", "a quadrilateral")
         add(
             {"A": ("0", "0"), "B": ("1", "0"), "C": ("2", "0"), "D": ("3", "0")},
@@ -883,6 +954,9 @@ OPERATORS = [
     "polygon.free",
     "arc.three_points",
     "sector.three_points",
+    "ray.free",
+    "polyline.free",
+    "polygon.regular",
     "point.polygon_vertex",
     "point.affine_ratio",
     "line.polar",

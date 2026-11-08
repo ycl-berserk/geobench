@@ -164,6 +164,8 @@ def _build_figure(fixture: Fixture) -> Figure:
             for point_id in ids:
                 point = _sympy_point(figure, point_id)
                 vertices.extend((point.x, point.y))
+            if len(set(ids)) != len(ids):
+                raise ValueError(f"the polygon {spec} names a vertex twice")
             figure.add_node(
                 Node(id=node_id, kind="polygon", role="free", op="polygon.free", args=ids)
             )
@@ -312,6 +314,8 @@ _PAYLOAD_ORDER = (
     "polygon",
     "arc",
     "sector",
+    "ray",
+    "polyline",
     "value",
 )
 

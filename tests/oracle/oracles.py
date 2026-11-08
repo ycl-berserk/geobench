@@ -279,6 +279,34 @@ def oracle_sector_three_points(ctx: OpContext, args: list[str]) -> tuple[Any, ..
     return centre.x, centre.y, r2, start.x, start.y, end.x, end.y
 
 
+def oracle_ray_free(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """A ray is its starting point and a point it passes through."""
+    start = _point(ctx, args[0])
+    through = _point(ctx, args[1])
+    return start.x, start.y, through.x, through.y
+
+
+def oracle_polyline_free(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """A polyline is its vertices, in order."""
+    out: list[Any] = []
+    for node_id in args:
+        x, y = ctx.point(node_id)
+        out.extend((x, y))
+    return tuple(out)
+
+
+def oracle_polygon_regular(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """The vertices are the first one turned about the centre, by sympy."""
+    centre = _point(ctx, args[0])
+    vertex = _point(ctx, args[1])
+    count = int(sp.sympify(args[2]))
+    out: list[Any] = []
+    for index in range(count):
+        turned = vertex.rotate(2 * sp.pi * index / count, centre)
+        out.extend((turned.x, turned.y))
+    return tuple(out)
+
+
 def oracle_polygon_vertex(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
     """The nth vertex of the polygon, counted from one."""
     vertices = ctx.polygon(args[0])
@@ -372,16 +400,20 @@ def oracle_measure_area(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
 
 
 def oracle_measure_perimeter(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
-    """sympy's own perimeter of the polygon."""
+    """The perimeter: the sides it was given, each measured by sympy.
+
+    sympy's ``Polygon.perimeter`` reorders the vertices of a polygon
+    that crosses itself, so it answers a question about a *different*
+    polygon -- the simple one through the same points. The perimeter of
+    a polygon is the sum of the sides it was written with, and each side
+    is a sympy Segment.
+    """
     points = _polygon_points(ctx, args[0])
-    polygon = sp.Polygon(*points)
-    if not isinstance(polygon, sp.Polygon):
-        total = sp.Integer(0)
-        for index, point in enumerate(points):
-            following = points[(index + 1) % len(points)]
-            total += point.distance(following)
-        return (total,)
-    return (polygon.perimeter,)
+    total: Any = sp.Integer(0)
+    for index, point in enumerate(points):
+        following = points[(index + 1) % len(points)]
+        total += Segment(point, following).length
+    return (total,)
 
 
 def oracle_measure_angle(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
@@ -476,6 +508,9 @@ ORACLES = {
     "circle.center_point": oracle_circle_center_point,
     "circle.incircle": oracle_circle_incicle,
     "polygon.free": oracle_polygon_free,
+    "ray.free": oracle_ray_free,
+    "polyline.free": oracle_polyline_free,
+    "polygon.regular": oracle_polygon_regular,
     "point.polygon_vertex": oracle_polygon_vertex,
     "point.affine_ratio": oracle_affine_ratio,
     "line.polar": oracle_polar,

@@ -27,6 +27,7 @@ from geobench.primitives import (
     LabelPrimitive,
     LinePrimitive,
     PointPrimitive,
+    RayPrimitive,
     SegmentPrimitive,
     figure_primitives,
 )
@@ -96,6 +97,41 @@ def fit_view(figure: Figure, padding: float = 0.6) -> View:
         max(xs) + padding,
         max(ys) + padding,
     )
+
+
+def clip_ray(
+    x0: float, y0: float, x1: float, y1: float, view: View
+) -> tuple[float, float, float, float] | None:
+    """Clip the half-line from (x0, y0) through (x1, y1) to the view.
+
+    The same clipping as a line, except that the parameter runs from
+    zero: everything behind the starting point is not on the ray.
+    """
+    dx, dy = x1 - x0, y1 - y0
+    if dx == 0 and dy == 0:
+        return None
+    low, high = 0.0, 1e12
+    edges = [
+        (1.0, 0.0, view.x_min),
+        (-1.0, 0.0, -view.x_max),
+        (0.0, 1.0, view.y_min),
+        (0.0, -1.0, -view.y_max),
+    ]
+    for nx, ny, offset in edges:
+        denominator = nx * dx + ny * dy
+        numerator = offset - (nx * x0 + ny * y0)
+        if abs(denominator) < 1e-12:
+            if numerator > 0:
+                return None
+            continue
+        t = numerator / denominator
+        if denominator > 0:
+            low = max(low, t)
+        else:
+            high = min(high, t)
+    if low > high:
+        return None
+    return (x0 + low * dx, y0 + low * dy, x0 + high * dx, y0 + high * dy)
 
 
 def clip_line(a: float, b: float, c: float, view: View) -> tuple[float, float, float, float] | None:
@@ -207,6 +243,14 @@ def render_svg(
                     style,
                 )
             )
+        elif isinstance(primitive, RayPrimitive):
+            clipped = clip_ray(
+                primitive.x0, primitive.y0, primitive.x1, primitive.y1, view
+            )
+            if clipped is None:
+                continue
+            x1, y1, x2, y2 = clipped
+            parts.append(_svg_line(tx, ty, x1, y1, x2, y2, primitive.auxiliary, style))
         elif isinstance(primitive, CirclePrimitive):
             parts.append(
                 f'<circle cx="{_fmt(tx(primitive.cx))}" cy="{_fmt(ty(primitive.cy))}" '
