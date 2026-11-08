@@ -171,6 +171,7 @@ def evaluate_numeric(figure: Figure) -> Figure:
             "line": tuple(numbers) if node.kind == "line" else None,
             "circle": tuple(numbers) if node.kind == "circle" else None,
             "segment": tuple(numbers) if node.kind == "segment" else None,
+            "polygon": tuple(numbers) if node.kind == "polygon" else None,
         }
         if node.kind == "point" and len(numbers) >= 2:
             node.placement = (

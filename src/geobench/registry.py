@@ -22,9 +22,16 @@ class ArgSpec:
 
     name: str
     type: str
+    variadic: bool = False
+    """Whether this argument takes *any number* of values.
 
-    def to_dict(self) -> dict[str, str]:
-        return {"name": self.name, "type": self.type}
+    Only the last argument of an operator may be variadic: a polygon
+    has three or four or five vertices, and the contract should say so
+    rather than enumerate the cases.
+    """
+
+    def to_dict(self) -> dict[str, str | bool]:
+        return {"name": self.name, "type": self.type, "variadic": self.variadic}
 
 
 @dataclass(frozen=True)

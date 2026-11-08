@@ -256,6 +256,15 @@ def oracle_transform_rotate(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
     return moved.x, moved.y
 
 
+def oracle_polygon_free(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """A polygon is its edges; the oracle checks the vertices it carries."""
+    out: list[Any] = []
+    for node_id in args:
+        x, y = ctx.point(node_id)
+        out.extend((x, y))
+    return tuple(out)
+
+
 def oracle_transform_dilate(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
     """The homothety about a point.
 
@@ -308,6 +317,7 @@ ORACLES = {
     "circle.through": oracle_circle_through,
     "circle.center_point": oracle_circle_center_point,
     "circle.incircle": oracle_circle_incicle,
+    "polygon.free": oracle_polygon_free,
     "transform.mirror": oracle_transform_mirror,
     "transform.translate": oracle_transform_translate,
     "transform.rotate": oracle_transform_rotate,

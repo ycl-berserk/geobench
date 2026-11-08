@@ -350,7 +350,11 @@ def check_operator(
         kernel_value = kernel_result.get(
             "coords",
             kernel_result.get(
-                "line", kernel_result.get("segment", kernel_result.get("circle"))
+                "line",
+                kernel_result.get(
+                    "segment",
+                    kernel_result.get("circle", kernel_result.get("polygon")),
+                ),
             ),
         )
         kind = str(kernel_result.get("kind", "point"))

@@ -161,12 +161,24 @@ class FigureStore:
             return self._apply_relation(figure, request)
 
         spec = self.registry.lookup(request.op)
-        if len(request.args) != len(spec.args):
+        variadic = bool(spec.args) and spec.args[-1].variadic
+        required = len(spec.args) - 1 if variadic else len(spec.args)
+        if variadic:
+            if len(request.args) < required:
+                raise ArgumentCountError(spec.id, required, len(request.args))
+        elif len(request.args) != len(spec.args):
             raise ArgumentCountError(spec.id, len(spec.args), len(request.args))
 
         node_id = request.id or self._next_id(figure)
-        for index, (arg, arg_spec) in enumerate(zip(request.args, spec.args, strict=True)):
+        for index, (arg, arg_spec) in enumerate(
+            zip(request.args, spec.args, strict=not variadic)
+        ):
             self._check_argument(figure, spec.id, index, arg, arg_spec.type)
+        if variadic:
+            # The trailing argument takes any number of values.
+            last = spec.args[-1]
+            for index in range(len(spec.args), len(request.args)):
+                self._check_argument(figure, spec.id, index, request.args[index], last.type)
 
         node = Node(
             id=node_id,

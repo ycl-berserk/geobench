@@ -44,7 +44,17 @@ from geobench.commands import (
 )
 from geobench.dsl.errors import DSLParseError, Span
 from geobench.dsl.lexer import Line, Token, TokenKind, tokenize
-from geobench.model import CIRCLE, FREE, LINE, POINT, SEGMENT, Figure, Node, Relation
+from geobench.model import (
+    CIRCLE,
+    FREE,
+    LINE,
+    POINT,
+    POLYGON,
+    SEGMENT,
+    Figure,
+    Node,
+    Relation,
+)
 from geobench.operators import register_builtins as _register_builtins
 from geobench.registry import OperatorRegistry, OpSpec
 
@@ -388,7 +398,7 @@ class Parser:
                         continue
                     return _resolve_alias(command)
                 continue
-            if command.arity != len(args):
+            if not variadic_command(command) and command.arity != len(args):
                 continue
             if not command.implemented:
                 unimplemented = True
@@ -408,9 +418,15 @@ class Parser:
         spec = _operator_spec(command.id)
         if spec is None:
             return False
-        if len(spec.args) != len(args):
+        variadic = bool(spec.args) and spec.args[-1].variadic
+        required = len(spec.args) - 1 if variadic else len(spec.args)
+        if variadic:
+            if len(args) < required:
+                return False
+        elif len(args) != len(spec.args):
             return False
-        for argument_spec, argument in zip(spec.args, args, strict=False):
+        for index, argument in enumerate(args):
+            argument_spec = spec.args[min(index, len(spec.args) - 1)]
             allowed = _TYPE_FITS.get(argument_spec.type)
             if allowed is None or argument.kind not in allowed:
                 return False
@@ -497,6 +513,7 @@ _KIND_BY_COMMAND: dict[str, str] = {
     "circle.center_point": CIRCLE,
     "circle.through": CIRCLE,
     "circle.incircle": CIRCLE,
+    "polygon.free": POLYGON,
 }
 
 
@@ -544,6 +561,12 @@ _JUDGEMENT_FITS: dict[str, frozenset[str]] = {
     "circle": frozenset({"circle"}),
     "any": frozenset({"point", "line", "segment", "circle"}),
 }
+
+
+def variadic_command(command: CommandSpec) -> bool:
+    """Does this command take any number of trailing arguments?"""
+    spec = _operator_spec(command.id)
+    return bool(spec is not None and spec.args and spec.args[-1].variadic)
 
 
 def _resolve_alias(command: CommandSpec) -> CommandSpec:

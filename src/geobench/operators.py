@@ -437,6 +437,30 @@ def op_transform_dilate(ctx: OpContext, args: list[str]) -> dict[str, object]:
     }
 
 
+def op_polygon_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """A polygon through the given points (多边形).
+
+    A polygon is not a new shape: it is its **edges**. So it carries the
+    vertices' coordinates and the renderer draws the segments between
+    them. That keeps one shape in the figure instead of a polygon plus
+    four segments, and it keeps the screen and the export agreeing (they
+    draw the same primitives).
+    """
+    if len(args) < 3:
+        raise DegenerateError("a polygon needs at least three vertices")
+    vertices: list[Expr] = []
+    for node_id in args:
+        x, y = ctx.point(node_id)
+        vertices.extend((x, y))
+    # Two vertices in a row would make a side of zero length.
+    for index in range(len(args)):
+        first = 2 * index
+        second = 2 * ((index + 1) % len(args))
+        if vertices[first] == vertices[second] and vertices[first + 1] == vertices[second + 1]:
+            raise DegenerateError("two vertices of the polygon coincide")
+    return {"kind": "polygon", "polygon": tuple(vertices)}
+
+
 def op_intersect_circles(ctx: OpContext, args: list[str]) -> dict[str, object]:
     """The intersection points of two circles (两圆交点).
 
@@ -758,6 +782,22 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="sympy.geometry:Point.scale",
         ),
         op_transform_dilate,
+    ),
+    (
+        OpSpec(
+            id="polygon.free",
+            kind="polygon",
+            args=(
+                ArgSpec("a", "point"),
+                ArgSpec("b", "point"),
+                ArgSpec("c", "point"),
+                ArgSpec("...", "point", variadic=True),
+            ),
+            returns="polygon",
+            degenerate_when=("fewer than three vertices", "two vertices coincide"),
+            oracle="the polygon is its edges: the oracle checks the vertices",
+        ),
+        op_polygon_free,
     ),
     (
         OpSpec(
