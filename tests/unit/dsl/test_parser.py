@@ -134,6 +134,15 @@ def test_the_new_line_commands_are_built() -> None:
     assert figure.node("t").args == ["A", "O"]
 
 
+def test_a_polygon_takes_any_number_of_vertices() -> None:
+    """A polygon is three or four or five vertices; the contract says so."""
+    figure = parse_dsl("点 A(0,0) B(6,0) C(2,4)\nP = 多边形(A,B,C)")
+    assert figure.node("P").op == "polygon.free"
+    assert figure.node("P").kind == "polygon"
+    figure = parse_dsl("点 A(0,0) B(6,0) C(2,4) D(5,5)\nP = 多边形(A,B,C,D)")
+    assert figure.node("P").args == ["A", "B", "C", "D"]
+
+
 def test_a_parsed_figure_evaluates(registry: OperatorRegistry) -> None:
     source = "点 A(0,0) B(6,0) C(2,4)\n△ABC\nD = 垂足(A,BC)\nM = 中点(A,B)"
     figure = parse_dsl(source)

@@ -41,7 +41,7 @@ CACHE_CONDITION_FN = "numeric_condition_fn"
 CACHE_UNDEFINED = "undefined"
 
 #: The payload a node contributes to the picture, in order.
-_PAYLOAD_KEYS = ("coords", "line", "circle", "segment")
+_PAYLOAD_KEYS = ("coords", "line", "circle", "segment", "polygon")
 
 
 def payload_expressions(node: Node) -> tuple[Expr, ...]:

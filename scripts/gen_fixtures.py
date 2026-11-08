@@ -52,6 +52,15 @@ def _distinct_pair(rng: random.Random) -> dict[str, tuple[str, str]]:
             return points
 
 
+def _distinct_points(rng: random.Random, count: int) -> dict[str, tuple[str, str]]:
+    """Points that are all different from each other."""
+    names = ["A", "B", "C", "D", "E", "F"][:count]
+    while True:
+        points = _points(rng, count)
+        if len({points[name] for name in names}) == count:
+            return points
+
+
 def _two_non_coincident_lines(rng: random.Random) -> dict[str, tuple[str, str]]:
     """Two lines that are not parallel and do not share every point."""
     while True:
@@ -384,6 +393,28 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
         for _ in range(DEGENERATE):
             pts = _collinear_triple(rng)
             add(pts, ["A", "B", "C"], "degenerate", "error", "collinear triple")
+    elif op_id == "polygon.free":
+        for _ in range(TARGET):
+            pts = _distinct_points(rng, 4)
+            add(pts, ["A", "B", "C"], "normal", "value", "a triangle")
+            add(pts, ["A", "B", "C", "D"], "normal", "value", "a quadrilateral")
+        # Three collinear vertices: still a polygon, just a flat corner.
+        add(
+            {"A": ("0", "0"), "B": ("2", "0"), "C": ("4", "0"), "D": ("2", "3")},
+            ["A", "B", "C", "D"],
+            "edge",
+            "value",
+            "three collinear vertices",
+        )
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 4)
+            add(
+                {"A": pts["A"], "B": pts["A"], "C": pts["C"], "D": pts["D"]},
+                ["A", "B", "C", "D"],
+                "degenerate",
+                "error",
+                "two vertices coincide",
+            )
     elif op_id == "transform.mirror":
         for _ in range(TARGET):
             pts = _points(rng, 3)
@@ -509,6 +540,7 @@ OPERATORS = [
     "circle.free",
     "circle.center_point",
     "circle.incircle",
+    "polygon.free",
     "transform.mirror",
     "transform.translate",
     "transform.rotate",

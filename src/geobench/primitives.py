@@ -22,9 +22,27 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from geobench.evaluate import numeric_circle, numeric_coords, numeric_line, numeric_segment
+from geobench.evaluate import (
+    numeric_circle,
+    numeric_coords,
+    numeric_line,
+    numeric_segment,
+)
 from geobench.model import Figure
 from geobench.style import FigureStyle
+
+
+def _numeric_payload(
+    figure: Figure, node_id: str, key: str
+) -> tuple[float, ...] | None:
+    """The node's numeric payload, when the numeric path has computed it."""
+    values = figure.node(node_id).cache.get("numeric")
+    if not values:
+        return None
+    payload = values.get(key)
+    if payload is None:
+        return None
+    return tuple(payload)
 
 
 @dataclass(frozen=True)
@@ -134,6 +152,22 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                     undefined,
                 )
             )
+            continue
+        elif node.kind == "polygon":
+            # A polygon is its edges: the primitive list carries the
+            # segments between its vertices, so the screen and the export
+            # draw the same thing (decision D20).
+            vertices = _numeric_payload(figure, node_id, "polygon")
+            if vertices is None or len(vertices) < 6:
+                continue
+            count = len(vertices) // 2
+            for index in range(count):
+                x1, y1 = vertices[2 * index], vertices[2 * index + 1]
+                next_index = (index + 1) % count
+                x2, y2 = vertices[2 * next_index], vertices[2 * next_index + 1]
+                (auxiliary if aux else main).append(
+                    SegmentPrimitive(x1, y1, x2, y2, aux)
+                )
             continue
         else:
             continue

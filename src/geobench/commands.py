@@ -303,7 +303,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     _c("sector.three_points", "三点扇形", "SectorThreePoints", "圆", CONSTRUCTION, 3, "三点扇形"),
     _c("circle.osculating", "密切圆", "OsculatingCircle", "圆", CONSTRUCTION, 2, "密切圆"),
     # -- 多边形 ------------------------------------------------------------
-    _c("polygon.free", "多边形", "Polygon", "多边形", CONSTRUCTION, 3, "多边形"),
+    _c("polygon.free", "多边形", "Polygon", "多边形", CONSTRUCTION, 3, "多边形", True),
     _c("polygon.regular", "正多边形", "RegularPolygon", "多边形", CONSTRUCTION, 3, "正多边形"),
     _c("polygon.rigid", "刚性多边形", "RigidPolygon", "多边形", CONSTRUCTION, 3, "刚性多边形"),
     # -- 变换 --------------------------------------------------------------
