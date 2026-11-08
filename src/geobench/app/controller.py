@@ -18,9 +18,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
+from fractions import Fraction
 from typing import Any
 
-from geobench import numeric
+import sympy as sp
+
 from geobench.dsl import parse_dsl, to_dsl
 from geobench.errors import GeobenchError
 from geobench.evaluate import evaluate_figure, undefined_nodes
@@ -33,6 +35,22 @@ from geobench.state import FigureStore, OpRequest
 from geobench.style import COMPETITION, FigureStyle
 
 DEFAULT_FIGURE_ID = "figure"
+
+
+def _as_float(value: str) -> float:
+    """An exact placement ("29/20") as a number, for hit testing and drawing."""
+    return float(Fraction(value))
+
+
+def _exact(value: float) -> str:
+    """A coordinate as an exact rational.
+
+    A point dragged to a fraction of a pixel is at a fraction, and the
+    kernel wants fractions: no floats, ever, in the exact path. A
+    denominator of a million is plenty -- a pixel is worth far less than
+    that.
+    """
+    return str(sp.Rational(value).limit_denominator(10**6))
 
 
 #: The label each construction gives its result, the way a competition
@@ -54,8 +72,9 @@ _LABELS_BY_OP: dict[str, str] = {
 }
 
 
-#: What the undo stack keeps: the nodes and the relations of a figure.
-Snapshot = tuple[dict[str, "Node"], list["Relation"]]
+#: What the undo stack keeps: the nodes, the relations, and the counter
+#: that names the next free point.
+Snapshot = tuple[dict[str, "Node"], list["Relation"], int]
 
 
 class StudioController:
@@ -131,13 +150,16 @@ class StudioController:
             for node_id, node in figure.nodes.items()
         }
         relations = [replace(relation) for relation in figure.relations]
-        return nodes, relations
+        return nodes, relations, self._next_label
 
     def _restore(self, snapshot: Snapshot) -> None:
         figure = self.figure()
         figure.nodes.clear()
         figure.nodes.update(snapshot[0])
         figure.relations[:] = snapshot[1]
+        # The counter that names the next free point goes back too: a
+        # point that was undone is still free to be named.
+        self._next_label = snapshot[2]
         self.evaluate()
         self._changed()
 
@@ -163,15 +185,15 @@ class StudioController:
         """Put a free point on the canvas."""
         self.push_undo()
         node_id = label or self._new_label()
-        # The coordinates are rounded for reading: the exact values live
-        # in the symbolic expressions, and a list of seventeen decimal
-        # places is noise in the steps pane.
+        # The coordinates are exact rationals. The kernel does not allow
+        # floats -- the exact path has to stay exact -- and a placement
+        # feeds the symbolic substitution the judges use.
         result = self.store.apply(
             self.figure_id,
             [
                 OpRequest(
                     op="point.free",
-                    args=[numeric.format_float(x), numeric.format_float(y)],
+                    args=[_exact(x), _exact(y)],
                     id=node_id,
                 )
             ],
@@ -196,7 +218,7 @@ class StudioController:
             raise GeobenchError(f"unknown node id {node_id!r}")
         if node.role != "free":
             raise GeobenchError(f"node {node_id!r} is not a free point")
-        node.placement = (repr(x), repr(y))
+        node.placement = (_exact(x), _exact(y))
         self.evaluate()
         self._changed()
 
@@ -252,10 +274,12 @@ class StudioController:
         """
         parsed = parse_dsl(source)
         figure = self.figure()
-        for node_id in list(figure.nodes):
-            figure.remove_node(node_id)
-        for relation in list(figure.relations):
-            figure.remove_relation(relation.id)
+        # The figure is emptied directly rather than node by node: the
+        # model refuses to remove a node that others depend on, which is
+        # the right rule for editing and the wrong one for replacing
+        # the whole figure.
+        figure.nodes.clear()
+        figure.relations.clear()
         for node in parsed.nodes.values():
             figure.add_node(node)
         for relation in parsed.relations:
@@ -264,7 +288,14 @@ class StudioController:
         self._changed()
 
     def remove_node(self, node_id: str) -> None:
-        """Remove an object and everything that depends on it."""
+        """Remove an object, what depends on it, and the claims about it.
+
+        A claim about a point that no longer exists is not a claim any
+        more, so deleting a point deletes the relations that name it.
+        The model refuses the other way round -- it will not leave a
+        relation pointing at nothing -- and that is right: the refusal
+        belongs in the model, the cascade belongs here.
+        """
         self.push_undo()
         figure = self.figure()
         dependents = [
@@ -274,15 +305,21 @@ class StudioController:
         ]
         for dependent in dependents:
             figure.remove_node(dependent)
+        gone = {node_id, *dependents}
+        figure.relations = [
+            relation
+            for relation in figure.relations
+            if not (set(relation.args) & gone)
+        ]
         figure.remove_node(node_id)
         self.evaluate()
         self._changed()
 
     def add_relation(self, kind: str, args: list[str]) -> str:
-        self.push_undo()
         """Add a relation to be judged."""
+        self.push_undo()
         figure = self.figure()
-        relation_id = f"r{len(figure.relations) + 1}"
+        relation_id = self._next_relation_id(figure)
         figure.add_relation(
             Relation(id=relation_id, kind=kind, args=list(args), expected=True)
         )
@@ -330,8 +367,11 @@ class StudioController:
             if node.placement is None:
                 continue
             try:
-                out[node.id] = (float(node.placement[0]), float(node.placement[1]))
-            except (TypeError, ValueError):
+                out[node.id] = (
+                    _as_float(node.placement[0]),
+                    _as_float(node.placement[1]),
+                )
+            except (TypeError, ValueError, ZeroDivisionError):
                 continue
         return out
 
@@ -342,14 +382,38 @@ class StudioController:
             if node.role == "free" and node.kind == "point"
         ]
 
+    def _next_relation_id(self, figure: Figure) -> str:
+        """The next free name for a relation.
+
+        Counting the relations is not enough: remove one and the count
+        goes down, and the next relation would take a name that is
+        already in use.
+        """
+        used = {relation.id for relation in figure.relations}
+        index = len(used) + 1
+        while f"r{index}" in used:
+            index += 1
+        return f"r{index}"
+
     def _new_label(self) -> str:
-        """The next free point label: A, B, C, ... then A1, B1, ..."""
+        """The next free point label: A, B, C, ... then A1, B1, ...
+
+        The counter is not enough on its own: a file that is opened can
+        bring its own names, and a point must never be given a name that
+        is already on the figure.
+        """
         letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        index = self._next_label - 1
-        self._next_label += 1
-        if index < len(letters):
-            return letters[index]
-        return f"P{index - len(letters) + 1}"
+        used = set(self.figure().nodes)
+        while True:
+            index = self._next_label - 1
+            self._next_label += 1
+            label = (
+                letters[index]
+                if index < len(letters)
+                else f"P{index - len(letters) + 1}"
+            )
+            if label not in used:
+                return label
 
 
 def figure_of(controller: StudioController) -> Figure:

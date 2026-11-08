@@ -642,10 +642,19 @@ def op_segment_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
 
 
 def op_circle_through(ctx: OpContext, args: list[str]) -> dict[str, object]:
-    ox, oy = cast(tuple[Expr, Expr], op_circumcenter(ctx, args)["coords"])
+    circumcircle = op_circumcenter(ctx, args)
+    ox, oy = cast(tuple[Expr, Expr], circumcircle["coords"])
     ax, ay = ctx.point(args[0])
     r2 = (ax - ox) ** 2 + (ay - oy) ** 2
-    return {"kind": "circle", "circle": (ox, oy, r2)}
+    return {
+        "kind": "circle",
+        "circle": (ox, oy, r2),
+        # Three points are collinear for some placements, not identically,
+        # so the condition is published for the evaluation pass to check.
+        # Without it a degenerate placement produces a *complex* centre
+        # rather than an undefined circle.
+        "must_be_nonzero": circumcircle.get("must_be_nonzero", {}),
+    }
 
 
 def op_circle_free(ctx: OpContext, args: list[str]) -> dict[str, object]:

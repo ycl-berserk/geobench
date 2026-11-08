@@ -276,8 +276,8 @@ def numeric_coords(
     if payload is not None:
         return (payload[0], payload[1])
     subs = free_symbols(figure) if substitutions is None else substitutions
-    x = float(sp.N(FIELD.coerce(node.coords[0]).subs(subs)))
-    y = float(sp.N(FIELD.coerce(node.coords[1]).subs(subs)))
+    x = _real(FIELD.coerce(node.coords[0]).subs(subs), node_id)
+    y = _real(FIELD.coerce(node.coords[1]).subs(subs), node_id)
     return x, y
 
 
@@ -286,6 +286,23 @@ def symbolic_coords(figure: Figure, node_id: str) -> tuple[Expr, Expr]:
     if node.coords is None:
         raise StateError(f"node {node_id!r} has no coordinates")
     return FIELD.coerce(node.coords[0]), FIELD.coerce(node.coords[1])
+
+
+def _real(value: Expr, node_id: str) -> float:
+    """A real number, or a clean refusal.
+
+    A degenerate configuration can make a quantity complex -- the
+    centre of a circle through three collinear points, for one. That is
+    not a value, it is the absence of one, and it has to say so in a way
+    the caller can catch: a raw TypeError from float() would escape
+    through the paint event and take the application down with it.
+    """
+    try:
+        return float(sp.N(value))
+    except (TypeError, ValueError) as exc:
+        raise StateError(
+            f"node {node_id!r} has no real value at this placement"
+        ) from exc
 
 
 def numeric_line(
@@ -297,9 +314,9 @@ def numeric_line(
     a, b, c = cast(tuple[Expr, Expr, Expr], figure.node(node_id).cache["line"])
     subs = free_symbols(figure) if substitutions is None else substitutions
     return (
-        float(sp.N(a.subs(subs))),
-        float(sp.N(b.subs(subs))),
-        float(sp.N(c.subs(subs))),
+        _real(a.subs(subs), node_id),
+        _real(b.subs(subs), node_id),
+        _real(c.subs(subs), node_id),
     )
 
 
@@ -312,9 +329,9 @@ def numeric_circle(
     cx, cy, r2 = cast(tuple[Expr, Expr, Expr], figure.node(node_id).cache["circle"])
     subs = free_symbols(figure) if substitutions is None else substitutions
     return (
-        float(sp.N(cx.subs(subs))),
-        float(sp.N(cy.subs(subs))),
-        float(sp.N(r2.subs(subs))),
+        _real(cx.subs(subs), node_id),
+        _real(cy.subs(subs), node_id),
+        _real(r2.subs(subs), node_id),
     )
 
 
@@ -329,8 +346,8 @@ def numeric_segment(
     )
     subs = free_symbols(figure) if substitutions is None else substitutions
     return (
-        float(sp.N(x1.subs(subs))),
-        float(sp.N(y1.subs(subs))),
-        float(sp.N(x2.subs(subs))),
-        float(sp.N(y2.subs(subs))),
+        _real(x1.subs(subs), node_id),
+        _real(y1.subs(subs), node_id),
+        _real(x2.subs(subs), node_id),
+        _real(y2.subs(subs), node_id),
     )

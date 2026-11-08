@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -165,10 +166,14 @@ TOOLS: tuple[ToolSpec, ...] = (
 
 
 def _short(value: str) -> str:
-    """A coordinate as short as it can be and still be exact enough to read."""
+    """A coordinate as short as it can be and still be exact enough to read.
+
+    The coordinate itself is a rational ("29/20"); a person wants to see
+    a decimal ("1.45").
+    """
     try:
-        number = float(value)
-    except (TypeError, ValueError):
+        number = float(Fraction(value))
+    except (TypeError, ValueError, ZeroDivisionError):
         return value
     if number == int(number):
         return str(int(number))

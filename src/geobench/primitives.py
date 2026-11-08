@@ -22,6 +22,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+from geobench.errors import StateError
 from geobench.evaluate import (
     numeric_circle,
     numeric_coords,
@@ -163,18 +164,34 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
             continue
         aux = is_auxiliary(node_id, style) or node.style.line_style == "dashed"
         if node.kind == "line":
-            a, b, c = numeric_line(figure, node_id)
+            try:
+                a, b, c = numeric_line(figure, node_id)
+            except (StateError, TypeError, ValueError):
+                # This object has no value at this placement. It is not
+                # drawn, and the rest of the picture is.
+                continue
             primitive: Primitive = LinePrimitive(a, b, c, aux)
         elif node.kind == "segment":
-            x1, y1, x2, y2 = numeric_segment(figure, node_id)
+            try:
+                x1, y1, x2, y2 = numeric_segment(figure, node_id)
+            except (StateError, TypeError, ValueError):
+                continue
             primitive = SegmentPrimitive(x1, y1, x2, y2, aux)
         elif node.kind == "circle":
-            cx, cy, r2 = numeric_circle(figure, node_id)
+            try:
+                cx, cy, r2 = numeric_circle(figure, node_id)
+            except (StateError, TypeError, ValueError):
+                continue
             if r2 <= 0:
                 continue
             primitive = CirclePrimitive(cx, cy, math.sqrt(r2), aux)
         elif node.kind == "point":
-            x, y = numeric_coords(figure, node_id)
+            try:
+                x, y = numeric_coords(figure, node_id)
+            except (StateError, TypeError, ValueError):
+                # A point with no real value here is not drawn; the
+                # rest of the picture is.
+                continue
             undefined = node.placement is None
             points.append(
                 PointPrimitive(
