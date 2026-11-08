@@ -171,7 +171,7 @@ src/geobench/
 | T030 | 变换族（平移/旋转/位似/镜像） | 算子 | `pytest tests/oracle -q` | `[x]` |
 | T031 | 轨迹 / 包络 / 参数曲线 | 算子 | `pytest tests/oracle -q` | `[ ]` |
 | T032 | 圆锥曲线族 | 算子 | `pytest tests/oracle -q` | `[ ]` |
-| T033 | 判定器补齐（20+） | 判定器 | `pytest tests/unit/test_judges.py -q` | `[ ]` |
+| T033 | 判定器补齐（20+） | 判定器 | `pytest tests/unit/test_judges_new.py -q` | `[x]` |
 
 **T024 做法要点**
 - 语法：`名称(参数, ...)`，与 GeoGebra 中文命令名一致。例：`中点(A,B)`、`中垂线(A,B)`、`外接圆(A,B,C)`、`垂直(A,l)`、`交点(l,c)`、`共线(A,B,C)`。
@@ -308,12 +308,16 @@ src/geobench/
 | `AreConcyclic` | 共圆 | `concyclic` | `[x]` |
 | `AreConcurrent` | 共点 | `concurrency` | `[x]` |
 | `AreEqual` | 相等 | `equal_length` | `[x]` |
-| `AreCongruent` | 全等 | `congruent` | `[ ]` |
-| `AreParallel` | 平行 | `parallel` | `[ ]` |
+| `AreCongruent` | 全等 | `congruent` | `[x]` |
+| `AreParallel` | 平行 | `parallel` | `[x]` |
 | `ArePerpendicular` | 垂直 | `perpendicular` | `[x]` |
 | `IsTangent` | 相切 | `tangent_to` | `[x]` |
-| `PointIn` | 点在 | `point_in` | `[ ]` |
-| `SimpleRatio` | 比例相等 | `ratio_equal` | `[ ]` |
+| `PointIn` | 点在 | `point_in` | `[x]` |
+| `SimpleRatio` | 比例相等 | `ratio_equal` | `[x]` |
+| `IsCircumcenter` | 外心 | `circumcenter_of` | `[x]` |
+| `IsOrthocenter` | 垂心 | `orthocenter_of` | `[x]` |
+| `IsCentroid` | 重心 | `centroid_of` | `[x]` |
+| `IsAngleEqual` | 角相等 | `angle_equal` | `[x]` |
 | `IsMidpoint` | 中点 | `midpoint_of` | `[x]` |
 | `IsPerpendicularPoint` | 垂直 | `point_perpendicular` | `[x]` |
 | `IsAngleBisector` | 角平分线 | `angle_bisector` | `[x]` |
@@ -407,14 +411,14 @@ src/geobench/
 
 ## 10. 当前状态快照
 
-- 内核：**25 个算子**、9 个判定器、MCP 三工具
-- 命令表：**77 条** GeoGebra 几何命令已登记（`src/geobench/commands.py`），**29 条已实现**；覆盖表由它生成
+- 内核：**25 个算子**、**16 个判定器**、MCP 三工具
+- 命令表：**77 条** GeoGebra 几何命令已登记（`src/geobench/commands.py`），**36 条已实现**；覆盖表由它生成
 - 求值：**已分层**（T015）—— 精确路径增量缓存，数值路径编译执行
 - 性能：**已有 CI 预算门禁**（T016）；**结论缓存**（T017）
 - 渲染：**原语列表 + 双后端**（T018）—— 屏幕与导出吃同一份
 - 画板：**能开窗了**（T019–T022）—— 拖点 · 工具栏构造 · 构造步骤表 · 判定面板
 - DSL：**函数式 + 中英文命令名**（T024）—— `M = 中点(A,B)`，`M=Midpoint(A,B)` 同样成立
-- 测试：428 通过；ruff / mypy --strict 干净；CI 绿
+- 测试：449 通过；ruff / mypy --strict 干净；CI 绿
 - 下一步：**M-C 的算子补齐**（T026 点族 · T028 圆弧扇形 · T029 多边形 · T030 变换 · T031 轨迹 · T032 圆锥曲线）
 
 ## 11. 变更记录
@@ -427,4 +431,4 @@ src/geobench/
 | 2026-11-07 | T018 完成：原语列表 + SVG/QPainter 双后端。**T019–T022 完成：桌面工作台能开窗了**（画板 · 工具栏 · 构造步骤表 · 判定面板）。`geobench-app` 命令已可用。 |
 | 2026-11-07 | 关系选择器改掉了"取前 N 个对象"的做法 —— 那样会悄悄检查一个没人提过的断言。判定面板加了**证据栏**（完整证明 / 反例）。CI 补上 Qt 的系统库与 app 依赖。 |
 | 2026-11-07 | **T024 + T025 完成：DSL 改函数式（中英文命令名都认），命令表成为唯一真源。** §6 的覆盖表改为**生成**的（`scripts/gen_coverage.py`，CI 盯）。句子式作废。 |
-| 2026-11-07 | **T030 完成：变换族**（镜像 · 平移 · 旋转 · 位似）—— 角度用度，特殊角**保持精确**（cos60° = 1/2）。**T026 完成：点族补齐**（两圆交点 · 最近点）。**T027 完成：线族补齐**（中垂线 · 角平分线 · 切线）。**T028 完成：圆族**（圆心一点 · 内切圆）；弧与扇形另立 T028b（要新增图元种类）。 |
+| 2026-11-07 | **T033 完成：判定器 9 → 16**（平行 · 点在 · 比例相等 · 外心/垂心/重心关系 · 角相等）。工具栏的关系按钮改为**从命令表生成** ✓。**T030 完成：变换族**（镜像 · 平移 · 旋转 · 位似）—— 角度用度，特殊角**保持精确**（cos60° = 1/2）。**T026 完成：点族补齐**（两圆交点 · 最近点）。**T027 完成：线族补齐**（中垂线 · 角平分线 · 切线）。**T028 完成：圆族**（圆心一点 · 内切圆）；弧与扇形另立 T028b（要新增图元种类）。 |

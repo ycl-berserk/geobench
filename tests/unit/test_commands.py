@@ -99,12 +99,14 @@ def test_a_command_marked_done_actually_exists() -> None:
     registry = _operators()
     judges = JudgeRegistry()
     for command in implemented():
+        # A synonym is implemented by the command it points at.
+        target = command.alias_of or command.id
         if command.kind == JUDGEMENT:
-            assert judges.has(command.id), f"{command.id} is marked done but has no judge"
+            assert judges.has(target), f"{command.id} is marked done but has no judge"
         elif command.id == "point.free":
             continue  # handled by the store, not by an operator
         else:
-            assert registry.has(command.id), (
+            assert registry.has(target), (
                 f"{command.id} is marked done but has no operator"
             )
 
