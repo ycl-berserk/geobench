@@ -21,13 +21,16 @@ from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QPoint, QSize, Qt
+from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QButtonGroup,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
+    QFrame,
+    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QInputDialog,
@@ -40,6 +43,9 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSplitter,
+    QStyle,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
     QTableWidget,
     QTableWidgetItem,
     QToolBar,
@@ -50,6 +56,8 @@ from PySide6.QtWidgets import (
 
 from geobench.app.canvas import FigureCanvas
 from geobench.app.controller import StudioController
+from geobench.app.icons import group_icon, tool_icon
+from geobench.app.theme import PALETTE, mono_font
 from geobench.app.tools import POINT_TOOL, ToolGroup, ToolSpec, build_toolbar
 from geobench.commands import by_id
 from geobench.errors import GeobenchError
@@ -165,6 +173,98 @@ class ObjectPicker(QDialog):
         return [item.text() for item in self.list.selectedItems()]
 
 
+#: The roles the step delegate reads. The item's own text stays plain
+#: -- it is what the rest of the program and the tests read -- and the
+#: delegate draws the two parts in two tones.
+HEAD_ROLE = int(Qt.ItemDataRole.UserRole) + 1
+TAIL_ROLE = int(Qt.ItemDataRole.UserRole) + 2
+#: The colour of a verdict, as the text of a colour. A QColor comes
+#: back from the model as a QVariant, and a QVariant in a delegate is
+#: a thing to be unpacked rather than guessed at.
+VERDICT_ROLE = int(Qt.ItemDataRole.UserRole) + 3
+
+
+class StepDelegate(QStyledItemDelegate):
+    """Draws a construction step as a sentence, not as a string.
+
+    The name is the subject and the call is the explanation, so they
+    should not look the same size of thing: the name is bold and dark,
+    the call is quiet.
+    """
+
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionViewItem,
+        index: QModelIndex | QPersistentModelIndex,
+    ) -> None:
+        """Draw one step."""
+        state = option.state
+        selected = bool(state & QStyle.StateFlag.State_Selected)
+        hovered = bool(state & QStyle.StateFlag.State_MouseOver)
+        rect = option.rect
+        if selected or hovered:
+            painter.save()
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(
+                QColor(PALETTE.accent_soft if selected else PALETTE.surface_alt)
+            )
+            painter.drawRoundedRect(rect.adjusted(2, 1, -2, -1), 6, 6)
+            painter.restore()
+
+        head = index.data(HEAD_ROLE) or ""
+        tail = index.data(TAIL_ROLE) or ""
+        metrics = option.fontMetrics
+        text_rect = rect.adjusted(10, 0, -6, 0)
+        painter.save()
+        font = option.font
+        font.setBold(True)
+        painter.setFont(font)
+        painter.setPen(QColor(PALETTE.text))
+        painter.drawText(
+            text_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, head
+        )
+        if tail:
+            head_width = metrics.horizontalAdvance(head)
+            font.setBold(False)
+            painter.setFont(font)
+            painter.setPen(QColor(PALETTE.text_muted))
+            painter.drawText(
+                text_rect.adjusted(head_width, 0, 0, 0),
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                tail,
+            )
+        painter.restore()
+
+
+class VerdictDelegate(QStyledItemDelegate):
+    """Draws a judgement row, and keeps the verdict's colour.
+
+    A selected row takes its text colour from the palette, which would
+    throw away the one thing the reader wants to see: whether the claim
+    is proved or refuted. So the text is drawn here, in the colour the
+    row was given.
+    """
+
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionViewItem,
+        index: QModelIndex | QPersistentModelIndex,
+    ) -> None:
+        """Draw one cell."""
+        colour = index.data(VERDICT_ROLE)
+        text = index.data(Qt.ItemDataRole.DisplayRole) or ""
+        painter.save()
+        painter.setPen(QColor(colour) if isinstance(colour, str) else QColor(PALETTE.text))
+        painter.drawText(
+            option.rect.adjusted(10, 0, -6, 0),
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            str(text),
+        )
+        painter.restore()
+
+
 class StudioWindow(QMainWindow):
     """The main window of the studio."""
 
@@ -184,6 +284,7 @@ class StudioWindow(QMainWindow):
 
         self.steps = QListWidget()
         self.steps.setToolTip("构造步骤：这张图是怎么一步步造出来的（右键删除）")
+        self.steps.setItemDelegate(StepDelegate(self.steps))
         self.steps.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.steps.customContextMenuRequested.connect(self._steps_menu)
         # The delete key works on the selected step, which is what a
@@ -196,6 +297,11 @@ class StudioWindow(QMainWindow):
 
         self.judgements = QTableWidget(0, 3)
         self.judgements.setHorizontalHeaderLabels(["关系", "结论", "证据"])
+        self.judgements.setItemDelegate(VerdictDelegate(self.judgements))
+        self.judgements.verticalHeader().setVisible(False)
+        self.judgements.setShowGrid(False)
+        self.judgements.setAlternatingRowColors(True)
+        self.judgements.setWordWrap(False)
         self.judgements.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeMode.ResizeToContents
         )
@@ -218,24 +324,23 @@ class StudioWindow(QMainWindow):
         # evidence is a claim, and this product exists to avoid those.
         self.evidence = QPlainTextEdit()
         self.evidence.setReadOnly(True)
+        # The evidence is read symbol by symbol; a proportional font
+        # makes the minus sign and the hyphen the same width.
+        self.evidence.setFont(mono_font())
         self.evidence.setMinimumHeight(110)
         self.evidence.setPlaceholderText("选中一行，这里显示它的证据")
         self.judgements.itemSelectionChanged.connect(self._show_evidence)
 
-        self.scope_label = QLabel(SCOPE_LABELS[IDENTITY])
         self.status = self.statusBar()
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(self._panel("构造", self.steps))
-        splitter.addWidget(self._panel("画板", self.canvas))
-        splitter.addWidget(self._panel("判定", self._judgement_panel()))
-        splitter.setSizes([250, 540, 390])
-        # The default handle is a fat black bar, which reads as a hole
-        # in the window.
-        splitter.setHandleWidth(8)
-        # The default handle is a fat black bar, which reads as a hole
-        # in the window.
-        splitter.setStyleSheet("QSplitter::handle { background: #e3e3e3; }")
+        splitter.addWidget(self._panel("构造", self.steps, "这张图是怎么造出来的"))
+        splitter.addWidget(self._panel("画板", self.canvas, "拖动自由点"))
+        splitter.addWidget(self._panel("判定", self._judgement_panel(), "哪些说法成立"))
+        splitter.setSizes([280, 560, 420])
+        # A wide, quiet handle: the panes are separated by a gap, not by
+        # a bar that reads as a hole in the window.
+        splitter.setHandleWidth(12)
 
         central = QWidget()
         layout = QVBoxLayout(central)
@@ -250,50 +355,103 @@ class StudioWindow(QMainWindow):
         # A tool is armed from the start. An empty toolbar and an idle
         # canvas look like a program that is not working: a click with
         # no tool armed does nothing, and nothing says so.
-        self._arm(POINT_TOOL)
+        point_group = next(
+            (
+                group
+                for group in self._groups
+                if any(tool.op == "point.free" for tool in group.tools)
+            ),
+            None,
+        )
+        self._arm(POINT_TOOL, point_group)
 
     # -- layout ------------------------------------------------------------
 
-    def _panel(self, title: str, widget: QWidget) -> QWidget:
-        panel = QWidget()
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(4, 4, 4, 4)
+    def _panel(self, title: str, widget: QWidget, note: str = "") -> QWidget:
+        """One pane: a card with a heading that says what it is for."""
+        card = QFrame()
+        card.setObjectName("card")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        header = QFrame()
+        header.setObjectName("panelHeader")
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(12, 9, 12, 9)
+        header_layout.setSpacing(8)
+
+        # A short rule of the accent colour: the one piece of colour in
+        # the interface, and it marks where a section begins.
+        rule = QFrame()
+        rule.setObjectName("accentRule")
+        rule.setFixedWidth(3)
+        rule.setFixedHeight(14)
+        header_layout.addWidget(rule)
+
         heading = QLabel(title)
-        heading.setStyleSheet("font-weight: 600; padding: 2px;")
+        heading.setObjectName("panelTitle")
         # The heading must not stretch: without this the layout gives it
         # half the panel and the canvas is squeezed into the bottom.
         heading.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        layout.addWidget(heading)
-        layout.addWidget(widget, 1)
-        return panel
+        header_layout.addWidget(heading)
+        header_layout.addStretch(1)
+        if note:
+            note_label = QLabel(note)
+            note_label.setObjectName("panelNote")
+            header_layout.addWidget(note_label)
+        layout.addWidget(header)
+
+        body = QWidget()
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(8, 8, 8, 8)
+        body_layout.addWidget(widget)
+        layout.addWidget(body, 1)
+        return card
 
     def _judgement_panel(self) -> QWidget:
         panel = QWidget()
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        row = QWidget()
-        row_layout = QHBoxLayout(row)
-        row_layout.setContentsMargins(0, 0, 0, 0)
-        for spec in _relations():
+        chips = QGridLayout()
+        chips.setContentsMargins(0, 0, 0, 0)
+        chips.setHorizontalSpacing(6)
+        chips.setVerticalSpacing(6)
+        for index, spec in enumerate(_relations()):
             button = QPushButton(spec.label)
             button.setToolTip(spec.hint)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.clicked.connect(
                 lambda _checked=False, relation=spec: self._add_relation(relation)
             )
-            row_layout.addWidget(button)
-        row_layout.addStretch(1)
-        layout.addWidget(row)
+            chips.addWidget(button, index // 4, index % 4)
+        layout.addLayout(chips)
 
         scope_row = QWidget()
         scope_layout = QHBoxLayout(scope_row)
         scope_layout.setContentsMargins(0, 0, 0, 0)
-        scope_layout.addWidget(self.scope_label)
+        scope_layout.setSpacing(6)
+        scope_layout.addWidget(QLabel("作用域"))
+        # Two buttons, one of them down: the scope is a choice between
+        # two things, and a button that says "toggle" does not say which
+        # one is in force.
+        self.scope_group = QButtonGroup(self)
+        self.scope_group.setExclusive(True)
+        self.scope_buttons: dict[str, QPushButton] = {}
+        for scope, label in ((IDENTITY, "恒等"), (INSTANCE, "实例")):
+            button = QPushButton(label)
+            button.setCheckable(True)
+            button.setToolTip(SCOPE_LABELS[scope])
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.clicked.connect(
+                lambda _checked=False, chosen=scope: self.set_scope(chosen)
+            )
+            self.scope_group.addButton(button)
+            self.scope_buttons[scope] = button
+            scope_layout.addWidget(button)
+        self.scope_buttons[IDENTITY].setChecked(True)
         scope_layout.addStretch(1)
-        switch = QPushButton("切换作用域")
-        switch.setToolTip("identity：对一切合法摆放成立；instance：只对当前这张图成立")
-        switch.clicked.connect(self.toggle_scope)
-        scope_layout.addWidget(switch)
         layout.addWidget(scope_row)
 
         layout.addWidget(self.judgements)
@@ -411,20 +569,29 @@ class StudioWindow(QMainWindow):
         """
         toolbar = QToolBar("构造")
         toolbar.setMovable(False)
+        toolbar.setIconSize(QSize(22, 22))
         self.addToolBar(toolbar)
         self._tool_buttons = {}
-        for group in build_toolbar(self.controller.registry):
+        self._group_labels: dict[str, str] = {}
+        self._group_first: dict[str, str] = {}
+        self._groups = build_toolbar(self.controller.registry)
+        for group in self._groups:
             button = QToolButton()
-            # The button shows the *group*: without icons, the group's
-            # name is what tells the user where to look. The tool it
-            # will arm when clicked is the first one, and hovering says so.
+            # The button shows the *group*: the icon says what kind of
+            # thing it makes, the word says which family it belongs to.
             button.setText(group.label)
+            button.setIcon(group_icon(group.label))
+            button.setToolButtonStyle(
+                Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+            )
             button.setToolTip(f"{group.label}：{group.tools[0].label}")
             button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
             menu = QMenu(button)
             button.setMenu(menu)
             for tool in group.tools:
-                action = menu.addAction(tool.label)
+                action = menu.addAction(tool_icon(tool.op), tool.label)
                 action.setToolTip(tool.hint)
                 action.triggered.connect(
                     lambda _checked=False, spec=tool, grp=group: self._arm(spec, grp)
@@ -434,8 +601,10 @@ class StudioWindow(QMainWindow):
             )
             toolbar.addWidget(button)
             self._tool_buttons[group.key] = button
+            self._group_labels[group.key] = group.label
+            self._group_first[group.key] = group.tools[0].label
         toolbar.addSeparator()
-        fit_action = QAction("适应窗口", self)
+        fit_action = QAction(tool_icon("__fit__"), "适应窗口", self)
         fit_action.setShortcut(QKeySequence.StandardKey.ZoomIn)
         fit_action.triggered.connect(self.canvas.fit)
         toolbar.addAction(fit_action)
@@ -445,13 +614,18 @@ class StudioWindow(QMainWindow):
     def _arm(self, tool: ToolSpec, group: ToolGroup | None = None) -> None:
         """Arm a tool, and make the group's button show it."""
         self.canvas.set_tool(tool)
-        if group is not None:
-            button = self._tool_buttons.get(group.key)
-            if button is not None:
-                # The button keeps the group's name and gains the armed
-                # tool's name in its tooltip and its highlighted state.
-                button.setToolTip(f"{group.label}：{tool.label}（已选中）")
-                button.setDown(True)
+        for key, button in self._tool_buttons.items():
+            label = self._group_labels.get(key, key)
+            armed = group is not None and key == group.key
+            button.setChecked(armed)
+            if armed:
+                # The armed group shows the icon of the armed tool, in
+                # the accent colour: what is in force is visible.
+                button.setIcon(tool_icon(tool.op, "active"))
+                button.setToolTip(f"{label}：{tool.label}（已选中）")
+            else:
+                button.setIcon(group_icon(label))
+                button.setToolTip(f"{label}：{self._group_first.get(key, '')}")
         self.status.showMessage(f"{tool.label}：{tool.hint}")
 
     def _on_value_requested(self, kind: str) -> None:
@@ -541,23 +715,28 @@ class StudioWindow(QMainWindow):
             name = node.label or node_id
             if node.role == "free":
                 placement = node.placement or ("?", "?")
-                text = f"{name}  ({_short(placement[0])}, {_short(placement[1])})"
+                head = f"{name} "
+                tail = f"({_short(placement[0])}, {_short(placement[1])})"
             else:
                 command = by_id(node.op) if node.op else None
                 call = command.name_zh if command is not None else (node.op or "?")
-                text = f"{name} = {call}({', '.join(node.args)})"
-            item = QListWidgetItem(text)
+                head = f"{name} "
+                tail = f"= {call}({', '.join(node.args)})"
+            item = QListWidgetItem(f"{head} {tail}".strip())
             item.setData(Qt.ItemDataRole.UserRole, ("node", node_id))
+            item.setData(HEAD_ROLE, head)
+            item.setData(TAIL_ROLE, tail)
             if node_id in undefined:
-                item.setForeground(Qt.GlobalColor.darkGray)
                 item.setToolTip(f"在这个摆放下没有值：{undefined[node_id]}")
+                item.setData(TAIL_ROLE, f"{tail}  （这个摆放下没有值）")
             self.steps.addItem(item)
         for relation in figure.relations:
-            item = QListWidgetItem(
-                f"断言 {_relation_name(relation.kind)}({', '.join(relation.args)})"
-            )
+            head = "断言 "
+            tail = f"{_relation_name(relation.kind)}({', '.join(relation.args)})"
+            item = QListWidgetItem(f"{head} {tail}")
             item.setData(Qt.ItemDataRole.UserRole, ("relation", relation.id))
-            item.setForeground(Qt.GlobalColor.darkBlue)
+            item.setData(HEAD_ROLE, head)
+            item.setData(TAIL_ROLE, tail)
             self.steps.addItem(item)
 
     def _refresh_judgements(self) -> None:
@@ -569,6 +748,17 @@ class StudioWindow(QMainWindow):
             self.judgements.setItem(row, 0, QTableWidgetItem(_relation_name(verdict.kind)))
             self.judgements.setItem(row, 1, QTableWidgetItem(_verdict_text(verdict.verdict)))
             self.judgements.setItem(row, 2, QTableWidgetItem(_evidence_text(verdict.evidence)[:120]))
+            # A verdict is coloured by what it says: green for proved,
+            # red for refuted, quiet for "we do not know". A teacher
+            # reads the table before reading the words.
+            cell = self.judgements.item(row, 1)
+            if cell is not None:
+                colour = {
+                    "proved": PALETTE.ok,
+                    "refuted": PALETTE.danger,
+                }.get(verdict.verdict, PALETTE.text_muted)
+                cell.setData(VERDICT_ROLE, colour)
+                cell.setForeground(QColor(colour))
         self.judgements.blockSignals(False)
         if verdicts:
             self.judgements.selectRow(0)
@@ -642,11 +832,17 @@ class StudioWindow(QMainWindow):
             )
         self.evidence.setPlainText(text)
 
+    def set_scope(self, scope: str) -> None:
+        """Choose the scope the judgements are made in."""
+        self._scope = scope
+        button = self.scope_buttons.get(scope)
+        if button is not None:
+            button.setChecked(True)
+        self._refresh_judgements()
+
     def toggle_scope(self) -> None:
         """Switch between the identity and the instance scope."""
-        self._scope = INSTANCE if self._scope == IDENTITY else IDENTITY
-        self.scope_label.setText(SCOPE_LABELS[self._scope])
-        self._refresh_judgements()
+        self.set_scope(INSTANCE if self._scope == IDENTITY else IDENTITY)
 
 
 def _relation_name(kind: str) -> str:

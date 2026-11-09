@@ -31,6 +31,7 @@ ALLOWED_MODULES = {
     "canvas": "the studio's canvas draws in pixels; it reads the primitives "
     "and never computes geometry",
     "theme": "the theme carries point sizes and paddings",
+    "icons": "the icons are drawn in pixels",
 }
 
 

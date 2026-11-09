@@ -145,14 +145,14 @@ def _det_collinear(ctx: JudgeContext, args: list[str]) -> Expr:
 
 
 def _dot_perpendicular(ctx: JudgeContext, args: list[str]) -> Expr:
-    a1, b1, _ = ctx.ctx.line(args[0])
-    a2, b2, _ = ctx.ctx.line(args[1])
+    a1, b1, _ = ctx.ctx.as_line(args[0])
+    a2, b2, _ = ctx.ctx.as_line(args[1])
     return a1 * a2 + b1 * b2
 
 
 def _point_line_perpendicular(ctx: JudgeContext, args: list[str]) -> Expr:
     px, py = symbolic_coords(ctx.figure, args[0])
-    a, b, c = ctx.ctx.line(args[1])
+    a, b, c = ctx.ctx.as_line(args[1])
     return a * px + b * py + c
 
 
@@ -194,13 +194,13 @@ def _angle_bisector(ctx: JudgeContext, args: list[str]) -> Expr:
 
 
 def _tangent_to(ctx: JudgeContext, args: list[str]) -> Expr:
-    a, b, c = ctx.ctx.line(args[0])
+    a, b, c = ctx.ctx.as_line(args[0])
     cx, cy, r2 = ctx.ctx.circle(args[1])
     return (a * cx + b * cy + c) ** 2 - (a * a + b * b) * r2
 
 
 def _concurrent(ctx: JudgeContext, args: list[str]) -> Expr:
-    rows = [list(ctx.ctx.line(node_id)) for node_id in args[:3]]
+    rows = [list(ctx.ctx.as_line(node_id)) for node_id in args[:3]]
     return sp.Matrix(rows).det()
 
 
@@ -227,8 +227,8 @@ def _dot_between(
 
 def _parallel(ctx: JudgeContext, args: list[str]) -> Expr:
     """Two lines are parallel iff their normals are proportional."""
-    a1, b1, _ = ctx.ctx.line(args[0])
-    a2, b2, _ = ctx.ctx.line(args[1])
+    a1, b1, _ = ctx.ctx.as_line(args[0])
+    a2, b2, _ = ctx.ctx.as_line(args[1])
     return a1 * b2 - b1 * a2
 
 

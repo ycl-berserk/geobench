@@ -17,10 +17,20 @@ import math
 from dataclasses import dataclass
 
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QBrush, QColor, QFont, QKeyEvent, QPainter, QPen, QPolygonF
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QFont,
+    QKeyEvent,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPolygonF,
+)
 from PySide6.QtWidgets import QWidget
 
 from geobench.app.controller import StudioController
+from geobench.app.theme import PALETTE
 from geobench.app.tools import ToolArg, ToolSpec
 from geobench.primitives import (
     ArcPrimitive,
@@ -42,6 +52,17 @@ DEFAULT_VIEW = View(-10.0, -10.0, 10.0, 10.0)
 
 #: How far a click may miss a point and still grab it, in pixels.
 GRAB_RADIUS_PX = 8.0
+
+#: The colour of the paper the figure is drawn on.
+PAPER = "#ffffff"
+
+#: The corner radius of the paper, in pixels.
+PAPER_RADIUS = 10.0
+
+#: The thinnest a stroke may be on the screen. The paper's 0.4pt is
+#: right for print and too thin to work with.
+SCREEN_MIN_STROKE = 1.2
+SCREEN_MIN_AUX_STROKE = 0.9
 
 
 @dataclass(frozen=True)
@@ -135,9 +156,16 @@ class FigureCanvas(QWidget):
     def paintEvent(self, _event: object) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        painter.fillRect(self.rect(), QColor("white"))
         viewport = self._viewport()
         style = self.controller.style
+
+        # The sheet of paper the figure is drawn on. Everything is
+        # clipped to it, so the rounded corners are real.
+        paper = QPainterPath()
+        paper.addRoundedRect(QRectF(self.rect()), PAPER_RADIUS, PAPER_RADIUS)
+        painter.fillPath(paper, QColor(PAPER))
+        painter.setClipPath(paper)
+        self._draw_grid(painter, viewport)
 
         for primitive in self.controller.primitives():
             if isinstance(primitive, LinePrimitive):
@@ -158,6 +186,32 @@ class FigureCanvas(QWidget):
                 self._draw_label(painter, viewport, primitive, style)
         self._draw_hint(painter, style)
 
+    def _draw_grid(self, painter: QPainter, viewport: Viewport) -> None:
+        """A grid, faint enough to be a guide rather than a subject.
+
+        It is on the screen only: the exported figure is black on white,
+        the way a competition paper is.
+        """
+        step = 1.0
+        pixels = step * viewport.scale
+        if pixels < 14.0:
+            # Too close together to be a guide: it would be a grey wash.
+            return
+        view = viewport.view
+        first_x = math.floor(view.x_min / step) * step
+        first_y = math.floor(view.y_min / step) * step
+        painter.setPen(QPen(QColor(PALETTE.grid), 1.0))
+        x = first_x
+        while x <= view.x_max:
+            sx, _ = viewport.to_screen(x, 0)
+            painter.drawLine(QPointF(sx, 0), QPointF(sx, self.height()))
+            x += step
+        y = first_y
+        while y <= view.y_max:
+            _, sy = viewport.to_screen(0, y)
+            painter.drawLine(QPointF(0, sy), QPointF(self.width(), sy))
+            y += step
+
     def _draw_hint(self, painter: QPainter, style: FigureStyle) -> None:
         """Say, on the canvas itself, what a click will do.
 
@@ -170,11 +224,33 @@ class FigureCanvas(QWidget):
         font = QFont()
         font.setPointSizeF(style.font_size)
         painter.setFont(font)
-        painter.setPen(QColor("#666666"))
-        painter.drawText(QPointF(10.0, 18.0), hint)
+        metrics = painter.fontMetrics()
+        width = metrics.horizontalAdvance(hint) + 20.0
+        height = float(metrics.height()) + 12.0
+        box = QRectF(10.0, 10.0, width, height)
+        # A note in the corner of the sheet, not text floating over the
+        # figure: the note has a ground of its own so it can be read
+        # whatever is underneath it.
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(PALETTE.accent_soft))
+        painter.drawRoundedRect(box, 8.0, 8.0)
+        painter.setPen(QColor(PALETTE.accent))
+        painter.drawText(
+            QPointF(box.left() + 10.0, box.top() + height / 2.0 + metrics.ascent() / 2.0 - 1.0),
+            hint,
+        )
 
     def _pen(self, auxiliary: bool, style: FigureStyle) -> QPen:
+        """The pen of a stroke on the screen.
+
+        The paper draws a competition figure in 0.4pt, because that is
+        what a printed figure looks like. The screen is not paper: a
+        hairline that thin is almost invisible while you are working,
+        so the screen draws a little heavier and the export stays true
+        to the paper.
+        """
         width = style.auxiliary_stroke_width if auxiliary else style.stroke_width
+        width = max(width, SCREEN_MIN_STROKE if not auxiliary else SCREEN_MIN_AUX_STROKE)
         pen = QPen(QColor(style.stroke), width)
         if auxiliary:
             pen.setStyle(Qt.PenStyle.DashLine)
