@@ -223,6 +223,7 @@ class StudioController:
             self._restore(before)
             raise
         self.push_undo_past(before)
+        self._changed()
         return node_id
 
     def move_point(self, node_id: str, x: float, y: float) -> None:
@@ -281,6 +282,7 @@ class StudioController:
             self._restore(before)
             raise
         self.push_undo_past(before)
+        self._changed()
         return result.created[0] if result.created else ""
 
     def push_undo_past(self, before: Snapshot) -> None:
@@ -411,7 +413,46 @@ class StudioController:
 
     def judge(self, scope: str = IDENTITY) -> list[Verdict]:
         """Judge every relation of the figure."""
-        figure = self.figure()
+        return self.judge_figure(self.figure(), scope)
+
+    def snapshot_figure(self) -> Figure:
+        """A copy of the figure, safe to judge in another thread.
+
+        The worker needs a figure that will not change under it: the
+        user may go on dragging points while the proof runs, and a proof
+        that reads a moving figure is not a proof of anything.
+        """
+        source = self.figure()
+        copy = Figure(id=source.id)
+        for node in source.nodes.values():
+            copy.add_node(
+                replace(node, args=list(node.args), cache=dict(node.cache))
+            )
+        for relation in source.relations:
+            copy.add_relation(replace(relation))
+        # The versions and the verdicts already reached: both are worth
+        # keeping, and neither is safe to share with the live figure.
+        copy.runtime.update(source.runtime)
+        copy.runtime["verdicts"] = dict(source.runtime.get("verdicts", {}))
+        return copy
+
+    def absorb_verdicts(self, snapshot: Figure) -> None:
+        """Keep the verdicts a background proof reached.
+
+        The proof ran on a copy of the figure, so what it found is in
+        the copy's cache. The live figure has to learn it, or the same
+        claim is proved again on every change -- in the background, so
+        the screen is still free, but the worker would never catch up.
+        """
+        found = snapshot.runtime.get("verdicts")
+        if not found:
+            return
+        live = self.figure()
+        cache = live.runtime.setdefault("verdicts", {})
+        cache.update(found)
+
+    def judge_figure(self, figure: Figure, scope: str = IDENTITY) -> list[Verdict]:
+        """Judge every relation of a given figure."""
         verdicts: list[Verdict] = []
         for relation in figure.relations:
             try:

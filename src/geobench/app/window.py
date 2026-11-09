@@ -17,11 +17,12 @@ objects (decision D19).
 from __future__ import annotations
 
 import re
+import threading
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
-from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QPoint, QSize, Qt
+from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -58,7 +59,13 @@ from geobench.app.canvas import FigureCanvas
 from geobench.app.controller import StudioController
 from geobench.app.icons import group_icon, tool_icon
 from geobench.app.theme import PALETTE, mono_font
-from geobench.app.tools import POINT_TOOL, ToolGroup, ToolSpec, build_toolbar
+from geobench.app.tools import (
+    POINT_TOOL,
+    SELECT_TOOL,
+    ToolGroup,
+    ToolSpec,
+    build_toolbar,
+)
 from geobench.commands import by_id
 from geobench.errors import GeobenchError
 from geobench.judges import IDENTITY, INSTANCE, Verdict
@@ -268,6 +275,10 @@ class VerdictDelegate(QStyledItemDelegate):
 class StudioWindow(QMainWindow):
     """The main window of the studio."""
 
+    #: The verdicts have arrived. The number tells which request they
+    #: answer, so that a slow proof for an old figure can be dropped.
+    verdictsReady = Signal(int, list)
+
     def __init__(self, controller: StudioController | None = None) -> None:
         super().__init__()
         self.controller = controller or StudioController()
@@ -281,6 +292,7 @@ class StudioWindow(QMainWindow):
         self.canvas.constructRequested.connect(self._on_construct)
         self.canvas.deleteRequested.connect(self._delete_node)
         self.canvas.valueRequested.connect(self._on_value_requested)
+        self.canvas.selectionChanged.connect(self._on_selection)
 
         self.steps = QListWidget()
         self.steps.setToolTip("构造步骤：这张图是怎么一步步造出来的（右键删除）")
@@ -353,6 +365,9 @@ class StudioWindow(QMainWindow):
         self.controller.on_change(self.refresh)
         self.controller.on_move(self._point_moved)
         self._dragging = False
+        self._judge_request = 0
+        self._judge_pending = False
+        self.verdictsReady.connect(self._on_verdicts)
         self.refresh()
         # A tool is armed from the start. An empty toolbar and an idle
         # canvas look like a program that is not working: a click with
@@ -368,6 +383,12 @@ class StudioWindow(QMainWindow):
         self._arm(POINT_TOOL, point_group)
 
     # -- layout ------------------------------------------------------------
+
+    def _set_judgement_note(self, text: str) -> None:
+        """The note in the judgement pane's heading."""
+        label = getattr(self, "_judgement_note", None)
+        if label is not None:
+            label.setText(text)
 
     def _panel(self, title: str, widget: QWidget, note: str = "") -> QWidget:
         """One pane: a card with a heading that says what it is for."""
@@ -402,6 +423,8 @@ class StudioWindow(QMainWindow):
             note_label = QLabel(note)
             note_label.setObjectName("panelNote")
             header_layout.addWidget(note_label)
+            if title == "判定":
+                self._judgement_note = note_label
         layout.addWidget(header)
 
         body = QWidget()
@@ -573,6 +596,21 @@ class StudioWindow(QMainWindow):
         toolbar.setMovable(False)
         toolbar.setIconSize(QSize(22, 22))
         self.addToolBar(toolbar)
+
+        # The pointer comes first, the way it does in every drawing
+        # program: picking an object is the first thing a person does.
+        pointer = QToolButton()
+        pointer.setText(SELECT_TOOL.label)
+        pointer.setIcon(tool_icon("__select__"))
+        pointer.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        pointer.setToolTip("选择：点一下选中某个对象（Delete 键删掉它）")
+        pointer.setCheckable(True)
+        pointer.setCursor(Qt.CursorShape.PointingHandCursor)
+        pointer.clicked.connect(lambda _checked=False: self._arm(SELECT_TOOL))
+        toolbar.addWidget(pointer)
+        self._pointer_button = pointer
+        toolbar.addSeparator()
+
         self._tool_buttons = {}
         self._group_labels: dict[str, str] = {}
         self._group_first: dict[str, str] = {}
@@ -616,6 +654,7 @@ class StudioWindow(QMainWindow):
     def _arm(self, tool: ToolSpec, group: ToolGroup | None = None) -> None:
         """Arm a tool, and make the group's button show it."""
         self.canvas.set_tool(tool)
+        self._pointer_button.setChecked(tool.op == "select")
         for key, button in self._tool_buttons.items():
             label = self._group_labels.get(key, key)
             armed = group is not None and key == group.key
@@ -629,6 +668,16 @@ class StudioWindow(QMainWindow):
                 button.setIcon(group_icon(label))
                 button.setToolTip(f"{label}：{self._group_first.get(key, '')}")
         self.status.showMessage(f"{tool.label}：{tool.hint}")
+
+    def _on_selection(self, node_id: str) -> None:
+        """An object was picked: say which one, and show it in the steps."""
+        if not node_id:
+            self.status.showMessage("没有选中任何对象")
+            return
+        self.status.showMessage(f"选中了 {node_id}（Delete 键删掉它）")
+        row = self._step_rows.get(node_id)
+        if row is not None:
+            self.steps.setCurrentRow(row)
 
     def _on_value_requested(self, kind: str) -> None:
         """The tool needs a number, or a choice of intersection."""
@@ -734,6 +783,15 @@ class StudioWindow(QMainWindow):
         self.status.showMessage("拖动中——判定会在松手后更新")
 
     def _refresh_steps(self) -> None:
+        # The pane is rebuilt from scratch, so it has to remember where
+        # it was: a rebuild that throws away the selection is a rebuild
+        # that loses the reader's place.
+        current = self.steps.currentItem()
+        keep: str | None = None
+        if current is not None:
+            payload = current.data(Qt.ItemDataRole.UserRole)
+            if payload:
+                keep = str(payload[1])
         self.steps.clear()
         self._step_rows: dict[str, int] = {}
         figure = self.controller.figure()
@@ -766,9 +824,45 @@ class StudioWindow(QMainWindow):
             item.setData(HEAD_ROLE, head)
             item.setData(TAIL_ROLE, tail)
             self.steps.addItem(item)
+        if keep is not None:
+            row = self._step_rows.get(keep)
+            if row is not None:
+                self.steps.setCurrentRow(row)
 
     def _refresh_judgements(self) -> None:
-        verdicts = self.controller.judge(self._scope)
+        """Ask for the verdicts, and carry on without them.
+
+        A proof can take seconds. The screen must not wait for it, so
+        the work happens on a copy of the figure, in another thread, and
+        the table is filled when the answer arrives.
+        """
+        self._judge_request += 1
+        request = self._judge_request
+        figure = self.controller.snapshot_figure()
+        scope = self._scope
+        self._judge_pending = True
+        self._set_judgement_note("判定中……")
+
+        def work() -> None:
+            try:
+                verdicts = self.controller.judge_figure(figure, scope)
+            except Exception:  # pragma: no cover - the worker must not die
+                verdicts = []
+            else:
+                self.controller.absorb_verdicts(figure)
+            self.verdictsReady.emit(request, verdicts)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_verdicts(self, request: int, verdicts: list[Verdict]) -> None:
+        """The verdicts have arrived."""
+        if request != self._judge_request:
+            # The figure has moved on since this proof started; its
+            # answer is about a figure that no longer exists.
+            return
+        self._judge_pending = False
+        self._set_judgement_note("哪些说法成立")
+        verdicts = list(verdicts)
         self._verdicts = verdicts
         self.judgements.blockSignals(True)
         self.judgements.setRowCount(len(verdicts))

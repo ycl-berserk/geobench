@@ -407,6 +407,23 @@ def _g_incirlce(painter: QPainter, colour: str) -> None:
     painter.drawEllipse(QPointF(MID, MID + 0.8), 2.6, 2.6)
 
 
+def _g_select(painter: QPainter, colour: str) -> None:
+    """The arrow: the tool that points instead of making."""
+    _pen(painter, colour, 1.7)
+    _hollow(painter)
+    painter.drawPolygon(
+        [
+            QPointF(6.0, 2.5),
+            QPointF(6.0, 17.5),
+            QPointF(10.4, 13.2),
+            QPointF(13.2, 19.0),
+            QPointF(15.8, 17.6),
+            QPointF(12.9, 12.0),
+            QPointF(18.6, 11.6),
+        ]
+    )
+
+
 def _g_fit(painter: QPainter, colour: str) -> None:
     """Four corners: the frame that fits the figure."""
     _pen(painter, colour, 1.5)
@@ -425,6 +442,7 @@ def _g_fit(painter: QPainter, colour: str) -> None:
 #: The glyph each command is drawn with.
 GLYPHS: dict[str, str] = {
     "__fit__": "fit",
+    "__select__": "select",
     "point.free": "point",
     "point.midpoint": "midpoint",
     "point.centroid": "centroid",
@@ -473,6 +491,7 @@ GLYPHS: dict[str, str] = {
 #: The glyphs, by name.
 _DRAWERS = {
     "fit": _g_fit,
+    "select": _g_select,
     "point": _g_point,
     "midpoint": _g_midpoint,
     "centroid": _g_centroid,

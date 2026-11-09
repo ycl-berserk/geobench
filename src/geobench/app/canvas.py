@@ -14,7 +14,7 @@ copy of it.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
@@ -98,6 +98,9 @@ class FigureCanvas(QWidget):
     constructRequested = Signal(str, list)
     deleteRequested = Signal(str)
     valueRequested = Signal(str)
+    #: The selected object changed. The empty string means "nothing is
+    #: selected any more".
+    selectionChanged = Signal(str)
 
     def __init__(self, controller: StudioController, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -114,11 +117,13 @@ class FigureCanvas(QWidget):
         self._zoom = 1.0
         self._pan = (0.0, 0.0)
         self._dragging: str | None = None
+        self._drag_moved = False
         self._drag_offset = (0.0, 0.0)
         self._pending_points: list[str] = []
         self._tool: ToolSpec | None = None
         self._tool_args: list[str] = []
         self._awaiting_value = False
+        self._selected: str | None = None
         controller.on_change(self.update)
         controller.on_move(self._moved)
 
@@ -185,6 +190,7 @@ class FigureCanvas(QWidget):
                 self._draw_point(painter, viewport, primitive, style)
             elif isinstance(primitive, LabelPrimitive):
                 self._draw_label(painter, viewport, primitive, style)
+        self._draw_selection(painter, viewport, style)
         self._draw_hint(painter, style)
 
     def _draw_grid(self, painter: QPainter, viewport: Viewport) -> None:
@@ -212,6 +218,36 @@ class FigureCanvas(QWidget):
             _, sy = viewport.to_screen(0, y)
             painter.drawLine(QPointF(0, sy), QPointF(self.width(), sy))
             y += step
+
+    def _draw_selection(
+        self, painter: QPainter, viewport: Viewport, style: FigureStyle
+    ) -> None:
+        """The selected object, drawn again in the accent colour.
+
+        Drawing it twice is simpler than drawing it once in two
+        colours, and it means the selection looks the same whatever the
+        object is.
+        """
+        if self._selected is None:
+            return
+        marked = replace(style, stroke=PALETTE.accent)
+        for primitive in self.controller.primitives():
+            if getattr(primitive, "id", "") != self._selected:
+                continue
+            if isinstance(primitive, LinePrimitive):
+                self._draw_line(painter, viewport, primitive, marked)
+            elif isinstance(primitive, SegmentPrimitive):
+                self._draw_segment(painter, viewport, primitive, marked)
+            elif isinstance(primitive, RayPrimitive):
+                self._draw_ray(painter, viewport, primitive, marked)
+            elif isinstance(primitive, CirclePrimitive):
+                self._draw_circle(painter, viewport, primitive, marked)
+            elif isinstance(primitive, ArcPrimitive):
+                self._draw_arc(painter, viewport, primitive, marked)
+            elif isinstance(primitive, PolygonPrimitive):
+                self._draw_polygon(painter, viewport, primitive, marked)
+            elif isinstance(primitive, PointPrimitive):
+                self._draw_point(painter, viewport, primitive, marked)
 
     def _draw_hint(self, painter: QPainter, style: FigureStyle) -> None:
         """Say, on the canvas itself, what a click will do.
@@ -484,6 +520,18 @@ class FigureCanvas(QWidget):
         self.constructRequested.emit(tool.op, args)
         self.update()
 
+    def select(self, node_id: str | None) -> None:
+        """Select an object, or nothing."""
+        if node_id == self._selected:
+            return
+        self._selected = node_id
+        self.selectionChanged.emit(node_id or "")
+        self.update()
+
+    def selected(self) -> str | None:
+        """The selected object, if any."""
+        return self._selected
+
     def _hit_point(self, px: float, py: float) -> str | None:
         viewport = self._viewport()
         best: str | None = None
@@ -519,12 +567,18 @@ class FigureCanvas(QWidget):
         if (
             node_id is not None
             and node_id in self.controller.free_points()
-            and (self._tool is None or self._tool.op == "point.free")
+            and (
+                self._tool is None
+                or self._tool.op in ("point.free", "select")
+            )
         ):
-            # Grab it. The point tool is the one tool whose clicks on a
-            # point mean "move it" rather than "use it as an argument".
+            # Grab it. The point tool and the pointer are the two tools
+            # whose clicks on a point mean "move it" rather than "use it
+            # as an argument".
+            self.select(node_id)
             self.controller.push_undo()
             self._dragging = node_id
+            self._drag_moved = False
             viewport = self._viewport()
             fx, fy = viewport.to_figure(px, py)
             current = self.controller.point_positions()[node_id]
@@ -554,16 +608,20 @@ class FigureCanvas(QWidget):
             return
         viewport = self._viewport()
         fx, fy = viewport.to_figure(px, py)
+        self._drag_moved = True
         self.controller.move_point(
             self._dragging, fx - self._drag_offset[0], fy - self._drag_offset[1]
         )
 
     def mouseReleaseEvent(self, _event: object) -> None:
-        if self._dragging is not None and self._dragging != "__pan__":
+        moved = self._drag_moved
+        if self._dragging is not None and self._dragging != "__pan__" and moved:
             # The drag is over: the figure settles and the verdicts are
-            # recomputed.
+            # recomputed. A click that only picked something is not a
+            # change, and changes nothing.
             self.controller.finish_move()
         self._dragging = None
+        self._drag_moved = False
 
     def _moved(self, _node_id: str) -> None:
         """A point moved: the picture has to be redrawn. That is all."""
@@ -577,9 +635,12 @@ class FigureCanvas(QWidget):
         self.deleteRequested.emit(node_id)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        """The return key finishes a variable tool."""
+        """The return key finishes a variable tool; Delete removes what is selected."""
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             self._finish_variable_tool()
+            return
+        if event.key() == Qt.Key.Key_Delete and self._selected is not None:
+            self.deleteRequested.emit(self._selected)
             return
         super().keyPressEvent(event)
 
@@ -597,6 +658,11 @@ class FigureCanvas(QWidget):
         if tool is None:
             return
         viewport = self._viewport()
+        if tool.op == "select":
+            # The pointer picks whatever is under the click, of any kind.
+            node_id = self._hit_object(px, py, SELECTABLE_KINDS)
+            self.select(node_id)
+            return
         if tool.op == "point.free":
             fx, fy = viewport.to_figure(px, py)
             self.controller.add_free_point(fx, fy)
@@ -635,6 +701,9 @@ class FigureCanvas(QWidget):
         ]
         return hit_test(candidates, x, y, tolerance)
 
+
+#: The kinds the pointer can pick: anything that can be seen.
+SELECTABLE_KINDS: tuple[str, ...] = ("point", "line", "segment", "ray", "circle", "polygon")
 
 #: The node kinds that answer to each argument kind. A construction that
 #: wants a line is happy with a segment: "the foot on BC" means the same

@@ -7,6 +7,7 @@ build machine as well as on a desk.
 from __future__ import annotations
 
 import os
+import time
 
 import pytest
 
@@ -52,6 +53,23 @@ def test_the_window_shows_three_panes(app: QApplication, controller: StudioContr
     window.close()
 
 
+def test_the_window_notices_a_change(app: QApplication, controller: StudioController) -> None:
+    """The panes update on their own, without being asked.
+
+    A construction that changes the figure has to tell the window: the
+    steps pane is the record of what the figure is made of, and a
+    record that stops growing is worse than no record.
+    """
+    window = StudioWindow(controller)
+    window.show()
+    app.processEvents()
+    assert window.steps.count() == 0
+    controller.add_free_point(0, 0, "A")
+    app.processEvents()
+    assert window.steps.count() == 1
+    window.close()
+
+
 def test_the_steps_pane_lists_the_construction(app: QApplication, controller: StudioController) -> None:
     window = StudioWindow(controller)
     _triangle(controller)
@@ -64,11 +82,23 @@ def test_the_steps_pane_lists_the_construction(app: QApplication, controller: St
     window.close()
 
 
+def _wait_for_verdicts(
+    window: StudioWindow, app: QApplication, rows: int = 1, timeout: float = 10.0
+) -> None:
+    """Wait for the verdicts, which are computed in the background."""
+    deadline = time.time() + timeout
+    while window.judgements.rowCount() < rows and time.time() < deadline:
+        app.processEvents()
+        time.sleep(0.01)
+    app.processEvents()
+
+
 def test_the_judgement_pane_shows_the_verdict(app: QApplication, controller: StudioController) -> None:
     window = StudioWindow(controller)
     _triangle(controller)
     controller.add_relation("collinear", ["A", "M", "B"])
     window.refresh()
+    _wait_for_verdicts(window, app)
     assert window.judgements.rowCount() == 1
     assert "proved" in window.judgements.item(0, 1).text()
     window.close()

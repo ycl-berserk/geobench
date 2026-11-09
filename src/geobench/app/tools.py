@@ -26,6 +26,7 @@ from geobench.registry import ArgSpec, OperatorRegistry
 
 __all__ = [
     "POINT_TOOL",
+    "SELECT_TOOL",
     "ToolArg",
     "ToolGroup",
     "ToolSpec",
@@ -93,6 +94,8 @@ class ToolSpec:
         """What to do with this tool, in one line."""
         if self.op == "point.free":
             return "在空白处点击，放一个自由点"
+        if self.op == "select":
+            return "点一下选中一个对象（Delete 键删掉它）"
         if self.variable:
             return f"依次选{self.min_args}个以上的{self.args[0].text}，按回车结束"
         if not self.args:
@@ -138,6 +141,18 @@ POINT_TOOL = ToolSpec(
     op="point.free",
     args=(),
     summary="放一个自由点",
+)
+
+
+#: The pointer. It is not a command -- it builds nothing -- so it is
+#: not in the command table; but every drawing program opens with one,
+#: because picking an object exactly is the first thing a person does.
+SELECT_TOOL = ToolSpec(
+    key="select",
+    label="选择",
+    op="select",
+    args=(),
+    summary="选中一个对象",
 )
 
 
