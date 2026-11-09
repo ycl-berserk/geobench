@@ -58,6 +58,7 @@ class PointPrimitive:
     label: str
     free: bool
     undefined: bool = False
+    id: str = ""
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,7 @@ class SegmentPrimitive:
     x2: float
     y2: float
     auxiliary: bool = False
+    id: str = ""
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,7 @@ class RayPrimitive:
     x1: float
     y1: float
     auxiliary: bool = False
+    id: str = ""
 
 
 @dataclass(frozen=True)
@@ -94,6 +97,7 @@ class LinePrimitive:
     b: float
     c: float
     auxiliary: bool = False
+    id: str = ""
 
 
 @dataclass(frozen=True)
@@ -104,6 +108,7 @@ class CirclePrimitive:
     cy: float
     radius: float
     auxiliary: bool = False
+    id: str = ""
 
 
 @dataclass(frozen=True)
@@ -127,6 +132,22 @@ class ArcPrimitive:
     span_angle: float
     auxiliary: bool = False
     filled: bool = False
+    id: str = ""
+
+
+@dataclass(frozen=True)
+class PolygonPrimitive:
+    """A closed or open chain of edges.
+
+    Kept as one primitive rather than a handful of segments: a polygon
+    is clickable from *inside*, which a bag of segments is not, and the
+    export should draw one shape.
+    """
+
+    vertices: tuple[float, ...]
+    closed: bool = True
+    auxiliary: bool = False
+    id: str = ""
 
 
 @dataclass(frozen=True)
@@ -138,6 +159,7 @@ class LabelPrimitive:
     text: str
     offset_x: float = 0.0
     offset_y: float = 0.0
+    id: str = ""
 
 
 Primitive = (
@@ -147,8 +169,116 @@ Primitive = (
     | CirclePrimitive
     | RayPrimitive
     | ArcPrimitive
+    | PolygonPrimitive
     | LabelPrimitive
 )
+
+
+def hit_test(
+    primitives: list[Primitive], x: float, y: float, tolerance: float
+) -> str | None:
+    """The id of the object under (x, y), in **figure** coordinates.
+
+    The canvas turns a click into figure coordinates and asks this; it
+    does not work out the geometry itself (decision D20). The tolerance
+    is the grab radius in figure units, so the tolerance in pixels stays
+    the same however far the picture is zoomed.
+    """
+    best: str | None = None
+    best_distance = tolerance
+    for primitive in primitives:
+        identifier = getattr(primitive, "id", "")
+        if not identifier or isinstance(primitive, LabelPrimitive):
+            continue
+        distance = _distance(primitive, x, y)
+        if distance is None or distance > best_distance:
+            continue
+        # A point under the cursor wins over whatever it lies on: it is
+        # the finer thing, and the one the user meant.
+        if isinstance(primitive, PointPrimitive) and distance <= best_distance:
+            return identifier
+        best = identifier
+        best_distance = distance
+    return best
+
+
+def _distance(primitive: Primitive, x: float, y: float) -> float | None:
+    """How far the point is from this primitive, in figure units."""
+    if isinstance(primitive, PointPrimitive):
+        return math.hypot(primitive.x - x, primitive.y - y)
+    if isinstance(primitive, SegmentPrimitive):
+        return _distance_to_segment(x, y, primitive.x1, primitive.y1, primitive.x2, primitive.y2)
+    if isinstance(primitive, LinePrimitive):
+        denominator = math.hypot(primitive.a, primitive.b)
+        if denominator == 0:
+            return None
+        return abs(primitive.a * x + primitive.b * y + primitive.c) / denominator
+    if isinstance(primitive, RayPrimitive):
+        return _distance_to_ray(x, y, primitive.x0, primitive.y0, primitive.x1, primitive.y1)
+    if isinstance(primitive, CirclePrimitive):
+        return abs(math.hypot(x - primitive.cx, y - primitive.cy) - primitive.radius)
+    if isinstance(primitive, ArcPrimitive):
+        return abs(math.hypot(x - primitive.cx, y - primitive.cy) - primitive.radius)
+    if isinstance(primitive, PolygonPrimitive):
+        if primitive.closed and _inside(primitive.vertices, x, y):
+            return 0.0
+        return _distance_to_edges(primitive.vertices, x, y)
+    return None
+
+
+def _distance_to_segment(
+    x: float, y: float, x1: float, y1: float, x2: float, y2: float
+) -> float:
+    dx, dy = x2 - x1, y2 - y1
+    length2 = dx * dx + dy * dy
+    if length2 == 0:
+        return math.hypot(x - x1, y - y1)
+    t = max(0.0, min(1.0, ((x - x1) * dx + (y - y1) * dy) / length2))
+    return math.hypot(x - (x1 + t * dx), y - (y1 + t * dy))
+
+
+def _distance_to_ray(
+    x: float, y: float, x0: float, y0: float, x1: float, y1: float
+) -> float:
+    dx, dy = x1 - x0, y1 - y0
+    length2 = dx * dx + dy * dy
+    if length2 == 0:
+        return math.hypot(x - x0, y - y0)
+    t = max(0.0, ((x - x0) * dx + (y - y0) * dy) / length2)
+    return math.hypot(x - (x0 + t * dx), y - (y0 + t * dy))
+
+
+def _distance_to_edges(vertices: tuple[float, ...], x: float, y: float) -> float:
+    count = len(vertices) // 2
+    best = math.inf
+    for index in range(count - 1):
+        best = min(
+            best,
+            _distance_to_segment(
+                x,
+                y,
+                vertices[2 * index],
+                vertices[2 * index + 1],
+                vertices[2 * index + 2],
+                vertices[2 * index + 3],
+            ),
+        )
+    return best
+
+
+def _inside(vertices: tuple[float, ...], x: float, y: float) -> bool:
+    """Ray casting: is the point inside the polygon?"""
+    count = len(vertices) // 2
+    inside = False
+    for index in range(count):
+        x1, y1 = vertices[2 * index], vertices[2 * index + 1]
+        following = (index + 1) % count
+        x2, y2 = vertices[2 * following], vertices[2 * following + 1]
+        if (y1 > y) != (y2 > y):
+            crossing = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
+            if x < crossing:
+                inside = not inside
+    return inside
 
 
 def is_auxiliary(node_id: str, style: FigureStyle) -> bool:
@@ -186,13 +316,13 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                 # This object has no value at this placement. It is not
                 # drawn, and the rest of the picture is.
                 continue
-            primitive: Primitive = LinePrimitive(a, b, c, aux)
+            primitive: Primitive = LinePrimitive(a, b, c, aux, node_id)
         elif node.kind == "segment":
             try:
                 x1, y1, x2, y2 = numeric_segment(figure, node_id)
             except (StateError, TypeError, ValueError):
                 continue
-            primitive = SegmentPrimitive(x1, y1, x2, y2, aux)
+            primitive = SegmentPrimitive(x1, y1, x2, y2, aux, node_id)
         elif node.kind == "circle":
             try:
                 cx, cy, r2 = numeric_circle(figure, node_id)
@@ -200,7 +330,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                 continue
             if r2 <= 0:
                 continue
-            primitive = CirclePrimitive(cx, cy, math.sqrt(r2), aux)
+            primitive = CirclePrimitive(cx, cy, math.sqrt(r2), aux, node_id)
         elif node.kind == "point":
             try:
                 x, y = numeric_coords(figure, node_id)
@@ -216,6 +346,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                     node.style.label or node.label or node_id,
                     node.role == "free",
                     undefined,
+                    node_id,
                 )
             )
             continue
@@ -250,34 +381,16 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
             payload = _numeric_payload(figure, node_id, "ray")
             if payload is None or len(payload) != 4:
                 continue
-            primitive = RayPrimitive(*payload[:4], aux)
-        elif node.kind == "polyline":
-            # A polyline is its edges, and they are not closed.
-            vertices = _numeric_payload(figure, node_id, "polyline")
-            if vertices is None or len(vertices) < 4:
-                continue
-            count = len(vertices) // 2
-            for index in range(count - 1):
-                x1, y1 = vertices[2 * index], vertices[2 * index + 1]
-                x2, y2 = vertices[2 * index + 2], vertices[2 * index + 3]
-                (auxiliary if aux else main).append(SegmentPrimitive(x1, y1, x2, y2, aux))
-            continue
-        elif node.kind == "polygon":
-            # A polygon is its edges: the primitive list carries the
-            # segments between its vertices, so the screen and the export
-            # draw the same thing (decision D20).
-            vertices = _numeric_payload(figure, node_id, "polygon")
+            primitive = RayPrimitive(*payload[:4], aux, node_id)
+        elif node.kind in {"polygon", "polyline"}:
+            # One shape, not a bag of segments: a polygon is clickable
+            # from inside, and the export draws one path.
+            vertices = _numeric_payload(figure, node_id, node.kind)
             if vertices is None or len(vertices) < 6:
                 continue
-            count = len(vertices) // 2
-            for index in range(count):
-                x1, y1 = vertices[2 * index], vertices[2 * index + 1]
-                next_index = (index + 1) % count
-                x2, y2 = vertices[2 * next_index], vertices[2 * next_index + 1]
-                (auxiliary if aux else main).append(
-                    SegmentPrimitive(x1, y1, x2, y2, aux)
-                )
-            continue
+            primitive = PolygonPrimitive(
+                tuple(vertices), node.kind == "polygon", aux, node_id
+            )
         elif node.kind == "arc":
             payload = _numeric_payload(figure, node_id, "arc")
             if payload is None or len(payload) != 9:
@@ -294,7 +407,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                 payload[6],
                 (payload[7], payload[8]),
             )
-            primitive = ArcPrimitive(ox, oy, math.sqrt(r2), start, span, aux)
+            primitive = ArcPrimitive(ox, oy, math.sqrt(r2), start, span, aux, False, node_id)
         elif node.kind == "sector":
             payload = _numeric_payload(figure, node_id, "sector")
             if payload is None or len(payload) != 7:
@@ -311,7 +424,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                 payload[6],
                 None,
             )
-            primitive = ArcPrimitive(ox, oy, math.sqrt(r2), start, span, aux, True)
+            primitive = ArcPrimitive(ox, oy, math.sqrt(r2), start, span, aux, True, node_id)
         else:
             continue
         (auxiliary if aux else main).append(primitive)

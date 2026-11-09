@@ -15,8 +15,8 @@ from geobench.dsl import parse_dsl
 from geobench.evaluate import evaluate_figure
 from geobench.operators import register_builtins
 from geobench.primitives import (
+    PolygonPrimitive,
     RayPrimitive,
-    SegmentPrimitive,
     figure_primitives,
 )
 from geobench.registry import OperatorRegistry
@@ -60,12 +60,13 @@ def test_a_ray_is_drawn_only_from_its_start(registry: OperatorRegistry) -> None:
 
 def test_a_polyline_is_its_edges_and_not_closed(registry: OperatorRegistry) -> None:
     figure = _build(registry, "点 A(0,0) B(2,0) C(4,2)\n折 = 折线(A, B, C)")
-    segments = [p for p in _primitives(figure) if isinstance(p, SegmentPrimitive)]
-    # Two edges, not three: A-B and B-C, and no C-A.
-    assert len(segments) == 2
-    ends = {(round(p.x1, 6), round(p.y1, 6), round(p.x2, 6), round(p.y2, 6)) for p in segments}
-    assert (0.0, 0.0, 2.0, 0.0) in ends
-    assert (2.0, 0.0, 4.0, 2.0) in ends
+    shapes = [p for p in _primitives(figure) if isinstance(p, PolygonPrimitive)]
+    assert len(shapes) == 1
+    shape = shapes[0]
+    # Three vertices, and *not* closed: the last edge back to the start
+    # is what a polygon has and a polyline does not.
+    assert len(shape.vertices) == 6
+    assert shape.closed is False
 
 
 def test_a_regular_hexagon_is_exact(registry: OperatorRegistry) -> None:

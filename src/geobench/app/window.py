@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QHeaderView,
+    QInputDialog,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -42,34 +43,17 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QToolBar,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from geobench.app.canvas import FigureCanvas
 from geobench.app.controller import StudioController
+from geobench.app.tools import POINT_TOOL, ToolGroup, ToolSpec, build_toolbar
 from geobench.commands import by_id
 from geobench.errors import GeobenchError
 from geobench.judges import IDENTITY, INSTANCE, Verdict
-
-
-@dataclass(frozen=True)
-class ToolSpec:
-    """One construction tool.
-
-    A tool usually wants a fixed number of points. A **variable** tool
-    wants any number above a minimum -- a polygon has three, four or
-    five vertices, and enumerating the cases would be silly -- so it
-    waits for the user to say when they have finished.
-    """
-
-    key: str
-    label: str
-    op: str
-    arg_count: int
-    hint: str
-    min_args: int = 0
-    variable: bool = False
 
 
 @dataclass(frozen=True)
@@ -99,88 +83,6 @@ RELATION_IDS: tuple[str, ...] = (
     "circumcenter_of",
     "orthocenter_of",
 )
-
-#: The tools of the first version. Each one is an operator that already
-#: exists and has been cross-checked against an independent
-#: implementation; adding an operator adds a tool without touching the
-#: window.
-TOOLS: tuple[ToolSpec, ...] = (
-    ToolSpec("point", "点", "point.free", 0, "在空白处点击，放一个自由点"),
-    ToolSpec("midpoint", "中点", "point.midpoint", 2, "依次点两个点"),
-    ToolSpec("centroid", "重心", "point.centroid", 3, "依次点三个点"),
-    ToolSpec("circumcenter", "外心", "point.circumcenter", 3, "依次点三个点"),
-    ToolSpec("incenter", "内心", "point.incenter", 3, "依次点三个点"),
-    ToolSpec("orthocenter", "垂心", "point.orthocenter", 3, "依次点三个点"),
-    ToolSpec("circumcircle", "外接圆", "circle.through", 3, "依次点三个点"),
-    ToolSpec(
-        "perpendicular_bisector",
-        "中垂线",
-        "line.perpendicular_bisector",
-        2,
-        "依次点两个点，作它们的中垂线",
-    ),
-    ToolSpec(
-        "angle_bisector",
-        "角平分线",
-        "line.angle_bisector",
-        3,
-        "依次点三个点，作中间那个角的内角平分线",
-    ),
-    ToolSpec(
-        "polygon",
-        "多边形",
-        "polygon.free",
-        0,
-        "依次点三个以上的点，按回车结束",
-        min_args=3,
-        variable=True,
-    ),
-    ToolSpec(
-        "ray",
-        "射线",
-        "ray.free",
-        2,
-        "先点起点，再点射线上的一点",
-    ),
-    ToolSpec(
-        "polyline",
-        "折线",
-        "polyline.free",
-        0,
-        "依次点两个以上的点，按回车结束",
-        min_args=2,
-        variable=True,
-    ),
-    ToolSpec(
-        "arc",
-        "圆弧",
-        "arc.three_points",
-        3,
-        "依次点三个点：第一个是起点，第二个是弧上的点，第三个是终点",
-    ),
-    ToolSpec(
-        "sector",
-        "扇形",
-        "sector.three_points",
-        3,
-        "依次点三个点：第一个是圆心，第二、第三个是扇形的两个端点",
-    ),
-    ToolSpec(
-        "distance",
-        "距离",
-        "measure.distance",
-        2,
-        "依次点两个点，把两点之间的距离写在图上",
-    ),
-    ToolSpec(
-        "angle",
-        "角度",
-        "measure.angle",
-        3,
-        "依次点三个点，把中间那个角的大小写在图上",
-    ),
-)
-
 
 def _short(value: str) -> str:
     """A coordinate as short as it can be and still be exact enough to read.
@@ -278,6 +180,7 @@ class StudioWindow(QMainWindow):
         self.canvas = FigureCanvas(self.controller)
         self.canvas.constructRequested.connect(self._on_construct)
         self.canvas.deleteRequested.connect(self._delete_node)
+        self.canvas.valueRequested.connect(self._on_value_requested)
 
         self.steps = QListWidget()
         self.steps.setToolTip("构造步骤：这张图是怎么一步步造出来的（右键删除）")
@@ -347,7 +250,7 @@ class StudioWindow(QMainWindow):
         # A tool is armed from the start. An empty toolbar and an idle
         # canvas look like a program that is not working: a click with
         # no tool armed does nothing, and nothing says so.
-        self._arm(TOOLS[0])
+        self._arm(POINT_TOOL)
 
     # -- layout ------------------------------------------------------------
 
@@ -499,16 +402,38 @@ class StudioWindow(QMainWindow):
         self.setWindowTitle(f"geobench — 竞赛几何命题工作台（{name}）")
 
     def _build_toolbar(self) -> None:
+        """One button per group, one menu under it -- the way GeoGebra
+        does it.
+
+        The groups are generated from the command table, so a command
+        that is implemented is a tool: nothing can be finished and then
+        left with no way to reach it.
+        """
         toolbar = QToolBar("构造")
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
-        for tool in TOOLS:
-            action = QAction(tool.label, self)
-            action.setToolTip(tool.hint)
-            action.triggered.connect(
-                lambda _checked=False, spec=tool: self._arm(spec)
+        self._tool_buttons = {}
+        for group in build_toolbar(self.controller.registry):
+            button = QToolButton()
+            # The button shows the *group*: without icons, the group's
+            # name is what tells the user where to look. The tool it
+            # will arm when clicked is the first one, and hovering says so.
+            button.setText(group.label)
+            button.setToolTip(f"{group.label}：{group.tools[0].label}")
+            button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+            menu = QMenu(button)
+            button.setMenu(menu)
+            for tool in group.tools:
+                action = menu.addAction(tool.label)
+                action.setToolTip(tool.hint)
+                action.triggered.connect(
+                    lambda _checked=False, spec=tool, grp=group: self._arm(spec, grp)
+                )
+            button.clicked.connect(
+                lambda _checked=False, grp=group: self._arm(grp.tools[0], grp)
             )
-            toolbar.addAction(action)
+            toolbar.addWidget(button)
+            self._tool_buttons[group.key] = button
         toolbar.addSeparator()
         fit_action = QAction("适应窗口", self)
         fit_action.setShortcut(QKeySequence.StandardKey.ZoomIn)
@@ -517,15 +442,46 @@ class StudioWindow(QMainWindow):
 
     # -- interaction -------------------------------------------------------
 
-    def _arm(self, tool: ToolSpec) -> None:
-        self.canvas.set_tool(
-            tool.op,
-            tool.arg_count,
-            f"{tool.label}：{tool.hint}",
-            min_args=tool.min_args,
-            variable=tool.variable,
-        )
+    def _arm(self, tool: ToolSpec, group: ToolGroup | None = None) -> None:
+        """Arm a tool, and make the group's button show it."""
+        self.canvas.set_tool(tool)
+        if group is not None:
+            button = self._tool_buttons.get(group.key)
+            if button is not None:
+                # The button keeps the group's name and gains the armed
+                # tool's name in its tooltip and its highlighted state.
+                button.setToolTip(f"{group.label}：{tool.label}（已选中）")
+                button.setDown(True)
         self.status.showMessage(f"{tool.label}：{tool.hint}")
+
+    def _on_value_requested(self, kind: str) -> None:
+        """The tool needs a number, or a choice of intersection."""
+        value = self._value_for(kind)
+        if value is None:
+            self.canvas.reset_pending()
+            return
+        self.canvas.supply_value(value)
+
+    def _value_for(self, kind: str) -> str | None:
+        """Ask the user for a value. Returns None if they changed their mind.
+
+        A method of its own so that a test can answer without a dialog:
+        everything else about the tool flow is exercised the way the
+        user drives it.
+        """
+        if kind == "selector":
+            labels = ["第一个交点", "第二个交点"]
+            values = ["0", "1"]
+            choice, accepted = QInputDialog.getItem(
+                self, "交点选择", "要哪一个交点：", labels, 0, False
+            )
+            if not accepted:
+                return None
+            return values[labels.index(choice)]
+        text, accepted = QInputDialog.getText(self, "输入", "请输入数字：")
+        if not accepted or not text.strip():
+            return None
+        return text.strip()
 
     def _on_construct(self, op: str, args: list[str]) -> None:
         try:
@@ -754,7 +710,6 @@ def _verdict_text(verdict: str) -> str:
 
 __all__ = [
     "RELATIONS",
-    "TOOLS",
     "ObjectPicker",
     "RelationSpec",
     "StudioWindow",

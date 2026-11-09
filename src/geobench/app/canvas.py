@@ -17,18 +17,21 @@ import math
 from dataclasses import dataclass
 
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QBrush, QColor, QFont, QKeyEvent, QPainter, QPen
+from PySide6.QtGui import QBrush, QColor, QFont, QKeyEvent, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import QWidget
 
 from geobench.app.controller import StudioController
+from geobench.app.tools import ToolArg, ToolSpec
 from geobench.primitives import (
     ArcPrimitive,
     CirclePrimitive,
     LabelPrimitive,
     LinePrimitive,
     PointPrimitive,
+    PolygonPrimitive,
     RayPrimitive,
     SegmentPrimitive,
+    hit_test,
 )
 from geobench.render import View, clip_ray, fit_view
 from geobench.style import FigureStyle
@@ -73,6 +76,7 @@ class FigureCanvas(QWidget):
 
     constructRequested = Signal(str, list)
     deleteRequested = Signal(str)
+    valueRequested = Signal(str)
 
     def __init__(self, controller: StudioController, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -91,12 +95,9 @@ class FigureCanvas(QWidget):
         self._dragging: str | None = None
         self._drag_offset = (0.0, 0.0)
         self._pending_points: list[str] = []
-        self._tool: str | None = None
-        self._tool_arg_count = 0
+        self._tool: ToolSpec | None = None
         self._tool_args: list[str] = []
-        self._hint = ""
-        self._tool_min_args = 0
-        self._tool_variable = False
+        self._awaiting_value = False
         controller.on_change(self.update)
 
     # -- the viewport ------------------------------------------------------
@@ -149,6 +150,8 @@ class FigureCanvas(QWidget):
                 self._draw_circle(painter, viewport, primitive, style)
             elif isinstance(primitive, ArcPrimitive):
                 self._draw_arc(painter, viewport, primitive, style)
+            elif isinstance(primitive, PolygonPrimitive):
+                self._draw_polygon(painter, viewport, primitive, style)
             elif isinstance(primitive, PointPrimitive):
                 self._draw_point(painter, viewport, primitive, style)
             elif isinstance(primitive, LabelPrimitive):
@@ -196,6 +199,26 @@ class FigureCanvas(QWidget):
         x2, y2 = viewport.to_screen(primitive.x2, primitive.y2)
         painter.setPen(self._pen(primitive.auxiliary, style))
         painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+    def _draw_polygon(
+        self,
+        painter: QPainter,
+        viewport: Viewport,
+        primitive: PolygonPrimitive,
+        style: FigureStyle,
+    ) -> None:
+        points = [
+            QPointF(*viewport.to_screen(primitive.vertices[2 * i], primitive.vertices[2 * i + 1]))
+            for i in range(len(primitive.vertices) // 2)
+        ]
+        if len(points) < 2:
+            return
+        painter.setPen(self._pen(primitive.auxiliary, style))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        if primitive.closed:
+            painter.drawPolygon(QPolygonF(points))
+        else:
+            painter.drawPolyline(QPolygonF(points))
 
     def _draw_ray(
         self, painter: QPainter, viewport: Viewport, primitive: RayPrimitive, style: FigureStyle
@@ -275,66 +298,113 @@ class FigureCanvas(QWidget):
 
     # -- interaction -------------------------------------------------------
 
-    def set_tool(
-        self,
-        op: str | None,
-        arg_count: int = 0,
-        hint: str = "",
-        min_args: int = 0,
-        variable: bool = False,
-    ) -> None:
+    def set_tool(self, tool: ToolSpec | None) -> None:
         """Arm a construction tool, or disarm it with ``None``.
 
-        A tool with ``arg_count`` arguments waits for that many points to
-        be clicked, then asks the window to build it.
-
-        The hint is shown on the canvas, because the toolbar does not
-        say which tool is armed and a click with no tool armed does
-        nothing at all -- which looks exactly like a broken program.
+        The tool knows what it needs: a click on a point, a click on a
+        circle, a number typed in. The canvas asks for them one at a
+        time, in the order the operator takes them.
         """
-        self._tool = op
-        self._tool_arg_count = arg_count
+        self._tool = tool
         self._tool_args = []
-        self._hint = hint
-        self._tool_min_args = min_args
-        self._tool_variable = variable
+        self._awaiting_value = False
+        if tool is None:
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+            self.update()
+            return
         self.setCursor(
             Qt.CursorShape.CrossCursor
-            if op == "point.free"
+            if tool.op == "point.free"
             else Qt.CursorShape.PointingHandCursor
         )
         self.update()
+        self._ask_for_next()
 
-    def armed_hint(self) -> str:
-        """What the canvas is waiting for."""
-        if self._tool is None:
-            return ""
-        if self._tool == "point.free":
-            return self._hint
-        waiting = len(self._tool_args)
-        if self._tool_variable:
-            if waiting == 0:
-                return self._hint
-            return f"{self._hint}（已经点了 {waiting} 个，按回车结束）"
-        needed = max(self._tool_arg_count, 1)
-        if waiting == 0:
-            return self._hint
-        return f"{self._hint}（已经选了 {waiting} 个，还要 {needed - waiting} 个）"
-
-    def tool(self) -> str | None:
+    def tool(self) -> ToolSpec | None:
         return self._tool
 
     def pending_args(self) -> list[str]:
-        """The points clicked so far for the armed tool."""
+        """What has been collected so far for the armed tool."""
         return list(self._tool_args)
 
     def reset_pending(self) -> None:
-        """Forget the points collected so far.
-
-        After an undo the points that were collected may be gone, so
-        the tool starts again from nothing.
-        """
+        """Forget what was collected; the tool starts again from nothing."""
         self._tool_args = []
+        self._awaiting_value = False
+        self.update()
+        self._ask_for_next()
+
+    def armed_hint(self) -> str:
+        """What the canvas is waiting for."""
+        tool = self._tool
+        if tool is None:
+            return ""
+        arg = self._next_arg()
+        if arg is None:
+            return tool.hint
+        if tool.variable:
+            return f"{tool.hint}（已经点了 {len(self._tool_args)} 个）"
+        if arg.clickable:
+            waiting = len(self._tool_args)
+            if waiting == 0:
+                return tool.hint
+            return f"{tool.hint}（已经选了 {waiting} 个）"
+        return f"{tool.hint}（请输入{arg.text}）"
+
+    # -- collecting the arguments -----------------------------------------
+
+    def _next_arg(self) -> ToolArg | None:
+        """The argument the tool is waiting for, if any."""
+        tool = self._tool
+        if tool is None:
+            return None
+        index = len(self._tool_args)
+        if tool.variable:
+            if index < len(tool.args):
+                return tool.args[index]
+            return ToolArg(kind=tool.var_kind)
+        if index < len(tool.args):
+            return tool.args[index]
+        return None
+
+    def _ask_for_next(self) -> None:
+        """If the next argument cannot be clicked, ask the window for it."""
+        arg = self._next_arg()
+        if arg is None or arg.clickable:
+            return
+        self._awaiting_value = True
+        self.valueRequested.emit(arg.kind)
+
+    def supply_value(self, text: str) -> None:
+        """The window's answer to a request for a number or a choice."""
+        if not self._awaiting_value:
+            return
+        self._awaiting_value = False
+        self._tool_args.append(text)
+        self._finish_or_ask()
+
+    def _finish_or_ask(self) -> None:
+        tool = self._tool
+        if tool is None:
+            return
+        if not tool.variable and len(self._tool_args) >= len(tool.args):
+            args = list(self._tool_args)
+            self._tool_args = []
+            self.constructRequested.emit(tool.op, args)
+            self._ask_for_next()
+            return
+        self._ask_for_next()
+
+    def _finish_variable_tool(self) -> None:
+        """Build what the variable tool has collected so far."""
+        tool = self._tool
+        if tool is None or not tool.variable:
+            return
+        if len(self._tool_args) < tool.min_args:
+            return
+        args = list(self._tool_args)
+        self._tool_args = []
+        self.constructRequested.emit(tool.op, args)
         self.update()
 
     def _hit_point(self, px: float, py: float) -> str | None:
@@ -372,7 +442,7 @@ class FigureCanvas(QWidget):
         if (
             node_id is not None
             and node_id in self.controller.free_points()
-            and (self._tool is None or self._tool == "point.free")
+            and (self._tool is None or self._tool.op == "point.free")
         ):
             # Grab it. The point tool is the one tool whose clicks on a
             # point mean "move it" rather than "use it as an argument".
@@ -428,17 +498,6 @@ class FigureCanvas(QWidget):
             return
         super().keyPressEvent(event)
 
-    def _finish_variable_tool(self) -> None:
-        """Build what the variable tool has collected so far."""
-        if not self._tool_variable or self._tool is None:
-            return
-        if len(self._tool_args) < self._tool_min_args:
-            return
-        args = list(self._tool_args)
-        self._tool_args = []
-        self.constructRequested.emit(self._tool, args)
-        self.update()
-
     def wheelEvent(self, event: object) -> None:
         delta = event.angleDelta().y()  # type: ignore[attr-defined]
         if delta == 0:
@@ -449,27 +508,55 @@ class FigureCanvas(QWidget):
 
     def _tool_click(self, px: float, py: float) -> None:
         """A click while a construction tool is armed."""
+        tool = self._tool
+        if tool is None:
+            return
         viewport = self._viewport()
-        if self._tool == "point.free":
-            # The point tool always places a point, even where one
-            # already is: clicking on top of a point is still a request
-            # for a new one.
+        if tool.op == "point.free":
             fx, fy = viewport.to_figure(px, py)
             self.controller.add_free_point(fx, fy)
             return
-        node_id = self._hit_point(px, py)
+        arg = self._next_arg()
+        if arg is None or not arg.clickable:
+            return
+        node_id = self._hit_object(px, py, _KIND_KINDS.get(arg.kind, (arg.kind,)))
         if node_id is None:
             return
         self._tool_args.append(node_id)
-        if self._tool_variable:
-            # A variable tool waits for the user to say they have
-            # finished; the return key does it.
-            self.update()
-            return
-        if len(self._tool_args) >= self._tool_arg_count:
-            args = list(self._tool_args)
-            self._tool_args = []
-            self.constructRequested.emit(self._tool or "", args)
+        self._finish_or_ask()
+
+    def _hit_object(
+        self, px: float, py: float, kinds: tuple[str, ...]
+    ) -> str | None:
+        """The nearest object of these kinds under the click, if any.
+
+        The geometry lives in the primitives; the canvas only turns the
+        click into figure coordinates and hands over the tolerance.
+        """
+        viewport = self._viewport()
+        x, y = viewport.to_figure(px, py)
+        tolerance = GRAB_RADIUS_PX / viewport.scale
+        figure = self.controller.figure()
+        candidates = [
+            primitive
+            for primitive in self.controller.primitives()
+            if primitive.id
+            and primitive.id in figure.nodes
+            and figure.nodes[primitive.id].kind in kinds
+        ]
+        return hit_test(candidates, x, y, tolerance)
+
+
+#: The node kinds that answer to each argument kind. A construction that
+#: wants a line is happy with a segment: "the foot on BC" means the same
+#: thing whether BC is drawn as a segment or as a line.
+_KIND_KINDS: dict[str, tuple[str, ...]] = {
+    "point": ("point",),
+    "line": ("line", "segment", "ray"),
+    "segment": ("segment",),
+    "circle": ("circle",),
+    "polygon": ("polygon",),
+}
 
 
 def _clip_line(

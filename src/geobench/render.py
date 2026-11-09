@@ -27,6 +27,7 @@ from geobench.primitives import (
     LabelPrimitive,
     LinePrimitive,
     PointPrimitive,
+    PolygonPrimitive,
     RayPrimitive,
     SegmentPrimitive,
     figure_primitives,
@@ -261,6 +262,17 @@ def render_svg(
             )
         elif isinstance(primitive, ArcPrimitive):
             parts.append(_svg_arc(tx, ty, primitive, scale, style))
+        elif isinstance(primitive, PolygonPrimitive):
+            points = " ".join(
+                f"{_fmt(tx(primitive.vertices[2 * i]))},{_fmt(ty(primitive.vertices[2 * i + 1]))}"
+                for i in range(len(primitive.vertices) // 2)
+            )
+            tag = "polygon" if primitive.closed else "polyline"
+            parts.append(
+                f'<{tag} points="{points}" fill="none" stroke="{style.stroke}" '
+                f'stroke-width="{_stroke_width(primitive.auxiliary, style)}"'
+                f"{_dash(primitive.auxiliary)}/>"
+            )
         elif isinstance(primitive, PointPrimitive):
             if not (math.isfinite(primitive.x) and math.isfinite(primitive.y)):
                 # A point that could not be placed has no sensible

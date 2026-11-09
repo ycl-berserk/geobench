@@ -17,7 +17,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 try:
     from PySide6.QtCore import QPoint, Qt
     from PySide6.QtTest import QTest
-    from PySide6.QtWidgets import QApplication, QToolBar
+    from PySide6.QtWidgets import QApplication, QToolButton
 except ImportError as exc:  # pragma: no cover - depends on the machine
     pytest.skip(f"Qt is not usable on this machine: {exc}", allow_module_level=True)
 
@@ -44,7 +44,8 @@ def test_a_tool_is_armed_from_the_start(app: QApplication, controller: StudioCon
     window = StudioWindow(controller)
     window.show()
     app.processEvents()
-    assert window.canvas.tool() == "point.free"
+    tool = window.canvas.tool()
+    assert tool is not None and tool.op == "point.free"
     window.close()
 
 
@@ -137,12 +138,15 @@ def test_the_canvas_says_what_a_click_will_do(
 
 
 def _arm(window: StudioWindow, name: str) -> None:
-    """Arm a tool the way the user does: from the toolbar."""
-    toolbar = window.findChildren(QToolBar)[0]
-    for action in toolbar.actions():
-        if action.text() == name:
-            action.trigger()
-            return
+    """Arm a tool the way the user does: from a group's menu."""
+    for button in window.findChildren(QToolButton):
+        menu = button.menu()
+        if menu is None:
+            continue
+        for action in menu.actions():
+            if action.text() == name:
+                action.trigger()
+                return
     raise AssertionError(f"there is no tool called {name!r}")
 
 
