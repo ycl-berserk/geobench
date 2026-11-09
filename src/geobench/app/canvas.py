@@ -566,7 +566,7 @@ class FigureCanvas(QWidget):
         node_id = self._hit_point(px, py)
         if (
             node_id is not None
-            and node_id in self.controller.free_points()
+            and self.controller.draggable(node_id)
             and (
                 self._tool is None
                 or self._tool.op in ("point.free", "select")
@@ -664,6 +664,15 @@ class FigureCanvas(QWidget):
             self.select(node_id)
             return
         if tool.op == "point.free":
+            # Landing on a circle puts the point *on* it. A point that
+            # lives on an object is a construction, not a promise kept by
+            # dragging carefully -- and the judge can prove it.
+            circle = self._hit_object(px, py, ("circle",))
+            if circle is not None:
+                fx, fy = viewport.to_figure(px, py)
+                where = self.controller.parameter_on_circle(circle, fx, fy)
+                self.constructRequested.emit("point.on_circle", [circle, where])
+                return
             fx, fy = viewport.to_figure(px, py)
             self.controller.add_free_point(fx, fy)
             return

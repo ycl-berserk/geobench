@@ -24,6 +24,8 @@ Free points carry two coordinate pairs (docs/spec.md section 3.2):
 
 from __future__ import annotations
 
+import math
+from fractions import Fraction
 from typing import Any, cast
 
 import sympy as sp
@@ -97,7 +99,7 @@ def evaluate_exact(figure: Figure, registry: OperatorRegistry) -> Figure:
     symbols = numeric.symbols_of(figure)
     for node_id in dependency_order(figure):
         node: Node = figure.nodes[node_id]
-        if node.role != "derived" or not node.op:
+        if node.role not in ("derived", "attached") or not node.op:
             continue
         signature = _signature(node, figure)
         if node.cache.get(CACHE_SIGNATURE) == signature:
@@ -140,7 +142,7 @@ def evaluate_numeric(figure: Figure) -> Figure:
     values = numeric.free_values(figure)
     for node_id in dependency_order(figure):
         node = figure.nodes[node_id]
-        if node.role == "free":
+        if node.role in ("free", "attached") and node.op is None:
             if node.kind == "point" and node.placement is not None:
                 x = numeric.placement_float(node.placement[0])
                 y = numeric.placement_float(node.placement[1])
@@ -302,6 +304,20 @@ def _real(value: Expr, node_id: str) -> float:
         raise StateError(
             f"node {node_id!r} has no real value at this placement"
         ) from exc
+
+
+def parameter_on_circle(figure: Figure, node_id: str, x: float, y: float) -> str:
+    """Where on a circle a click landed, as the parameter the operator takes.
+
+    The parameter is in turns, and it is written as an exact rational:
+    the kernel does not hold floats in a construction. A denominator of
+    720 is half a degree, which is finer than a hand can drag.
+    """
+    cx, cy, r2 = numeric_circle(figure, node_id)
+    if r2 <= 0:
+        return "0"
+    angle = math.atan2(y - cy, x - cx) / (2 * math.pi)
+    return str(Fraction(angle).limit_denominator(720))
 
 
 def numeric_line(

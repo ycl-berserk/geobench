@@ -155,6 +155,28 @@ def op_midpoint(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {"kind": "point", "coords": ((x1 + x2) / 2, (y1 + y2) / 2)}
 
 
+def op_point_on_circle(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """A point attached to a circle, at the parameter ``t``.
+
+    ``t`` is measured in turns: 0 is the point east of the centre, 1/4
+    is north, and so on. It is part of the construction, so the
+    coordinates are an expression in the circle's own symbols -- which
+    is what lets a judge prove that the point is on the circle.
+    """
+    cx, cy, r2 = ctx.circle(args[0])
+    if r2 == 0:
+        raise DegenerateError("the circle has no radius")
+    t = FIELD.coerce(args[1])
+    radius = sp.sqrt(r2)
+    angle = 2 * sp.pi * t
+    return {
+        "coords": (
+            cx + radius * sp.cos(angle),
+            cy + radius * sp.sin(angle),
+        )
+    }
+
+
 def op_centroid(ctx: OpContext, args: list[str]) -> dict[str, object]:
     xs: list[Expr] = []
     ys: list[Expr] = []
@@ -965,6 +987,17 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="sympy.geometry:Triangle.centroid",
         ),
         op_centroid,
+    ),
+    (
+        OpSpec(
+            id="point.on_circle",
+            kind="point",
+            args=(ArgSpec("circle", "circle"), ArgSpec("t", "scalar")),
+            returns="point",
+            degenerate_when=("the circle has no radius",),
+            since="v1",
+        ),
+        op_point_on_circle,
     ),
     (
         OpSpec(

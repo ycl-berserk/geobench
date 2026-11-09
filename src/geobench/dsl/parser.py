@@ -476,7 +476,7 @@ class Parser:
         node = Node(
             id=name,
             kind=kind,
-            role="derived",
+            role="attached" if command.id in Figure.ATTACHING_OPS else "derived",
             op=command.id,
             args=operator_args,
         )
@@ -499,6 +499,7 @@ _KIND_BY_COMMAND: dict[str, str] = {
     "point.circumcenter": POINT,
     "point.incenter": POINT,
     "point.orthocenter": POINT,
+    "point.on_circle": POINT,
     "point.foot": POINT,
     "point.intersect_lines": POINT,
     "point.intersect_line_circle": POINT,

@@ -25,7 +25,12 @@ import sympy as sp
 
 from geobench.dsl import parse_dsl, to_dsl
 from geobench.errors import GeobenchError
-from geobench.evaluate import evaluate_figure, evaluate_numeric, undefined_nodes
+from geobench.evaluate import (
+    evaluate_figure,
+    evaluate_numeric,
+    parameter_on_circle,
+    undefined_nodes,
+)
 from geobench.judges import IDENTITY, JudgeRegistry, Verdict, judge_relation
 from geobench.model import Figure, Node, Relation
 from geobench.operators import register_builtins
@@ -243,11 +248,41 @@ class StudioController:
         node = figure.nodes.get(node_id)
         if node is None:
             raise GeobenchError(f"unknown node id {node_id!r}")
+        if node.role == "attached":
+            # A point on a circle has no position of its own: what the
+            # drag changes is *where on the circle* it is. The parameter
+            # is part of the construction, so this is a change, not a
+            # move -- and it stays true however the circle moves later.
+            self._set_parameter(node_id, x, y)
+            return
         if node.role != "free":
             raise GeobenchError(f"node {node_id!r} is not a free point")
         node.placement = (_exact(x), _exact(y))
         evaluate_numeric(figure)
         self._moved(node_id)
+
+    def _set_parameter(self, node_id: str, x: float, y: float) -> None:
+        """Move a point that lives on an object, along that object."""
+        figure = self.figure()
+        node = figure.nodes[node_id]
+        if not node.args:
+            raise GeobenchError(f"node {node_id!r} is attached to nothing")
+        target = node.args[0]
+        object_node = figure.nodes.get(target)
+        if object_node is None or object_node.kind != "circle":
+            raise GeobenchError(f"node {node_id!r} is attached to an object that cannot be dragged on")
+        node.args = [target, parameter_on_circle(figure, target, x, y)]
+        self.evaluate()
+        self._changed()
+
+    def parameter_on_circle(self, circle_id: str, x: float, y: float) -> str:
+        """Where on a circle a click landed, as the parameter a point takes."""
+        return parameter_on_circle(self.figure(), circle_id, x, y)
+
+    def draggable(self, node_id: str) -> bool:
+        """Can this node be dragged? Free points and points on an object."""
+        node = self.figure().nodes.get(node_id)
+        return node is not None and node.role in ("free", "attached")
 
     def finish_move(self) -> None:
         """The drag is over: settle the figure and settle the verdicts.

@@ -135,6 +135,16 @@ def _c(
 COMMANDS: tuple[CommandSpec, ...] = (
     # -- 点 ---------------------------------------------------------------
     _c("point.free", "点", "Point", "点", CONSTRUCTION, 2, "自由点", True),
+    _c(
+        "point.on_circle",
+        "圆上的点",
+        "Point",
+        "点",
+        CONSTRUCTION,
+        2,
+        "圆上指定位置的点",
+        True,
+    ),
     _c("point.midpoint", "中点", "Midpoint", "点", CONSTRUCTION, 2, "线段的中点", True),
     _c("point.centroid", "重心", "Barycenter", "点", CONSTRUCTION, 3, "三角形的重心", True),
     _c(

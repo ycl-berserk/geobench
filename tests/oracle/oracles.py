@@ -423,6 +423,35 @@ def oracle_measure_angle(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
     return (triangle.angles[vertex] * 180 / sp.pi,)
 
 
+def oracle_point_on_circle(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
+    """The point at a parameter on a circle, derived independently.
+
+    The circumcentre is solved from the perpendicular bisectors -- a
+    different route from the kernel's -- and the point is placed at the
+    parameter by the definition of the circle.
+    """
+    node = ctx.figure.node(args[0])
+    ax, ay = ctx.point(node.args[0])
+    bx, by = ctx.point(node.args[1])
+    cx, cy = ctx.point(node.args[2])
+    denominator = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+    if denominator == 0:
+        raise ValueError("the three points are collinear")
+    ux = (
+        (ax * ax + ay * ay) * (by - cy)
+        + (bx * bx + by * by) * (cy - ay)
+        + (cx * cx + cy * cy) * (ay - by)
+    ) / denominator
+    uy = (
+        (ax * ax + ay * ay) * (cx - bx)
+        + (bx * bx + by * by) * (ax - cx)
+        + (cx * cx + cy * cy) * (bx - ax)
+    ) / denominator
+    radius = sp.sqrt((ax - ux) ** 2 + (ay - uy) ** 2)
+    angle = 2 * sp.pi * sp.Rational(args[1])
+    return (ux + radius * sp.cos(angle), uy + radius * sp.sin(angle))
+
+
 def oracle_measure_radius(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
     """sympy's own radius of the circle."""
     _, _, r2 = ctx.circle(args[0])
@@ -502,6 +531,7 @@ ORACLES = {
     "line.angle_bisector": oracle_angle_bisector,
     "line.tangent": oracle_tangent,
     "point.intersect_circles": oracle_intersect_circles,
+    "point.on_circle": oracle_point_on_circle,
     "point.nearest_on_object": oracle_nearest_on_object,
     "segment.free": oracle_segment_free,
     "circle.through": oracle_circle_through,

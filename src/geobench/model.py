@@ -28,9 +28,13 @@ POLYLINE = "polyline"
 
 FREE = "free"
 DERIVED = "derived"
+#: A point that lives *on* another object. Its coordinates come from the
+#: object and a parameter, so it cannot be dragged off it; what a drag
+#: changes is the parameter.
+ATTACHED = "attached"
 
 _KINDS = (POINT, LINE, SEGMENT, CIRCLE, POLYGON, ARC, SECTOR, NUMBER, RAY, POLYLINE)
-_ROLES = (FREE, DERIVED)
+_ROLES = (FREE, DERIVED, ATTACHED)
 
 
 @dataclass(frozen=True)
@@ -184,7 +188,15 @@ class Figure:
 
     # -- mutation ---------------------------------------------------------
 
+    #: The operators whose result is a point that lives on another object.
+    ATTACHING_OPS = frozenset({"point.on_circle"})
+
     def add_node(self, node: Node) -> None:
+        if node.role == DERIVED and node.op in self.ATTACHING_OPS:
+            # A point on an object is a construction: it has no position
+            # of its own. Whoever built it -- the store, the DSL, a test
+            # -- gets the same answer.
+            node.role = "attached"
         if node.id in self.nodes:
             raise ModelError(f"node id {node.id!r} already exists")
         self._check_node_shape(node)
@@ -443,6 +455,13 @@ def _is_literal(text: str) -> bool:
     body = text[1:] if text[:1] in {"+", "-"} else text
     if not body:
         return False
+    # A rational is a literal too: the kernel is exact, and a parameter
+    # such as "1/4" is a number, not a reference to an object.
+    if "/" in body:
+        numerator, _, denominator = body.partition("/")
+        if not (_DIGITS.issuperset(numerator) and _DIGITS.issuperset(denominator)):
+            return False
+        return bool(numerator and denominator)
     whole, _, fraction = body.partition(".")
     if whole and not _DIGITS.issuperset(whole):
         return False

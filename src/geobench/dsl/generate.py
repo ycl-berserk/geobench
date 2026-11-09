@@ -59,7 +59,7 @@ def to_dsl(figure: Figure) -> str:
         lines.append("点 " + " ".join(parts))
 
     for node in figure.nodes.values():
-        if node.role != "derived":
+        if node.role not in ("derived", "attached"):
             continue
         assert node.op is not None
         lines.append(f"{node.id} = {_call(node.op, node.args)}")

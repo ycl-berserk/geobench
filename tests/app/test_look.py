@@ -105,6 +105,14 @@ def test_a_verdict_is_coloured_by_what_it_says(app: QApplication) -> None:
     window.show()
     app.processEvents()
 
+    import time
+
+    deadline = time.time() + 10.0
+    while window.judgements.rowCount() < 2 and time.time() < deadline:
+        app.processEvents()
+        time.sleep(0.01)
+    app.processEvents()
+
     colours = {
         window.judgements.item(row, 1).data(VERDICT_ROLE)
         for row in range(window.judgements.rowCount())
