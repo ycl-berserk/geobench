@@ -142,15 +142,12 @@ def evaluate_numeric(figure: Figure) -> Figure:
         node = figure.nodes[node_id]
         if node.role == "free":
             if node.kind == "point" and node.placement is not None:
-                try:
-                    node.cache[numeric.CACHE_VALUES] = {
-                        "coords": (
-                            float(node.placement[0]),
-                            float(node.placement[1]),
-                        )
-                    }
-                except (TypeError, ValueError):
+                x = numeric.placement_float(node.placement[0])
+                y = numeric.placement_float(node.placement[1])
+                if x is None or y is None:
                     node.cache.pop(numeric.CACHE_VALUES, None)
+                else:
+                    node.cache[numeric.CACHE_VALUES] = {"coords": (x, y)}
             continue
         condition = numeric.failing_condition(node, values)
         if condition is not None:

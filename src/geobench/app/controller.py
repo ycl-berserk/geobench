@@ -25,7 +25,7 @@ import sympy as sp
 
 from geobench.dsl import parse_dsl, to_dsl
 from geobench.errors import GeobenchError
-from geobench.evaluate import evaluate_figure, undefined_nodes
+from geobench.evaluate import evaluate_figure, evaluate_numeric, undefined_nodes
 from geobench.judges import IDENTITY, JudgeRegistry, Verdict, judge_relation
 from geobench.model import Figure, Node, Relation
 from geobench.operators import register_builtins
@@ -95,6 +95,11 @@ class StudioController:
         self.figure_id = figure_id
         self.judges = JudgeRegistry()
         self._listeners: list[Callable[[], None]] = []
+        # A second, cheaper channel: "only a point moved". The full
+        # change means the construction changed and everything that
+        # depends on it has to be looked at again; a move means only
+        # that the picture has to be redrawn.
+        self._move_listeners: list[Callable[[str], None]] = []
         self._next_label = 1
         # The undo stack. A figure is a few dozen objects, so a
         # snapshot is cheap -- and a snapshot cannot be wrong in the way
@@ -108,9 +113,21 @@ class StudioController:
         """Be told when the figure changes."""
         self._listeners.append(callback)
 
+    def on_move(self, callback: Callable[[str], None]) -> None:
+        """Be told when a point has been moved, and nothing else.
+
+        The callback is told which point, so it can update the one row
+        that changed instead of rebuilding everything.
+        """
+        self._move_listeners.append(callback)
+
     def _changed(self) -> None:
         for callback in self._listeners:
             callback()
+
+    def _moved(self, node_id: str) -> None:
+        for callback in self._move_listeners:
+            callback(node_id)
 
     # -- the figure --------------------------------------------------------
 
@@ -211,6 +228,11 @@ class StudioController:
     def move_point(self, node_id: str, x: float, y: float) -> None:
         """Move a free point. The whole point of the product is this call.
 
+        Only the **numeric** path runs. The construction has not changed,
+        so the exact path has nothing to say about it -- and the screen
+        must not wait for symbolic work while the mouse is moving
+        (decision D18).
+
         The undo entry is pushed by the canvas **before** the drag
         starts, not here: a drag is one change, however many frames it
         takes, and an undo stack with an entry per frame would be
@@ -223,6 +245,17 @@ class StudioController:
         if node.role != "free":
             raise GeobenchError(f"node {node_id!r} is not a free point")
         node.placement = (_exact(x), _exact(y))
+        evaluate_numeric(figure)
+        self._moved(node_id)
+
+    def finish_move(self) -> None:
+        """The drag is over: settle the figure and settle the verdicts.
+
+        The exact path runs now. It has nothing to redo -- the
+        construction did not change -- but the figure is whole again,
+        and the verdicts can be recomputed on a figure that is not in
+        the middle of a drag.
+        """
         self.evaluate()
         self._changed()
 

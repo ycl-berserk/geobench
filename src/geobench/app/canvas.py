@@ -120,6 +120,7 @@ class FigureCanvas(QWidget):
         self._tool_args: list[str] = []
         self._awaiting_value = False
         controller.on_change(self.update)
+        controller.on_move(self._moved)
 
     # -- the viewport ------------------------------------------------------
 
@@ -558,7 +559,15 @@ class FigureCanvas(QWidget):
         )
 
     def mouseReleaseEvent(self, _event: object) -> None:
+        if self._dragging is not None and self._dragging != "__pan__":
+            # The drag is over: the figure settles and the verdicts are
+            # recomputed.
+            self.controller.finish_move()
         self._dragging = None
+
+    def _moved(self, _node_id: str) -> None:
+        """A point moved: the picture has to be redrawn. That is all."""
+        self.update()
 
     def contextMenuEvent(self, event) -> None:  # type: ignore[no-untyped-def]
         """Right-click on a point: ask the window to delete it."""

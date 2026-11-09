@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Sequence
+from fractions import Fraction
 from typing import Any
 
 import sympy as sp
@@ -156,6 +157,25 @@ def format_float(value: float) -> str:
     return f"{value:.12g}"
 
 
+def placement_float(value: str) -> float | None:
+    """A placement as a number, or None if it is not one.
+
+    A placement is **exact**: it is a rational, written "101/100", or a
+    whole number, written "3". Reading it with float() alone throws away
+    every point that is not on a whole coordinate -- and then everything
+    built on such a point has no value either, and the figure quietly
+    falls apart.
+    """
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        pass
+    try:
+        return float(Fraction(value))
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
 def free_values(figure: Figure) -> dict[sp.Symbol, float]:
     """The free points' current numeric positions."""
     values: dict[sp.Symbol, float] = {}
@@ -164,11 +184,12 @@ def free_values(figure: Figure) -> dict[sp.Symbol, float]:
             continue
         if node.coords is None or node.placement is None:
             continue
-        try:
-            values[sp.Symbol(node.coords[0])] = float(node.placement[0])
-            values[sp.Symbol(node.coords[1])] = float(node.placement[1])
-        except (TypeError, ValueError):
+        x = placement_float(node.placement[0])
+        y = placement_float(node.placement[1])
+        if x is None or y is None:
             continue
+        values[sp.Symbol(node.coords[0])] = x
+        values[sp.Symbol(node.coords[1])] = y
     return values
 
 

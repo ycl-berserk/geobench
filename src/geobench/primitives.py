@@ -23,12 +23,6 @@ import math
 from dataclasses import dataclass
 
 from geobench.errors import StateError
-from geobench.evaluate import (
-    numeric_circle,
-    numeric_coords,
-    numeric_line,
-    numeric_segment,
-)
 from geobench.model import Figure, Node
 from geobench.style import FigureStyle
 
@@ -47,6 +41,23 @@ def _numeric_payload(
         # A measurement is a single number, not a list of them.
         return (float(payload),)
     return tuple(payload)
+
+
+def _payload(
+    figure: Figure, node_id: str, key: str, count: int
+) -> tuple[float, ...] | None:
+    """The node's numeric payload, and nothing else.
+
+    The picture never falls back to the exact path (decision D18): the
+    screen shows what the numeric path computed, and an object with no
+    value at this placement is simply not drawn. Falling back would put
+    SymPy's expression parser in the middle of a repaint -- which is
+    where "the program is slow" comes from.
+    """
+    payload = _numeric_payload(figure, node_id, key)
+    if payload is None or len(payload) < count:
+        return None
+    return payload
 
 
 @dataclass(frozen=True)
@@ -310,41 +321,45 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
     main: list[Primitive] = []
     points: list[PointPrimitive] = []
     labels: list[LabelPrimitive] = []
+    # The centre every label offset is measured from. One per picture,
+    # not one per label: the labels are the picture's most numerous
+    # object, and the centre does not depend on which label asks.
+    centre = _figure_centre(figure)
 
     for node_id, node in figure.nodes.items():
         if not node.style.visible:
             continue
         aux = is_auxiliary(node_id, style) or node.style.line_style == "dashed"
         if node.kind == "line":
-            try:
-                a, b, c = numeric_line(figure, node_id)
-            except _NO_VALUE:
+            payload = _payload(figure, node_id, "line", 3)
+            if payload is None:
                 # This object has no value at this placement -- even, for
                 # a node that was never evaluated, no payload at all. It
                 # is not drawn, and the rest of the picture is.
                 continue
+            a, b, c = payload[0], payload[1], payload[2]
             primitive: Primitive = LinePrimitive(a, b, c, aux, node_id)
         elif node.kind == "segment":
-            try:
-                x1, y1, x2, y2 = numeric_segment(figure, node_id)
-            except _NO_VALUE:
+            payload = _payload(figure, node_id, "segment", 4)
+            if payload is None:
                 continue
+            x1, y1, x2, y2 = payload[0], payload[1], payload[2], payload[3]
             primitive = SegmentPrimitive(x1, y1, x2, y2, aux, node_id)
         elif node.kind == "circle":
-            try:
-                cx, cy, r2 = numeric_circle(figure, node_id)
-            except _NO_VALUE:
+            payload = _payload(figure, node_id, "circle", 3)
+            if payload is None:
                 continue
+            cx, cy, r2 = payload[0], payload[1], payload[2]
             if r2 <= 0:
                 continue
             primitive = CirclePrimitive(cx, cy, math.sqrt(r2), aux, node_id)
         elif node.kind == "point":
-            try:
-                x, y = numeric_coords(figure, node_id)
-            except _NO_VALUE:
+            payload = _payload(figure, node_id, "coords", 2)
+            if payload is None:
                 # A point with no real value here is not drawn; the
                 # rest of the picture is.
                 continue
+            x, y = payload[0], payload[1]
             undefined = node.placement is None
             points.append(
                 PointPrimitive(
@@ -372,7 +387,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
             # measurement taken from it both sit at the same place --
             # the midpoint of a segment, the vertex of an angle -- and
             # two labels on top of each other are unreadable.
-            dx, dy = _label_offset(figure, position[0], position[1])
+            dx, dy = _label_offset(centre, position[0], position[1])
             offset = (-dx, -dy)
             labels.append(
                 LabelPrimitive(
@@ -439,7 +454,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
     for point in points:
         if not point.label:
             continue
-        dx, dy = _label_offset(figure, point.x, point.y)
+        dx, dy = _label_offset(centre, point.x, point.y)
         labels.append(LabelPrimitive(point.x, point.y, point.label, dx, dy))
 
     return [*auxiliary, *main, *points, *labels]
@@ -507,15 +522,21 @@ def _number_position(figure: Figure, node: Node) -> tuple[float, float] | None:
     try:
         if len(args) == 3:
             # An angle: the label belongs at the vertex.
-            return numeric_coords(figure, args[1])
+            vertex = _payload(figure, args[1], "coords", 2)
+            return None if vertex is None else (vertex[0], vertex[1])
         if len(args) == 2:
-            first = numeric_coords(figure, args[0])
-            second = numeric_coords(figure, args[1])
+            first = _payload(figure, args[0], "coords", 2)
+            second = _payload(figure, args[1], "coords", 2)
+            if first is None or second is None:
+                return None
             return ((first[0] + second[0]) / 2, (first[1] + second[1]) / 2)
         if len(args) == 1:
             kind = figure.node(args[0]).kind
             if kind == "segment":
-                x1, y1, x2, y2 = numeric_segment(figure, args[0])
+                ends = _payload(figure, args[0], "segment", 4)
+                if ends is None:
+                    return None
+                x1, y1, x2, y2 = ends[0], ends[1], ends[2], ends[3]
                 return ((x1 + x2) / 2, (y1 + y2) / 2)
             if kind == "polygon":
                 vertices = _numeric_payload(figure, args[0], "polygon")
@@ -533,7 +554,10 @@ def _number_position(figure: Figure, node: Node) -> tuple[float, float] | None:
                     return ((x1 + x2) / 2, (y1 + y2) / 2)
                 return centre
             if kind == "circle":
-                cx, cy, r2 = numeric_circle(figure, args[0])
+                circle = _payload(figure, args[0], "circle", 3)
+                if circle is None:
+                    return None
+                cx, cy, r2 = circle[0], circle[1], circle[2]
                 return (cx, cy + math.sqrt(r2))
             if kind == "line":
                 return _point_on_line_near(figure, args[0])
@@ -544,24 +568,14 @@ def _number_position(figure: Figure, node: Node) -> tuple[float, float] | None:
 
 def _point_on_line_near(figure: Figure, node_id: str) -> tuple[float, float] | None:
     """A point on a line, as close as possible to the middle of the figure."""
-    a, b, c = numeric_line(figure, node_id)
-    xs: list[float] = []
-    ys: list[float] = []
-    for node in figure.nodes.values():
-        if node.kind != "point":
-            continue
-        try:
-            x, y = numeric_coords(figure, node.id)
-        except Exception:  # pragma: no cover - defensive
-            continue
-        if not (math.isfinite(x) and math.isfinite(y)):
-            continue
-        xs.append(x)
-        ys.append(y)
-    if not xs:
+    payload = _payload(figure, node_id, "line", 3)
+    if payload is None:
         return None
-    cx = sum(xs) / len(xs)
-    cy = sum(ys) / len(ys)
+    a, b, c = payload[0], payload[1], payload[2]
+    centre = _figure_centre(figure)
+    if centre is None:
+        return None
+    cx, cy = centre
     denominator = a * a + b * b
     if denominator == 0:
         return None
@@ -569,8 +583,8 @@ def _point_on_line_near(figure: Figure, node_id: str) -> tuple[float, float] | N
     return (cx - a * distance, cy - b * distance)
 
 
-def _label_offset(figure: Figure, x: float, y: float) -> tuple[float, float]:
-    """Place a label away from the figure's centroid, so it does not sit on a stroke.
+def _figure_centre(figure: Figure) -> tuple[float, float] | None:
+    """The centre of the figure's points, or None if it has none.
 
     The centroid is taken over the points that *have* a position: one
     unplaceable point must not push every label off the canvas.
@@ -580,18 +594,26 @@ def _label_offset(figure: Figure, x: float, y: float) -> tuple[float, float]:
     for node in figure.nodes.values():
         if node.kind != "point":
             continue
-        try:
-            px, py = numeric_coords(figure, node.id)
-        except Exception:  # pragma: no cover - defensive
+        payload = _numeric_payload(figure, node.id, "coords")
+        if payload is None or len(payload) < 2:
             continue
+        px, py = payload[0], payload[1]
         if not (math.isfinite(px) and math.isfinite(py)):
             continue
         xs.append(px)
         ys.append(py)
     if not xs:
+        return None
+    return (sum(xs) / len(xs), sum(ys) / len(ys))
+
+
+def _label_offset(
+    centre: tuple[float, float] | None, x: float, y: float
+) -> tuple[float, float]:
+    """Place a label away from the figure's centre, so it does not sit on a stroke."""
+    if centre is None:
         return 0.0, 0.0
-    cx = sum(xs) / len(xs)
-    cy = sum(ys) / len(ys)
+    cx, cy = centre
     dx, dy = x - cx, y - cy
     norm = math.hypot(dx, dy)
     if norm < 1e-9:

@@ -61,6 +61,10 @@ class SympyField:
     def __init__(self, identity_budget_ops: int = 20000, expand_budget_ops: int = 400) -> None:
         self.identity_budget_ops = identity_budget_ops
         self.expand_budget_ops = expand_budget_ops
+        #: The strings this field has already parsed. Parsing is the
+        #: slowest thing the exact path does, and the same strings come
+        #: back every time: a point's coordinates, its placement.
+        self._parsed: dict[str, Expr] = {}
 
     def coerce(self, value: ExprLike) -> Expr:
         if isinstance(value, bool):
@@ -79,12 +83,28 @@ class SympyField:
         elif isinstance(value, int):
             expr = sp.Integer(value)
         elif isinstance(value, str):
-            expr = cast(Expr, sp.sympify(value))
+            expr = self._parse(value)
         else:
             raise FieldError(f"unsupported value type: {type(value)!r}")
         if expr.atoms(sp.Float):
             raise FieldError("expression contains a floating point part")
         return expr
+
+    def _parse(self, text: str) -> Expr:
+        """A string as an exact expression, remembered.
+
+        SymPy expressions are immutable, so one parsed expression can be
+        shared by everything that asks for it. Without this, every
+        evaluation re-parsed every point's coordinates and placement --
+        and a rational such as "101/100" goes through the expression
+        parser, which is slow enough to be felt.
+        """
+        cached = self._parsed.get(text)
+        if cached is not None:
+            return cached
+        parsed = cast(Expr, sp.sympify(text))
+        self._parsed[text] = parsed
+        return parsed
 
     def add(self, a: ExprLike, b: ExprLike) -> Expr:
         return self.coerce(a) + self.coerce(b)

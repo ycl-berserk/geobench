@@ -351,6 +351,8 @@ class StudioWindow(QMainWindow):
         self._build_toolbar()
         self._build_menu()
         self.controller.on_change(self.refresh)
+        self.controller.on_move(self._point_moved)
+        self._dragging = False
         self.refresh()
         # A tool is armed from the start. An empty toolbar and an idle
         # canvas look like a program that is not working: a click with
@@ -706,9 +708,34 @@ class StudioWindow(QMainWindow):
         """Redraw the steps and the judgements."""
         self._refresh_steps()
         self._refresh_judgements()
+        if self._dragging:
+            # The drag is over; the verdicts have been settled.
+            self._dragging = False
+            self.status.showMessage("松手了：判定已按新的位置算过")
+
+    def _point_moved(self, node_id: str) -> None:
+        """A point moved: one row of the steps pane changed, and that is all.
+
+        The verdicts are not recomputed while the mouse is moving: a
+        verdict is about a claim, and a claim is not made at a particular
+        pixel. The status bar says so, so the reader knows why the table
+        has not changed yet.
+        """
+        self._dragging = True
+        row = self._step_rows.get(node_id)
+        if row is not None:
+            item = self.steps.item(row)
+            node = self.controller.figure().nodes.get(node_id)
+            if item is not None and node is not None and node.role == "free":
+                placement = node.placement or ("?", "?")
+                tail = f"({_short(placement[0])}, {_short(placement[1])})"
+                item.setText(f"{item.data(HEAD_ROLE)}{tail}")
+                item.setData(TAIL_ROLE, tail)
+        self.status.showMessage("拖动中——判定会在松手后更新")
 
     def _refresh_steps(self) -> None:
         self.steps.clear()
+        self._step_rows: dict[str, int] = {}
         figure = self.controller.figure()
         undefined = dict(self.controller.undefined())
         for node_id, node in figure.nodes.items():
@@ -726,6 +753,7 @@ class StudioWindow(QMainWindow):
             item.setData(Qt.ItemDataRole.UserRole, ("node", node_id))
             item.setData(HEAD_ROLE, head)
             item.setData(TAIL_ROLE, tail)
+            self._step_rows[node_id] = self.steps.count()
             if node_id in undefined:
                 item.setToolTip(f"在这个摆放下没有值：{undefined[node_id]}")
                 item.setData(TAIL_ROLE, f"{tail}  （这个摆放下没有值）")
