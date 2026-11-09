@@ -174,6 +174,12 @@ Primitive = (
 )
 
 
+#: What "this object cannot be drawn" looks like. A KeyError is a
+#: node whose payload was never computed -- which should not happen, and
+#: must not take the drawing down when it does.
+_NO_VALUE = (StateError, TypeError, ValueError, KeyError, ArithmeticError)
+
+
 def hit_test(
     primitives: list[Primitive], x: float, y: float, tolerance: float
 ) -> str | None:
@@ -312,21 +318,22 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
         if node.kind == "line":
             try:
                 a, b, c = numeric_line(figure, node_id)
-            except (StateError, TypeError, ValueError):
-                # This object has no value at this placement. It is not
-                # drawn, and the rest of the picture is.
+            except _NO_VALUE:
+                # This object has no value at this placement -- even, for
+                # a node that was never evaluated, no payload at all. It
+                # is not drawn, and the rest of the picture is.
                 continue
             primitive: Primitive = LinePrimitive(a, b, c, aux, node_id)
         elif node.kind == "segment":
             try:
                 x1, y1, x2, y2 = numeric_segment(figure, node_id)
-            except (StateError, TypeError, ValueError):
+            except _NO_VALUE:
                 continue
             primitive = SegmentPrimitive(x1, y1, x2, y2, aux, node_id)
         elif node.kind == "circle":
             try:
                 cx, cy, r2 = numeric_circle(figure, node_id)
-            except (StateError, TypeError, ValueError):
+            except _NO_VALUE:
                 continue
             if r2 <= 0:
                 continue
@@ -334,7 +341,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
         elif node.kind == "point":
             try:
                 x, y = numeric_coords(figure, node_id)
-            except (StateError, TypeError, ValueError):
+            except _NO_VALUE:
                 # A point with no real value here is not drawn; the
                 # rest of the picture is.
                 continue

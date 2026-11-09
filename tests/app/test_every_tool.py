@@ -78,7 +78,10 @@ def _seed(controller: StudioController) -> None:
     }.items():
         controller.add_free_point(float(x), float(y), node_id)
     controller.construct("segment.free", ["A", "B"], "AB")
+    controller.construct("line.free", ["A", "C"], "l1")
+    controller.construct("line.free", ["B", "C"], "l2")
     controller.construct("circle.center_point", ["A", "B"], "c")
+    controller.construct("circle.center_point", ["D", "A"], "k")
     controller.construct("polygon.free", ["A", "B", "C"], "poly")
 
 
@@ -86,19 +89,28 @@ def _feed(canvas, window, tool) -> None:
     """Give the armed tool whatever it asks for."""
     controller = window.controller
     kinds = [arg.kind for arg in tool.args]
-    for kind in kinds:
+    # Each point argument gets its own point: the tools refuse the same
+    # point twice in a row, and rightly so.
+    pool = ["C", "A", "B", "D"]
+    for offset, kind in enumerate(kinds):
         if kind == "point":
-            _click(canvas, "C" if tool.op != "point.midpoint" else "A")
+            _click(canvas, pool[offset % len(pool)])
         elif kind == "line":
-            QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=_middle_of(canvas, "A", "B"))
+            # Two line arguments need two *different* lines: the middle
+            # of l1 for the first, the middle of l2 for the second.
+            names = ("A", "C") if offset == 0 else ("B", "C")
+            QTest.mouseClick(
+                canvas, Qt.MouseButton.LeftButton, pos=_middle_of(canvas, *names)
+            )
         elif kind == "segment":
             QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=_middle_of(canvas, "A", "B"))
         elif kind == "circle":
             # A point on the circle, taken from what the kernel says it is.
             from geobench.evaluate import numeric_circle
 
+            name = "c" if kinds.count("circle") == 1 or kinds.index(kind) == offset else "k"
             viewport = canvas._viewport()
-            cx, cy, r2 = numeric_circle(controller.figure(), "c")
+            cx, cy, r2 = numeric_circle(controller.figure(), name)
             sx, sy = viewport.to_screen(cx + r2**0.5, cy)
             QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=QPoint(int(sx), int(sy)))
         elif kind == "polygon":
@@ -127,7 +139,14 @@ def test_every_tool_on_the_toolbar_builds_something(app: QApplication, index: in
     app.processEvents()
 
     # Answer any prompt without a dialog.
-    window._value_for = lambda kind: "0" if kind == "selector" else "2"  # type: ignore[method-assign]
+    def _value(kind: str) -> str:
+        if kind == "selector":
+            return "0"
+        # A vertex number, or a count of sides: two suit the first and
+        # five the second.
+        return "2" if tool.op == "point.polygon_vertex" else "5"
+
+    window._value_for = _value  # type: ignore[method-assign]
 
     before = len(controller.figure().nodes)
     _arm(window, tool)

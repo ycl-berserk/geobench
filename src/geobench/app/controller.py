@@ -183,7 +183,7 @@ class StudioController:
 
     def add_free_point(self, x: float, y: float, label: str | None = None) -> str:
         """Put a free point on the canvas."""
-        self.push_undo()
+        before = self._snapshot()
         node_id = label or self._new_label()
         # The coordinates are exact rationals. The kernel does not allow
         # floats -- the exact path has to stay exact -- and a placement
@@ -200,8 +200,12 @@ class StudioController:
         )
         if not result.ok:
             raise GeobenchError(result.errors[0] if result.errors else "cannot add a point")
-        self.evaluate()
-        self._changed()
+        try:
+            self.evaluate()
+        except GeobenchError:
+            self._restore(before)
+            raise
+        self.push_undo_past(before)
         return node_id
 
     def move_point(self, node_id: str, x: float, y: float) -> None:
@@ -223,8 +227,14 @@ class StudioController:
         self._changed()
 
     def construct(self, op: str, args: list[Any], node_id: str | None = None) -> str:
-        """Apply one construction."""
-        self.push_undo()
+        """Apply one construction, or none of it.
+
+        A construction that cannot be evaluated is rolled back: a node
+        that is in the figure but has no value makes every later
+        evaluation fail, and the figure would be poisoned for good. A
+        refusal is a refusal, not a half-built object.
+        """
+        before = self._snapshot()
         if node_id is None:
             node_id = self._name_for(op)
         result = self.store.apply(
@@ -232,9 +242,18 @@ class StudioController:
         )
         if not result.ok:
             raise GeobenchError(result.errors[0] if result.errors else f"{op} failed")
-        self.evaluate()
-        self._changed()
+        try:
+            self.evaluate()
+        except GeobenchError:
+            self._restore(before)
+            raise
+        self.push_undo_past(before)
         return result.created[0] if result.created else ""
+
+    def push_undo_past(self, before: Snapshot) -> None:
+        """Record the state from before a change that has now succeeded."""
+        self._undo.append(before)
+        self._redo.clear()
 
     def _name_for(self, op: str) -> str | None:
         """The name a construction gives its result.

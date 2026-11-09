@@ -522,6 +522,10 @@ class FigureCanvas(QWidget):
         node_id = self._hit_object(px, py, _KIND_KINDS.get(arg.kind, (arg.kind,)))
         if node_id is None:
             return
+        if self._tool_args and self._tool_args[-1] == node_id:
+            # The same object twice in a row: a double click, not a
+            # second argument. A line through one point is not a line.
+            return
         self._tool_args.append(node_id)
         self._finish_or_ask()
 

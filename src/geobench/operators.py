@@ -911,7 +911,7 @@ def op_measure_slope(ctx: OpContext, args: list[str]) -> dict[str, object]:
     vertical line has no finite slope, and that is refused rather than
     dressed up as a large number.
     """
-    a, b, _ = ctx.line(args[0])
+    a, b, _ = ctx.as_line(args[0])
     if b == 0:
         raise DegenerateError("the line is vertical; its slope is not finite")
     return {
@@ -934,11 +934,11 @@ def op_measure_direction(ctx: OpContext, args: list[str]) -> dict[str, object]:
     way a teacher means it.
     """
     node = ctx.figure.node(args[0])
-    if len(node.args) >= 2:
+    if node.kind == "line" and len(node.args) >= 2:
         ax, ay = ctx.point(node.args[0])
         bx, by = ctx.point(node.args[1])
         return {"kind": "number", "value": (sp.atan2(by - ay, bx - ax) * 180 / sp.pi,)}
-    a, b, _ = ctx.line(args[0])
+    a, b, _ = ctx.as_line(args[0])
     return {"kind": "number", "value": (sp.atan2(-a, b) * 180 / sp.pi,)}
 
 
