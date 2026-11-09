@@ -47,8 +47,12 @@ def test_a_point_on_a_circle_is_on_the_circle(controller: StudioController) -> N
     _circle(controller)
     controller.construct("point.on_circle", ["w", "1/4"], "P")
     figure = controller.figure()
-    # A quarter turn from east: straight up from the centre.
-    assert figure.nodes["P"].placement == ("0", "4")
+    # A quarter turn from east: straight up from the centre. The
+    # placement is a display value, so it is a float and compared as one.
+    placement = figure.nodes["P"].placement
+    assert placement is not None
+    assert float(placement[0]) == pytest.approx(0.0, abs=1e-9)
+    assert float(placement[1]) == pytest.approx(4.0, abs=1e-9)
 
     controller.add_relation("point_in", ["P", "w"])
     verdicts = controller.judge("identity")

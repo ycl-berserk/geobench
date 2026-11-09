@@ -157,6 +157,31 @@ def format_float(value: float) -> str:
     return f"{value:.12g}"
 
 
+def point_on_circle(
+    figure: Figure, circle_id: str, parameter: str
+) -> tuple[float, float] | None:
+    """Where a point attached to a circle is, for the display.
+
+    The exact path knows the same thing symbolically; this is the fast
+    version, so that dragging a point along a circle costs a sin and a
+    cos instead of rebuilding -- and recompiling -- a symbolic
+    expression on every frame.
+    """
+    values = figure.node(circle_id).cache.get(CACHE_VALUES) or {}
+    circle = values.get("circle")
+    if not circle or len(circle) < 3:
+        return None
+    cx, cy, r2 = circle[0], circle[1], circle[2]
+    if r2 <= 0:
+        return None
+    t = placement_float(parameter)
+    if t is None:
+        return None
+    angle = 2 * math.pi * t
+    radius = math.sqrt(r2)
+    return (cx + radius * math.cos(angle), cy + radius * math.sin(angle))
+
+
 def placement_float(value: str) -> float | None:
     """A placement as a number, or None if it is not one.
 

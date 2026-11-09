@@ -272,8 +272,13 @@ class StudioController:
         if object_node is None or object_node.kind != "circle":
             raise GeobenchError(f"node {node_id!r} is attached to an object that cannot be dragged on")
         node.args = [target, parameter_on_circle(figure, target, x, y)]
-        self.evaluate()
-        self._changed()
+        # Only the numeric path: the exact expression is rebuilt once, on
+        # release, not on every frame of the drag.
+        evaluate_numeric(figure)
+        # A drag is a move, not a change: the steps pane updates the one
+        # row that changed, and the verdicts are settled on release. A
+        # proof request per frame would be a thread per frame.
+        self._moved(node_id)
 
     def parameter_on_circle(self, circle_id: str, x: float, y: float) -> str:
         """Where on a circle a click landed, as the parameter a point takes."""

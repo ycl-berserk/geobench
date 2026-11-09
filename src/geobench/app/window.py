@@ -775,11 +775,18 @@ class StudioWindow(QMainWindow):
         if row is not None:
             item = self.steps.item(row)
             node = self.controller.figure().nodes.get(node_id)
-            if item is not None and node is not None and node.role == "free":
-                placement = node.placement or ("?", "?")
-                tail = f"({_short(placement[0])}, {_short(placement[1])})"
-                item.setText(f"{item.data(HEAD_ROLE)}{tail}")
-                item.setData(TAIL_ROLE, tail)
+            if item is not None and node is not None:
+                tail = ""
+                if node.role == "free":
+                    placement = node.placement or ("?", "?")
+                    tail = f"({_short(placement[0])}, {_short(placement[1])})"
+                elif node.role == "attached" and node.op:
+                    command = by_id(node.op)
+                    call = command.name_zh if command is not None else node.op
+                    tail = f"= {call}({', '.join(node.args)})"
+                if tail:
+                    item.setText(f"{item.data(HEAD_ROLE)}{tail}")
+                    item.setData(TAIL_ROLE, tail)
         self.status.showMessage("拖动中——判定会在松手后更新")
 
     def _refresh_steps(self) -> None:
