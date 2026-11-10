@@ -71,6 +71,7 @@
 | [T027](T027-point-on-circle.md) | 圆上的点（贴点） | 内核 · DSL · 应用 | 已实现 | T026 |
 | [T028](T028-export-the-figure.md) | 导出图形（SVG / PNG / 剪贴板） | 内核 · 应用 | 已实现 | T024 |
 | [T029](T029-segments-are-first-class.md) | 线段是一等公民（垂线/平行线 + 线上的点 + 交点点出） | 内核 · DSL · 应用 | 已实现 | T027 |
+| [T030](T030-object-attributes.md) | 对象属性（隐藏 / 辅助线 / 右键菜单） | 内核 · DSL · 应用 | 已实现 | T021c |
 | [T026](T026-async-verdicts-and-select.md) | 判定搬到后台线程 + 选择工具 | 应用 | 已实现 | T021c |
 | [T025](T025-instant-canvas.md) | 画板即时呈现（数值路径只读缓存，拖动只走数值路径） | 图元 · 应用 | 已实现 | T021c |
 | [T024](T024-beautify-the-studio.md) | 界面重做：设计系统、矢量图标、卡片版面 | 应用 · 判定 | 已实现 | T021c |

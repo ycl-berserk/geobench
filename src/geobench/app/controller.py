@@ -301,6 +301,40 @@ class StudioController:
         """Two objects whose crossing is under the cursor, if any."""
         return intersection_near(self.figure(), x, y, tolerance)
 
+    def set_hidden(self, node_id: str, hidden: bool) -> None:
+        """Hide an object, or show it again.
+
+        A hidden object keeps its place in the construction: it still
+        exists, it still carries the proof, and it is still in the file.
+        It is only not drawn. That is what a teacher wants when the
+        scaffolding of the figure should not be in the paper.
+        """
+        figure = self.figure()
+        node = figure.nodes.get(node_id)
+        if node is None:
+            raise GeobenchError(f"unknown node id {node_id!r}")
+        self.push_undo()
+        node.style = replace(node.style, visible=not hidden)
+        self._changed()
+
+    def set_auxiliary(self, node_id: str, auxiliary: bool) -> None:
+        """Mark an object as auxiliary, or as part of the figure.
+
+        An auxiliary object supports the figure but is not part of the
+        problem's statement -- the altitude, the perpendicular
+        bisector, the auxiliary circle. Chinese competition papers draw
+        these dashed.
+        """
+        figure = self.figure()
+        node = figure.nodes.get(node_id)
+        if node is None:
+            raise GeobenchError(f"unknown node id {node_id!r}")
+        self.push_undo()
+        node.style = replace(
+            node.style, line_style="dashed" if auxiliary else "solid"
+        )
+        self._changed()
+
     def draggable(self, node_id: str) -> bool:
         """Can this node be dragged? Free points and points on an object."""
         node = self.figure().nodes.get(node_id)

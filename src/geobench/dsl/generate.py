@@ -64,6 +64,14 @@ def to_dsl(figure: Figure) -> str:
         assert node.op is not None
         lines.append(f"{node.id} = {_call(node.op, node.args)}")
 
+    # The attributes come last: they speak about objects that are
+    # already there.
+    for node in figure.nodes.values():
+        if not node.style.visible:
+            lines.append(f"\u9690\u85cf {node.id}")
+        if node.style.line_style == "dashed":
+            lines.append(f"\u8f85\u52a9 {node.id}")
+
     for relation in figure.relations:
         lines.append(_assertion(relation.kind, relation.args))
 

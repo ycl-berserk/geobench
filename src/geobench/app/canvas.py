@@ -27,7 +27,7 @@ from PySide6.QtGui import (
     QPen,
     QPolygonF,
 )
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QMenu, QWidget
 
 from geobench.app.controller import StudioController
 from geobench.app.theme import PALETTE
@@ -628,11 +628,45 @@ class FigureCanvas(QWidget):
         self.update()
 
     def contextMenuEvent(self, event) -> None:  # type: ignore[no-untyped-def]
-        """Right-click on a point: ask the window to delete it."""
-        node_id = self._hit_point(event.pos().x(), event.pos().y())
+        """Right-click on an object: what to do with it.
+
+        GeoGebra's object menu, with the three things a teacher needs
+        for a competition figure: delete it, hide it, or draw it dashed
+        because it is only there to support the figure.
+        """
+        position = event.pos()
+        node_id = self._hit_object(position.x(), position.y(), SELECTABLE_KINDS)
         if node_id is None:
             return
-        self.deleteRequested.emit(node_id)
+        menu = self._object_menu(node_id)
+        # The menu's own actions do the work; a dismissed menu does
+        # nothing at all.
+        menu.exec(event.globalPos())
+
+    def _object_menu(self, node_id: str) -> QMenu:
+        """The menu for one object.
+
+        It is built here, apart from the part that shows it, so that it
+        can be looked at without a modal menu in the way.
+        """
+        node = self.controller.figure().nodes.get(node_id)
+        menu = QMenu(self)
+        if node is None:
+            return menu
+        hidden = not node.style.visible
+        show_action = menu.addAction("\u663e\u793a" if hidden else "\u9690\u85cf")
+        dashed = node.style.line_style == "dashed"
+        line_action = menu.addAction("\u5b9e\u7ebf" if dashed else "\u865a\u7ebf")
+        menu.addSeparator()
+        delete_action = menu.addAction("\u5220\u9664")
+        show_action.triggered.connect(
+            lambda: self.controller.set_hidden(node_id, hidden)
+        )
+        line_action.triggered.connect(
+            lambda: self.controller.set_auxiliary(node_id, not dashed)
+        )
+        delete_action.triggered.connect(lambda: self.deleteRequested.emit(node_id))
+        return menu
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """The return key finishes a variable tool; Delete removes what is selected."""

@@ -33,7 +33,7 @@ text2graph layer above it.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from geobench.commands import (
     JUDGEMENT,
@@ -176,6 +176,12 @@ class Parser:
             return
         if head.is_keyword("断言"):
             self._parse_assertion(tokens)
+            return
+        if head.text in {"\u9690\u85cf", "Hide"}:
+            self._parse_attribute(tokens, hidden=True)
+            return
+        if head.text in {"\u8f85\u52a9", "Auxiliary"}:
+            self._parse_attribute(tokens, hidden=False)
             return
         if head.is_symbol("△"):
             self._parse_triangle(tokens)
@@ -343,6 +349,22 @@ class Parser:
         raise self._fail(token.span, f"未定义的对象 {name!r}")
 
     # -- 断言 命令(参数, ...) ----------------------------------------------
+
+    def _parse_attribute(self, tokens: list[Token], hidden: bool) -> None:
+        """\u9690\u85cf l -- the object is not drawn.  \u8f85\u52a9 l -- it is dashed."""
+        if len(tokens) != 2:
+            raise self._fail(
+                tokens[0].span,
+                "\u8fd9\u4e00\u884c\u5e94\u8be5\u662f\u4e00\u4e2a\u5bf9\u8c61\u7684\u540d\u5b57",
+            )
+        name = tokens[1].text
+        node = self.figure.nodes.get(name)
+        if node is None:
+            raise self._fail(tokens[1].span, f"\u6ca1\u6709\u53eb {name!r} \u7684\u5bf9\u8c61")
+        if hidden:
+            node.style = replace(node.style, visible=False)
+        else:
+            node.style = replace(node.style, line_style="dashed")
 
     def _parse_assertion(self, tokens: list[Token]) -> None:
         if len(tokens) < 2:

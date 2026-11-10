@@ -119,7 +119,7 @@ def test_deleting_a_relation_keeps_the_objects(
 def test_the_canvas_asks_for_a_point_to_be_deleted(
     app: QApplication, controller: StudioController
 ) -> None:
-    """A right click on a point emits the point's id."""
+    """The object's menu offers to delete it."""
     window = StudioWindow(controller)
     window.resize(900, 600)
     window.show()
@@ -128,19 +128,20 @@ def test_the_canvas_asks_for_a_point_to_be_deleted(
     controller.add_free_point(0, 0, "A")
     app.processEvents()
 
-    asked: list[str] = []
-    canvas.deleteRequested.connect(asked.append)
-    from PySide6.QtCore import QPoint as _QPoint
-    from PySide6.QtGui import QContextMenuEvent
 
     centre = canvas.rect().center()
-    event = QContextMenuEvent(
-        QContextMenuEvent.Reason.Mouse,
-        _QPoint(centre.x(), centre.y()),
-        canvas.mapToGlobal(_QPoint(centre.x(), centre.y())),
-    )
-    canvas.contextMenuEvent(event)
-    app.processEvents()
+    node_id = canvas._hit_object(centre.x(), centre.y(), ("point", "line", "segment", "circle", "polygon"))
+    assert node_id == "A"
 
+    menu = canvas._object_menu(node_id)
+    labels = [action.text() for action in menu.actions()]
+    assert "\u5220\u9664" in labels
+    assert "\u9690\u85cf" in labels
+
+    asked: list[str] = []
+    canvas.deleteRequested.connect(asked.append)
+    for action in menu.actions():
+        if action.text() == "\u5220\u9664":
+            action.trigger()
     assert asked == ["A"]
     window.close()
