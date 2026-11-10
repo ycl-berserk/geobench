@@ -445,6 +445,7 @@ GLYPHS: dict[str, str] = {
     "__select__": "select",
     "point.free": "point",
     "point.on_circle": "circle",
+    "point.on_line": "line",
     "point.midpoint": "midpoint",
     "point.centroid": "centroid",
     "point.circumcenter": "circumcenter",

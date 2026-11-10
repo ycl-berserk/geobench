@@ -177,6 +177,55 @@ def op_point_on_circle(ctx: OpContext, args: list[str]) -> dict[str, object]:
     }
 
 
+def op_point_on_line(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """A point attached to a line or a segment, at the parameter ``t``.
+
+    ``t`` is the *ratio* along the object: 0 is one end, 1 is the
+    other, 1/2 is the middle. A segment is measured between its own
+    two ends. A line is measured between the two points it was drawn
+    through; a line that was built rather than drawn has no such pair,
+    so it is measured along its own direction.
+
+    The parameter is part of the construction, so the point's
+    coordinates are an expression in the object's own symbols -- which
+    is what lets a judge prove that the point is on the line.
+    """
+    t = FIELD.coerce(args[1])
+    base, direction = _along_reference(ctx, args[0])
+    bx, by = base
+    dx, dy = direction
+    return {"coords": (bx + t * dx, by + t * dy)}
+
+
+def _along_reference(
+    ctx: OpContext, node_id: str
+) -> tuple[tuple[Expr, Expr], tuple[Expr, Expr]]:
+    """The base point and the direction that measure a parameter.
+
+    The same rule the numeric path uses, in symbols: a segment is
+    measured between its ends, a drawn line between the two points it
+    was drawn through, and a built line along its own direction.
+    """
+    node = ctx.figure.node(node_id)
+    if node.kind == "segment":
+        x1, y1, x2, y2 = ctx.segment(node_id)
+        if x1 == x2 and y1 == y2:
+            raise DegenerateError("the segment has no length")
+        return (x1, y1), (x2 - x1, y2 - y1)
+    drawn = [arg for arg in node.args if ctx.figure.node(arg).kind == "point"]
+    if len(drawn) == 2:
+        x1, y1 = ctx.point(drawn[0])
+        x2, y2 = ctx.point(drawn[1])
+        if x1 == x2 and y1 == y2:
+            raise DegenerateError("the line has no direction")
+        return (x1, y1), (x2 - x1, y2 - y1)
+    a, b, c = ctx.as_line(node_id)
+    denominator = a * a + b * b
+    if denominator == 0:
+        raise DegenerateError("the line has no direction")
+    return (-a * c / denominator, -b * c / denominator), (b, -a)
+
+
 def op_centroid(ctx: OpContext, args: list[str]) -> dict[str, object]:
     xs: list[Expr] = []
     ys: list[Expr] = []
@@ -366,13 +415,13 @@ def op_orthocenter(ctx: OpContext, args: list[str]) -> dict[str, object]:
 
 def op_perpendicular_through(ctx: OpContext, args: list[str]) -> dict[str, object]:
     px, py = ctx.point(args[0])
-    a, b, _ = ctx.line(args[1])
+    a, b, _ = ctx.as_line(args[1])
     return {"kind": "line", "line": _line_from_normal((px, py), (-b, a))}
 
 
 def op_parallel_through(ctx: OpContext, args: list[str]) -> dict[str, object]:
     px, py = ctx.point(args[0])
-    a, b, _ = ctx.line(args[1])
+    a, b, _ = ctx.as_line(args[1])
     return {"kind": "line", "line": _line_from_normal((px, py), (a, b))}
 
 
@@ -987,6 +1036,17 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="sympy.geometry:Triangle.centroid",
         ),
         op_centroid,
+    ),
+    (
+        OpSpec(
+            id="point.on_line",
+            kind="point",
+            args=(ArgSpec("line", "line"), ArgSpec("t", "scalar")),
+            returns="point",
+            degenerate_when=("the line has no direction",),
+            since="v1",
+        ),
+        op_point_on_line,
     ),
     (
         OpSpec(

@@ -664,16 +664,29 @@ class FigureCanvas(QWidget):
             self.select(node_id)
             return
         if tool.op == "point.free":
+            fx, fy = viewport.to_figure(px, py)
+            # Where two objects cross, the crossing itself: a point with
+            # no freedom of its own, not a free point that happens to
+            # be in the same place.
+            tolerance = GRAB_RADIUS_PX / viewport.scale
+            crossing = self.controller.intersection_near(fx, fy, tolerance)
+            if crossing is not None:
+                self.constructRequested.emit("point.intersect_lines", list(crossing))
+                return
             # Landing on a circle puts the point *on* it. A point that
             # lives on an object is a construction, not a promise kept by
             # dragging carefully -- and the judge can prove it.
             circle = self._hit_object(px, py, ("circle",))
             if circle is not None:
-                fx, fy = viewport.to_figure(px, py)
                 where = self.controller.parameter_on_circle(circle, fx, fy)
                 self.constructRequested.emit("point.on_circle", [circle, where])
                 return
-            fx, fy = viewport.to_figure(px, py)
+            # A line or a segment carries a point just as well.
+            line = self._hit_object(px, py, ("line", "segment"))
+            if line is not None:
+                where = self.controller.parameter_on_line(line, fx, fy)
+                self.constructRequested.emit("point.on_line", [line, where])
+                return
             self.controller.add_free_point(fx, fy)
             return
         arg = self._next_arg()
@@ -719,7 +732,7 @@ SELECTABLE_KINDS: tuple[str, ...] = ("point", "line", "segment", "ray", "circle"
 #: thing whether BC is drawn as a segment or as a line.
 _KIND_KINDS: dict[str, tuple[str, ...]] = {
     "point": ("point",),
-    "line": ("line", "segment", "ray"),
+    "line": ("line", "segment"),
     "segment": ("segment",),
     "circle": ("circle",),
     "polygon": ("polygon",),

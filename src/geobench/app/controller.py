@@ -33,6 +33,7 @@ from geobench.evaluate import (
 )
 from geobench.judges import IDENTITY, JudgeRegistry, Verdict, judge_relation
 from geobench.model import Figure, Node, Relation
+from geobench.numeric import intersection_near, parameter_on_line
 from geobench.operators import register_builtins
 from geobench.primitives import Primitive, figure_primitives
 from geobench.registry import OperatorRegistry
@@ -269,9 +270,17 @@ class StudioController:
             raise GeobenchError(f"node {node_id!r} is attached to nothing")
         target = node.args[0]
         object_node = figure.nodes.get(target)
-        if object_node is None or object_node.kind != "circle":
-            raise GeobenchError(f"node {node_id!r} is attached to an object that cannot be dragged on")
-        node.args = [target, parameter_on_circle(figure, target, x, y)]
+        if object_node is None:
+            raise GeobenchError(f"node {node_id!r} is attached to nothing")
+        if object_node.kind == "circle":
+            parameter = parameter_on_circle(figure, target, x, y)
+        elif object_node.kind in {"line", "segment"}:
+            parameter = parameter_on_line(figure, target, x, y)
+        else:
+            raise GeobenchError(
+                f"node {node_id!r} is attached to an object that cannot be dragged on"
+            )
+        node.args = [target, parameter]
         # Only the numeric path: the exact expression is rebuilt once, on
         # release, not on every frame of the drag.
         evaluate_numeric(figure)
@@ -283,6 +292,14 @@ class StudioController:
     def parameter_on_circle(self, circle_id: str, x: float, y: float) -> str:
         """Where on a circle a click landed, as the parameter a point takes."""
         return parameter_on_circle(self.figure(), circle_id, x, y)
+
+    def parameter_on_line(self, line_id: str, x: float, y: float) -> str:
+        """Where on a line or a segment a click landed, as the parameter."""
+        return parameter_on_line(self.figure(), line_id, x, y)
+
+    def intersection_near(self, x: float, y: float, tolerance: float) -> tuple[str, str] | None:
+        """Two objects whose crossing is under the cursor, if any."""
+        return intersection_near(self.figure(), x, y, tolerance)
 
     def draggable(self, node_id: str) -> bool:
         """Can this node be dragged? Free points and points on an object."""

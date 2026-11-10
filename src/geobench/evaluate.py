@@ -151,8 +151,12 @@ def evaluate_numeric(figure: Figure) -> Figure:
                 else:
                     node.cache[numeric.CACHE_VALUES] = {"coords": (x, y)}
             continue
-        if node.role == "attached" and node.op == "point.on_circle" and node.args:
-            position = numeric.point_on_circle(figure, node.args[0], node.args[1])
+        if node.role == "attached" and node.op and len(node.args) >= 2:
+            position: tuple[float, float] | None = None
+            if node.op == "point.on_circle":
+                position = numeric.point_on_circle(figure, node.args[0], node.args[1])
+            elif node.op == "point.on_line":
+                position = numeric.point_on_line(figure, node.args[0], node.args[1])
             if position is None:
                 node.cache[numeric.CACHE_UNDEFINED] = "the circle has no radius here"
                 node.cache.pop(numeric.CACHE_VALUES, None)

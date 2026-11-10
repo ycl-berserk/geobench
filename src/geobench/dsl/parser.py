@@ -499,6 +499,7 @@ _KIND_BY_COMMAND: dict[str, str] = {
     "point.circumcenter": POINT,
     "point.incenter": POINT,
     "point.orthocenter": POINT,
+    "point.on_line": POINT,
     "point.on_circle": POINT,
     "point.foot": POINT,
     "point.intersect_lines": POINT,

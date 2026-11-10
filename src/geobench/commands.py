@@ -136,6 +136,16 @@ COMMANDS: tuple[CommandSpec, ...] = (
     # -- 点 ---------------------------------------------------------------
     _c("point.free", "点", "Point", "点", CONSTRUCTION, 2, "自由点", True),
     _c(
+        "point.on_line",
+        "线上的点",
+        "PointOnLine",
+        "点",
+        CONSTRUCTION,
+        2,
+        "线或线段上指定位置的点",
+        True,
+    ),
+    _c(
         "point.on_circle",
         "圆上的点",
         "Point",

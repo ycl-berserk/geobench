@@ -182,6 +182,142 @@ def point_on_circle(
     return (cx + radius * math.cos(angle), cy + radius * math.sin(angle))
 
 
+def _numeric_coords(figure: Figure, node_id: str) -> tuple[float, float] | None:
+    """Where a point is, for the display."""
+    values = figure.node(node_id).cache.get(CACHE_VALUES) or {}
+    coords = values.get("coords")
+    if not coords or len(coords) < 2:
+        return None
+    return (float(coords[0]), float(coords[1]))
+
+
+def along_reference(
+    figure: Figure, node_id: str
+) -> tuple[tuple[float, float], tuple[float, float]] | None:
+    """The base point and the direction that measure a parameter.
+
+    The same rule the exact path uses: a segment is measured between
+    its ends, a drawn line between the two points it was drawn through,
+    and a built line along its own direction.
+    """
+    node = figure.node(node_id)
+    values = node.cache.get(CACHE_VALUES) or {}
+    if node.kind == "segment":
+        segment = values.get("segment")
+        if not segment or len(segment) < 4:
+            return None
+        x1, y1, x2, y2 = (float(v) for v in segment[:4])
+        if x1 == x2 and y1 == y2:
+            return None
+        return (x1, y1), (x2 - x1, y2 - y1)
+    drawn = [arg for arg in node.args if figure.node(arg).kind == "point"]
+    if len(drawn) == 2:
+        first = _numeric_coords(figure, drawn[0])
+        second = _numeric_coords(figure, drawn[1])
+        if first is None or second is None:
+            return None
+        if first == second:
+            return None
+        return first, (second[0] - first[0], second[1] - first[1])
+    line = values.get("line")
+    if not line or len(line) < 3:
+        return None
+    a, b, c = (float(v) for v in line[:3])
+    denominator = a * a + b * b
+    if denominator == 0:
+        return None
+    return (-a * c / denominator, -b * c / denominator), (b, -a)
+
+
+def point_on_line(
+    figure: Figure, node_id: str, parameter: str
+) -> tuple[float, float] | None:
+    """Where a point attached to a line or a segment is, for the display."""
+    reference = along_reference(figure, node_id)
+    if reference is None:
+        return None
+    (bx, by), (dx, dy) = reference
+    t = placement_float(parameter)
+    if t is None:
+        return None
+    return (bx + t * dx, by + t * dy)
+
+
+def parameter_on_line(figure: Figure, node_id: str, x: float, y: float) -> str:
+    """Where on a line or a segment a click landed, as the parameter.
+
+    On a segment the point stays on the segment: the parameter is
+    clamped to the two ends.
+    """
+    reference = along_reference(figure, node_id)
+    if reference is None:
+        return "0"
+    (bx, by), (dx, dy) = reference
+    denominator = dx * dx + dy * dy
+    if denominator == 0:
+        return "0"
+    t = ((x - bx) * dx + (y - by) * dy) / denominator
+    if figure.node(node_id).kind == "segment":
+        t = min(1.0, max(0.0, t))
+    return str(Fraction(t).limit_denominator(720))
+
+
+def supporting_line(
+    figure: Figure, node_id: str
+) -> tuple[float, float, float] | None:
+    """The coefficients of the line a line or a segment lies on."""
+    node = figure.node(node_id)
+    values = node.cache.get(CACHE_VALUES) or {}
+    if node.kind == "segment":
+        segment = values.get("segment")
+        if not segment or len(segment) < 4:
+            return None
+        x1, y1, x2, y2 = (float(v) for v in segment[:4])
+        return (y1 - y2, x2 - x1, x1 * y2 - x2 * y1)
+    line = values.get("line")
+    if not line or len(line) < 3:
+        return None
+    a, b, c = (float(v) for v in line[:3])
+    if a == 0 and b == 0:
+        return None
+    return (a, b, c)
+
+
+def intersection_near(
+    figure: Figure, x: float, y: float, tolerance: float
+) -> tuple[str, str] | None:
+    """Two objects whose crossing is under the cursor, if any.
+
+    Clicking where two lines cross should give their intersection --
+    a point with no freedom of its own -- and not a free point that
+    happens to be in the same place.
+    """
+    ids = [
+        node.id
+        for node in figure.nodes.values()
+        if node.kind in {"line", "segment"} and node.style.visible
+    ]
+    for index, first in enumerate(ids):
+        line1 = supporting_line(figure, first)
+        if line1 is None:
+            continue
+        for second in ids[index + 1 :]:
+            line2 = supporting_line(figure, second)
+            if line2 is None:
+                continue
+            a1, b1, c1 = line1
+            a2, b2, c2 = line2
+            det = a1 * b2 - a2 * b1
+            if abs(det) < 1e-12:
+                # Parallel or coincident: no single crossing.
+                continue
+            px = (b1 * c2 - b2 * c1) / det
+            py = (c1 * a2 - c2 * a1) / det
+            if math.hypot(px - x, py - y) <= tolerance:
+                return (first, second)
+    return None
+
+
 def placement_float(value: str) -> float | None:
     """A placement as a number, or None if it is not one.
 

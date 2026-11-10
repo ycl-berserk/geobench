@@ -189,7 +189,7 @@ class Figure:
     # -- mutation ---------------------------------------------------------
 
     #: The operators whose result is a point that lives on another object.
-    ATTACHING_OPS = frozenset({"point.on_circle"})
+    ATTACHING_OPS = frozenset({"point.on_circle", "point.on_line"})
 
     def add_node(self, node: Node) -> None:
         if node.role == DERIVED and node.op in self.ATTACHING_OPS:

@@ -423,6 +423,26 @@ def oracle_measure_angle(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
     return (triangle.angles[vertex] * 180 / sp.pi,)
 
 
+def oracle_point_on_line(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
+    """The point at a ratio along a segment, derived independently.
+
+    The kernel measures the parameter between the two ends of the
+    segment; this measures it the same way, from the ends themselves.
+    """
+    node = ctx.figure.node(args[0])
+    parameter = sp.Rational(args[1])
+    if node.kind == "segment":
+        x1, y1, x2, y2 = ctx.segment(args[0])
+    else:
+        drawn = [arg for arg in node.args if ctx.figure.node(arg).kind == "point"]
+        x1, y1 = ctx.point(drawn[0])
+        x2, y2 = ctx.point(drawn[1])
+    return (
+        x1 + parameter * (x2 - x1),
+        y1 + parameter * (y2 - y1),
+    )
+
+
 def oracle_point_on_circle(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
     """The point at a parameter on a circle, derived independently.
 
@@ -532,6 +552,7 @@ ORACLES = {
     "line.tangent": oracle_tangent,
     "point.intersect_circles": oracle_intersect_circles,
     "point.on_circle": oracle_point_on_circle,
+    "point.on_line": oracle_point_on_line,
     "point.nearest_on_object": oracle_nearest_on_object,
     "segment.free": oracle_segment_free,
     "circle.through": oracle_circle_through,
