@@ -22,7 +22,15 @@ from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
-from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QPoint, QSize, Qt, Signal
+from PySide6.QtCore import (
+    QModelIndex,
+    QPersistentModelIndex,
+    QPoint,
+    QSize,
+    Qt,
+    QTimer,
+    Signal,
+)
 from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -357,6 +365,11 @@ class StudioWindow(QMainWindow):
         self.canvas.valueRequested.connect(self._on_value_requested)
         self.canvas.selectionChanged.connect(self._on_selection)
 
+        self._playback_timer = QTimer(self)
+        self._playback_timer.setInterval(450)
+        self._playback_timer.timeout.connect(self._playback_tick)
+        self._playback_limit: int | None = None
+
         self.steps = QListWidget()
         self.steps.setToolTip("构造步骤：这张图是怎么一步步造出来的（右键删除）")
         self.steps.setItemDelegate(StepDelegate(self.steps))
@@ -409,7 +422,19 @@ class StudioWindow(QMainWindow):
         self.status = self.statusBar()
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(self._panel("构造", self.steps, "这张图是怎么造出来的"))
+        steps_box = QWidget()
+        steps_layout = QVBoxLayout(steps_box)
+        steps_layout.setContentsMargins(0, 0, 0, 0)
+        steps_layout.setSpacing(6)
+        steps_layout.addWidget(self._playback_buttons())
+        steps_layout.addWidget(self.steps)
+        splitter.addWidget(
+            self._panel(
+                "\u6784\u9020",
+                steps_box,
+                "\u8fd9\u5f20\u56fe\u662f\u600e\u4e48\u9020\u51fa\u6765\u7684",
+            )
+        )
         splitter.addWidget(self._panel("画板", self.canvas, "拖动自由点"))
         splitter.addWidget(self._panel("判定", self._judgement_panel(), "哪些说法成立"))
         splitter.setSizes([280, 560, 420])
@@ -646,6 +671,90 @@ class StudioWindow(QMainWindow):
             self.status.showMessage(f"复制失败：{exc}")
             return
         self.status.showMessage("SVG 源码已复制到剪贴板")
+
+    # -- the construction protocol, played ---------------------------------
+
+    def _playback_buttons(self) -> QWidget:
+        """The buttons that play the construction.
+
+        The construction protocol is the list of steps a teacher
+        already has on the left. These buttons play it back, so a
+        student can watch a figure being built.
+        """
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        play = QPushButton("\u64ad\u653e")
+        play.setToolTip("\u4e00\u6b65\u4e00\u6b65\u770b\u8fd9\u5f20\u56fe\u662f\u600e\u4e48\u9020\u51fa\u6765\u7684")
+        play.clicked.connect(self._play_construction)
+        step = QPushButton("\u5355\u6b65")
+        step.setToolTip("\u5f80\u4e0b\u8d70\u4e00\u6b65")
+        step.clicked.connect(self._step_forward)
+        stop = QPushButton("\u505c\u6b62")
+        stop.setToolTip("\u56de\u5230\u5b8c\u6574\u7684\u56fe")
+        stop.clicked.connect(self._stop_playback)
+        for button in (play, step, stop):
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            layout.addWidget(button)
+        layout.addStretch(1)
+        return row
+
+    def _construction_steps(self) -> list[str]:
+        """The construction steps, in the order they were made."""
+        return list(self.controller.figure().nodes)
+
+    def _play_construction(self) -> None:
+        """Watch the figure being built, one step at a time.
+
+        The steps are the ones already listed on the left; the picture
+        grows as they are reached. Nothing is rebuilt and nothing is
+        lost -- when the playback ends, the whole figure is there
+        again.
+        """
+        self._playback_limit = 0
+        self.canvas.set_playback_limit(0)
+        self._playback_timer.start()
+        self.status.showMessage("\u4e00\u6b65\u4e00\u6b65\u770b\u8fd9\u5f20\u56fe\u662f\u600e\u4e48\u9020\u51fa\u6765\u7684")
+
+    def _step_forward(self) -> None:
+        """One more step, on its own."""
+        self._playback_timer.stop()
+        steps = self._construction_steps()
+        limit = 0 if self._playback_limit is None else self._playback_limit
+        limit = min(limit + 1, len(steps))
+        self._playback_limit = limit
+        self.canvas.set_playback_limit(limit)
+        self._highlight_step(limit - 1)
+
+    def _stop_playback(self) -> None:
+        """The whole figure, again."""
+        self._playback_timer.stop()
+        self._playback_limit = None
+        self.canvas.set_playback_limit(None)
+        self.steps.clearSelection()
+
+    def _playback_tick(self) -> None:
+        """One more step of the construction."""
+        steps = self._construction_steps()
+        limit = 0 if self._playback_limit is None else self._playback_limit
+        if limit >= len(steps):
+            self._stop_playback()
+            self.status.showMessage("\u9020\u5b8c\u4e86")
+            return
+        limit += 1
+        self._playback_limit = limit
+        self.canvas.set_playback_limit(limit)
+        self._highlight_step(limit - 1)
+
+    def _highlight_step(self, index: int) -> None:
+        """Show which step the construction is at."""
+        steps = self._construction_steps()
+        if index < 0 or index >= len(steps):
+            return
+        row = self._step_rows.get(steps[index])
+        if row is not None:
+            self.steps.setCurrentRow(row)
 
     def _undo(self) -> None:
         if self.controller.undo():

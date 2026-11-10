@@ -106,6 +106,8 @@ class FigureCanvas(QWidget):
     def __init__(self, controller: StudioController, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.controller = controller
+        #: How many steps of the construction are drawn; None is all of them.
+        self._playback_limit: int | None = None
         self.setMinimumSize(360, 280)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -135,6 +137,15 @@ class FigureCanvas(QWidget):
         self._view = fit_view(self.controller.figure(), self.controller.style.padding)
         self._zoom = 1.0
         self._pan = (0.0, 0.0)
+        self.update()
+
+    def set_playback_limit(self, limit: int | None) -> None:
+        """Show only the first steps of the construction.
+
+        None means the whole figure, which is what the studio shows
+        while you are working on it.
+        """
+        self._playback_limit = limit
         self.update()
 
     def _viewport(self) -> Viewport:
@@ -174,7 +185,18 @@ class FigureCanvas(QWidget):
         painter.setClipPath(paper)
         self._draw_grid(painter, viewport)
 
-        for primitive in self.controller.primitives():
+        primitives = self.controller.primitives()
+        if self._playback_limit is not None:
+            # The playback shows the construction being built: only the
+            # steps up to the one being reached are drawn.
+            allowed = set(list(self.controller.figure().nodes)[: self._playback_limit])
+            primitives = [
+                primitive
+                for primitive in primitives
+                if not primitive.id or primitive.id in allowed
+            ]
+
+        for primitive in primitives:
             if isinstance(primitive, LinePrimitive):
                 self._draw_line(painter, viewport, primitive, style)
             elif isinstance(primitive, SegmentPrimitive):
