@@ -97,6 +97,7 @@ class FigureCanvas(QWidget):
 
     constructRequested = Signal(str, list)
     deleteRequested = Signal(str)
+    pointEditRequested = Signal(str)
     valueRequested = Signal(str)
     #: The selected object changed. The empty string means "nothing is
     #: selected any more".
@@ -587,6 +588,19 @@ class FigureCanvas(QWidget):
         if self._tool is not None:
             self._tool_click(px, py)
             return
+
+    def mouseDoubleClickEvent(self, event: object) -> None:
+        """A double click on a point: type its exact position.
+
+        Dragging puts a point near where the mouse was. A competition
+        figure wants it at exactly (3/2, 7/4), and the way to say that
+        is to type it.
+        """
+        position = event.position()  # type: ignore[attr-defined]
+        node_id = self._hit_point(position.x(), position.y())
+        if node_id is None:
+            return
+        self.pointEditRequested.emit(node_id)
 
     def mouseMoveEvent(self, event: object) -> None:
         position = event.position()  # type: ignore[attr-defined]

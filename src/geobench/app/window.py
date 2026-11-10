@@ -38,6 +38,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QInputDialog,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
@@ -212,6 +213,35 @@ class ObjectPicker(QDialog):
         return [combo.currentText() for combo in self.combos]
 
 
+class PointEditor(QDialog):
+    """Type the exact position of a point.
+
+    Two boxes, and what is typed is taken as the number it is: "1/2"
+    is one half, and "0.5" is the same one half.
+    """
+
+    def __init__(self, parent: QWidget, node_id: str, x: str, y: str) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(f"\u70b9 {node_id} \u7684\u4f4d\u7f6e")
+        self.setMinimumWidth(260)
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        self.x_edit = QLineEdit(x)
+        self.y_edit = QLineEdit(y)
+        form.addRow("x", self.x_edit)
+        form.addRow("y", self.y_edit)
+        layout.addLayout(form)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def position(self) -> tuple[str, str]:
+        return (self.x_edit.text(), self.y_edit.text())
+
+
 #: The roles the step delegate reads. The item's own text stays plain
 #: -- it is what the rest of the program and the tests read -- and the
 #: delegate draws the two parts in two tones.
@@ -323,6 +353,7 @@ class StudioWindow(QMainWindow):
         self.canvas = FigureCanvas(self.controller)
         self.canvas.constructRequested.connect(self._on_construct)
         self.canvas.deleteRequested.connect(self._delete_node)
+        self.canvas.pointEditRequested.connect(self._edit_point)
         self.canvas.valueRequested.connect(self._on_value_requested)
         self.canvas.selectionChanged.connect(self._on_selection)
 
@@ -815,6 +846,23 @@ class StudioWindow(QMainWindow):
             self.status.showMessage(f"构造失败：{exc}")
             return
         self.status.showMessage(f"{op}({', '.join(args)})")
+
+    def _edit_point(self, node_id: str) -> None:
+        """Let the user type the exact position of a point."""
+        node = self.controller.figure().nodes.get(node_id)
+        if node is None:
+            return
+        placement = node.placement or ("0", "0")
+        dialog = PointEditor(self, node_id, placement[0], placement[1])
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        text_x, text_y = dialog.position()
+        try:
+            self.controller.set_point_position(node_id, text_x, text_y)
+        except GeobenchError as exc:
+            self.status.showMessage(f"\u8fd9\u4e2a\u4f4d\u7f6e\u4e0d\u884c\uff1a{exc}")
+            return
+        self.status.showMessage(f"{node_id} \u632a\u5230\u4e86 ({text_x}, {text_y})")
 
     def _add_relation(self, spec: RelationSpec) -> None:
         """Let the user choose the objects the relation is about."""

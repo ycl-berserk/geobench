@@ -48,6 +48,19 @@ def _as_float(value: str) -> float:
     return float(Fraction(value))
 
 
+def _exact_text(text: str) -> str:
+    """A number the user typed, as the exact rational the kernel wants.
+
+    "1/2" is one half and "0.5" is the same one half: the kernel holds
+    no floats, and a figure a teacher typed is a figure they meant.
+    """
+    try:
+        value = Fraction(text.strip())
+    except (ValueError, ZeroDivisionError) as exc:
+        raise GeobenchError(f"{text!r} is not a number") from exc
+    return str(value)
+
+
 def _exact(value: float) -> str:
     """A coordinate as an exact rational.
 
@@ -300,6 +313,24 @@ class StudioController:
     def intersection_near(self, x: float, y: float, tolerance: float) -> tuple[str, str] | None:
         """Two objects whose crossing is under the cursor, if any."""
         return intersection_near(self.figure(), x, y, tolerance)
+
+    def set_point_position(self, node_id: str, x: str, y: str) -> None:
+        """Put a free point exactly where the user says.
+
+        The numbers are read as they are typed: a fraction stays a
+        fraction, and a decimal becomes the rational it stands for.
+        """
+        figure = self.figure()
+        node = figure.nodes.get(node_id)
+        if node is None:
+            raise GeobenchError(f"unknown node id {node_id!r}")
+        if node.role != "free":
+            raise GeobenchError(f"node {node_id!r} is not a free point")
+        placement = (_exact_text(x), _exact_text(y))
+        self.push_undo()
+        node.placement = placement
+        evaluate_numeric(figure)
+        self._moved(node_id)
 
     def set_hidden(self, node_id: str, hidden: bool) -> None:
         """Hide an object, or show it again.
