@@ -57,6 +57,7 @@ from PySide6.QtWidgets import (
 
 from geobench.app.canvas import FigureCanvas
 from geobench.app.controller import StudioController
+from geobench.app.export import copy_image, copy_svg_source, write_png, write_svg
 from geobench.app.icons import group_icon, tool_icon
 from geobench.app.theme import PALETTE, mono_font
 from geobench.app.tools import (
@@ -506,6 +507,21 @@ class StudioWindow(QMainWindow):
         save_as_action.triggered.connect(self._save_file_as)
         file_menu.addAction(save_as_action)
 
+        export_menu = file_menu.addMenu("导出")
+        export_svg_action = QAction("导出 SVG…", self)
+        export_svg_action.triggered.connect(self._export_svg)
+        export_menu.addAction(export_svg_action)
+        export_png_action = QAction("导出 PNG…", self)
+        export_png_action.triggered.connect(self._export_png)
+        export_menu.addAction(export_png_action)
+        export_menu.addSeparator()
+        copy_picture_action = QAction("复制图形到剪贴板", self)
+        copy_picture_action.triggered.connect(self._copy_picture)
+        export_menu.addAction(copy_picture_action)
+        copy_svg_action = QAction("复制 SVG 源码", self)
+        copy_svg_action.triggered.connect(self._copy_svg)
+        export_menu.addAction(copy_svg_action)
+
         edit_menu = menu.addMenu("编辑")
         undo_action = QAction("撤销", self)
         undo_action.setShortcut(QKeySequence.StandardKey.Undo)
@@ -515,6 +531,59 @@ class StudioWindow(QMainWindow):
         redo_action.setShortcut(QKeySequence.StandardKey.Redo)
         redo_action.triggered.connect(self._redo)
         edit_menu.addAction(redo_action)
+
+    def _export_svg(self) -> None:
+        """Write the figure to a file, as a vector picture.
+
+        A vector file is what a document wants: it stays sharp at any
+        size, and it can be opened and edited again.
+        """
+        path, _ = QFileDialog.getSaveFileName(
+            self, "导出 SVG", "图形.svg", "SVG 图片 (*.svg)"
+        )
+        if not path:
+            return
+        try:
+            write_svg(self.controller.figure(), self.controller.style, Path(path))
+        except OSError as exc:
+            self.status.showMessage(f"导出失败：{exc}")
+            return
+        self.status.showMessage("已导出 SVG")
+
+    def _export_png(self) -> None:
+        """Write the figure to a file, as a picture."""
+        path, _ = QFileDialog.getSaveFileName(
+            self, "导出 PNG", "图形.png", "PNG 图片 (*.png)"
+        )
+        if not path:
+            return
+        try:
+            write_png(self.controller.figure(), self.controller.style, Path(path))
+        except OSError as exc:
+            self.status.showMessage(f"导出失败：{exc}")
+            return
+        self.status.showMessage("已导出 PNG")
+
+    def _copy_picture(self) -> None:
+        """Put the figure on the clipboard, as a picture.
+
+        This is the ordinary way a figure reaches a Word document: paste.
+        """
+        try:
+            copy_image(self.controller.figure(), self.controller.style)
+        except OSError as exc:
+            self.status.showMessage(f"复制失败：{exc}")
+            return
+        self.status.showMessage("图形已复制到剪贴板，可以直接粘贴到 Word 里")
+
+    def _copy_svg(self) -> None:
+        """Put the SVG source on the clipboard, for a document that wants it."""
+        try:
+            copy_svg_source(self.controller.figure(), self.controller.style)
+        except OSError as exc:
+            self.status.showMessage(f"复制失败：{exc}")
+            return
+        self.status.showMessage("SVG 源码已复制到剪贴板")
 
     def _undo(self) -> None:
         if self.controller.undo():

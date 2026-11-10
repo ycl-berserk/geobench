@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from geobench.evaluate import numeric_circle, numeric_coords
@@ -36,6 +36,7 @@ from geobench.style import COMPETITION, PLAIN, FigureStyle, get_style
 
 __all__ = [
     "COMPETITION",
+    "FIGURE_WIDTH_CM",
     "PLAIN",
     "FigureStyle",
     "View",
@@ -188,6 +189,18 @@ def _fmt(value: float) -> str:
     return f"{value:.4f}".rstrip("0").rstrip(".")
 
 
+#: How wide the exported figure is, in centimetres, when it is printed.
+#: A competition figure is small: it sits in a column, next to the
+#: words that describe it. The sizes in the style are in points, and a
+#: point only means something next to a physical size -- so this is the
+#: size they mean.
+FIGURE_WIDTH_CM = 10.0
+
+#: Points in a centimetre. There are 72 points in an inch and 2.54
+#: centimetres in an inch.
+POINTS_PER_CM = 72.0 / 2.54
+
+
 def render_svg(
     figure: Figure,
     style: FigureStyle = COMPETITION,
@@ -200,8 +213,30 @@ def render_svg(
     backend draws too -- so the picture on the screen and the exported
     figure are the same picture (decision D20).
     """
+    given_view = view
     view = view or fit_view(figure, style.padding)
     scale = width_px / view.width if view.width else 1.0
+    # The style's sizes are points on paper; the picture is pixels. A
+    # stroke of a third of a point is a hairline on the screen and a
+    # hairline in the document too -- but a printed figure is a small
+    # thing on a big sheet of paper, and its lines have to look like
+    # lines. So the points are converted at the size the figure will be
+    # printed, and everything else follows from that.
+    px_per_point = width_px / (FIGURE_WIDTH_CM * POINTS_PER_CM)
+    style = replace(
+        style,
+        stroke_width=style.stroke_width * px_per_point,
+        auxiliary_stroke_width=style.auxiliary_stroke_width * px_per_point,
+        font_size=style.font_size * px_per_point,
+        label_offset=style.label_offset * px_per_point,
+    )
+    if given_view is None and scale:
+        # The labels are bigger on paper than the padding was drawn for,
+        # and a label that runs off the edge of the picture is a label
+        # lost. The picture is made big enough to hold them.
+        reach = (style.font_size + style.label_offset) / scale
+        view = fit_view(figure, style.padding + reach)
+        scale = width_px / view.width if view.width else 1.0
     height_px = round(view.height * scale)
 
     def tx(x: float) -> float:
