@@ -27,9 +27,11 @@ from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QButtonGroup,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
+    QFormLayout,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -67,7 +69,7 @@ from geobench.app.tools import (
     ToolSpec,
     build_toolbar,
 )
-from geobench.commands import by_id
+from geobench.commands import COMMANDS, JUDGEMENT, by_id
 from geobench.errors import GeobenchError
 from geobench.judges import IDENTITY, INSTANCE, Verdict
 
@@ -84,21 +86,26 @@ class RelationSpec:
     label: str
     arg_count: int
     hint: str
-    on_points: bool = True
+    arg_kinds: tuple[str, ...] = ()
+    """What each argument must be: point, line, circle, any."""
 
 
 #: The relations the window offers. The command table knows how many
 #: objects each one takes; this list only says which ones to put on the
 #: toolbar.
-RELATION_IDS: tuple[str, ...] = (
-    "collinear",
-    "concyclic",
-    "equal_length",
-    "perpendicular",
-    "parallel",
-    "circumcenter_of",
-    "orthocenter_of",
-)
+_KIND_CANDIDATES: dict[str, tuple[str, ...]] = {
+    "point": ("point",),
+    "line": ("line", "segment"),
+    "circle": ("circle",),
+    "any": ("point", "line", "segment", "circle", "polygon"),
+}
+
+_KIND_LABELS: dict[str, str] = {
+    "point": "\u70b9",
+    "line": "\u7ebf",
+    "circle": "\u5706",
+    "any": "\u5bf9\u8c61",
+}
 
 def _short(value: str) -> str:
     """A coordinate as short as it can be and still be exact enough to read.
@@ -116,31 +123,48 @@ def _short(value: str) -> str:
 
 
 def _relations() -> tuple[RelationSpec, ...]:
-    """The relation buttons, built from the command table."""
+    """The relation buttons, built from the command table.
+
+    Every relation the judges know is on the panel. The kernel can
+    check seventeen of them; the panel used to offer seven, and the
+    ones missing were the ones a competition problem leans on.
+    """
     specs: list[RelationSpec] = []
-    for kind in RELATION_IDS:
-        command = by_id(kind)
-        if command is None:
-            continue
-        on_points = command.arg_kinds[0] == "point" if command.arg_kinds else True
+    commands = [
+        command
+        for command in COMMANDS
+        if command.kind == JUDGEMENT and command.implemented
+    ]
+    # Two relations may share a name: 垂直 is both "these two lines are
+    # perpendicular" and "this point is perpendicular to this line".
+    # Two buttons with the same word on them are no help, so the ones
+    # that would collide say what they take.
+    names: dict[str, int] = {}
+    for command in commands:
+        names[command.name_zh] = names.get(command.name_zh, 0) + 1
+    for command in commands:
+        kinds = command.arg_kinds or ("point",) * command.arity
+        label = command.name_zh
+        if names[label] > 1:
+            label += "\uff08" + "\u00b7".join(
+                _KIND_LABELS.get(kind, kind) for kind in kinds
+            ) + "\uff09"
         specs.append(
             RelationSpec(
-                kind=kind,
-                label=command.name_zh,
+                kind=command.id,
+                label=label,
                 arg_count=command.arity,
-                hint=f"选 {command.arity} 个对象，检查{command.summary}",
-                on_points=on_points,
+                hint=(
+                    f"\u9009 {command.arity} \u4e2a\u5bf9\u8c61\uff08"
+                    + "\u3001".join(_KIND_LABELS.get(kind, kind) for kind in kinds)
+                    + f"\uff09\uff0c\u68c0\u67e5{command.summary}"
+                ),
+                arg_kinds=kinds,
             )
         )
     return tuple(specs)
 
-#: The relations the window can check.
-RELATIONS: tuple[RelationSpec, ...] = (
-    RelationSpec("collinear", "共线", 3, "选三个点，检查它们是否共线"),
-    RelationSpec("concyclic", "共圆", 4, "选四个点，检查它们是否共圆"),
-    RelationSpec("equal_length", "等长", 4, "选四个点，检查两条线段是否等长"),
-    RelationSpec("perpendicular", "垂直", 2, "选两条线，检查它们是否垂直", False),
-)
+
 
 #: The two scopes a judgement can have.
 SCOPE_LABELS = {
@@ -150,26 +174,33 @@ SCOPE_LABELS = {
 
 
 class ObjectPicker(QDialog):
-    """Choose the objects a relation is about.
+    """Choose the objects a relation is about, one slot per argument.
 
     The user picks the objects; the window never guesses. Picking "the
     first three points" would silently check a claim nobody made, which
     is the one thing this product must not do.
+
+    A relation is not a list of objects of one kind: the point-in-one
+    relation wants a point and then an object, the tangent relation
+    wants a line and then a circle. So every slot says what kind of
+    object it wants.
     """
 
     def __init__(
-        self, parent: QWidget, candidates: list[str], count: int, title: str
+        self, parent: QWidget, slots: list[tuple[str, list[str]]], title: str
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle(title)
-        self.setMinimumWidth(240)
+        self.setMinimumWidth(280)
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"选 {count} 个对象（按住 Ctrl 多选）"))
-        self.list = QListWidget()
-        self.list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        for candidate in candidates:
-            self.list.addItem(candidate)
-        layout.addWidget(self.list)
+        form = QFormLayout()
+        self.combos: list[QComboBox] = []
+        for index, (kind_label, candidates) in enumerate(slots, 1):
+            combo = QComboBox()
+            combo.addItems(candidates)
+            form.addRow(f"{index}. {kind_label}", combo)
+            self.combos.append(combo)
+        layout.addLayout(form)
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -178,7 +209,7 @@ class ObjectPicker(QDialog):
         layout.addWidget(buttons)
 
     def chosen(self) -> list[str]:
-        return [item.text() for item in self.list.selectedItems()]
+        return [combo.currentText() for combo in self.combos]
 
 
 #: The roles the step delegate reads. The item's own text stays plain
@@ -788,22 +819,19 @@ class StudioWindow(QMainWindow):
     def _add_relation(self, spec: RelationSpec) -> None:
         """Let the user choose the objects the relation is about."""
         figure = self.controller.figure()
-        if spec.on_points:
+        slots: list[tuple[str, list[str]]] = []
+        for kind in spec.arg_kinds:
+            accepted = _KIND_CANDIDATES.get(kind, (kind,))
             candidates = [
-                node.id for node in figure.nodes.values() if node.kind == "point"
+                node.id for node in figure.nodes.values() if node.kind in accepted
             ]
-        else:
-            candidates = [
-                node.id
-                for node in figure.nodes.values()
-                if node.kind in {"line", "segment"}
-            ]
-        if len(candidates) < spec.arg_count:
+            slots.append((_KIND_LABELS.get(kind, kind), candidates))
+        if any(not candidates for _label, candidates in slots):
             self.status.showMessage(
                 f"图里还没有足够的对象来检查这个关系（需要 {spec.arg_count} 个）"
             )
             return
-        picker = ObjectPicker(self, candidates, spec.arg_count, f"检查{spec.label}")
+        picker = ObjectPicker(self, slots, f"\u68c0\u67e5{spec.label}")
         if picker.exec() != QDialog.DialogCode.Accepted:
             self.status.showMessage("没选对象，关系没加上")
             return
@@ -1103,7 +1131,6 @@ def _verdict_text(verdict: str) -> str:
 
 
 __all__ = [
-    "RELATIONS",
     "ObjectPicker",
     "RelationSpec",
     "StudioWindow",
