@@ -66,6 +66,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from geobench.ai import OpenAICompatibleProvider
+from geobench.app.ai_panel import AIPanel
 from geobench.app.canvas import FigureCanvas
 from geobench.app.controller import StudioController
 from geobench.app.export import copy_image, copy_svg_source, write_png, write_svg
@@ -889,6 +891,11 @@ class StudioWindow(QMainWindow):
         fit_action.triggered.connect(self.canvas.fit)
         toolbar.addAction(fit_action)
 
+        ai_action = QAction("AI 作图", self)
+        ai_action.setToolTip("用一句话说你要什么图")
+        ai_action.triggered.connect(self._open_ai_panel)
+        toolbar.addAction(ai_action)
+
     # -- interaction -------------------------------------------------------
 
     def _arm(self, tool: ToolSpec, group: ToolGroup | None = None) -> None:
@@ -955,6 +962,33 @@ class StudioWindow(QMainWindow):
             self.status.showMessage(f"构造失败：{exc}")
             return
         self.status.showMessage(f"{op}({', '.join(args)})")
+
+    def _open_ai_panel(self) -> None:
+        """Ask the model for a figure.
+
+        The model writes the DSL; the parser decides whether it is a
+        figure. Nothing the model says can put wrong geometry on the
+        canvas: either the parser accepts the text, or the panel shows
+        why it refused.
+        """
+        provider = OpenAICompatibleProvider.from_environment()
+        panel = AIPanel(
+            self,
+            provider,
+            self.controller.registry,
+            self.controller.to_text(),
+        )
+        if panel.exec() != QDialog.DialogCode.Accepted:
+            return
+        text = panel.accepted_figure()
+        if not text.strip():
+            return
+        try:
+            self.controller.load_text(text)
+        except Exception as exc:
+            self.status.showMessage(f"这张图画不出来：{exc}")
+            return
+        self.status.showMessage("AI 画的图已经放到画板上了")
 
     def _edit_point(self, node_id: str) -> None:
         """Let the user type the exact position of a point."""
