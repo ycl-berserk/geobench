@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QDialogButtonBox
 
 #: The families to try, in order. The first one the system has wins.
 FONT_CANDIDATES: tuple[str, ...] = (
@@ -425,3 +425,33 @@ def apply_theme(app: QApplication) -> None:
     app.setFont(ui_font())
     app.setPalette(palette())
     app.setStyleSheet(PALETTE.stylesheet())
+
+
+#: The words on a dialog's buttons, in the studio's language.
+#:
+#: Qt writes "OK" and "Cancel" in English whatever the system's
+#: language is, which in a Chinese-primary program reads as a mistake
+#: rather than as a choice. One table, used everywhere.
+BUTTON_WORDS: dict[str, str] = {
+    "Ok": "确定",
+    "Cancel": "取消",
+    "Yes": "是",
+    "No": "否",
+    "Close": "关闭",
+    "Save": "保存",
+    "Apply": "应用",
+    "Help": "帮助",
+}
+
+
+def button_words(box: QDialogButtonBox) -> None:
+    """Give a dialog's buttons their Chinese words.
+
+    ``QDialogButtonBox`` knows the *meaning* of each button but not
+    what to call it, and its own answers are English. This walks the
+    standard buttons and names them.
+    """
+    for standard, word in BUTTON_WORDS.items():
+        button = box.button(QDialogButtonBox.StandardButton[standard])
+        if button is not None:
+            button.setText(word)

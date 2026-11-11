@@ -14,12 +14,17 @@ wrong picture.
 Nothing here is in the kernel either: the kernel has no model in it
 (decision D4). This module is the service layer, and it can be turned
 off without the studio noticing.
+
+**Where the key comes from is not decided here.** This module is the
+transport: it speaks the OpenAI chat API, whoever that is. The policy
+-- environment first, then the key file, then the app's own settings --
+lives in ``geobench.ai_settings``, so that there is exactly one place
+that knows the answer.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -71,30 +76,6 @@ class OpenAICompatibleProvider:
     api_key: str = ""
     timeout: float = 60
     name: str = "openai-compatible"
-
-    @classmethod
-    def from_environment(cls) -> OpenAICompatibleProvider | None:
-        """The provider the environment asks for, if it asks for one.
-
-        The environment names the service, the model and the key:
-
-            GEOBENCH_AI_BASE_URL  the service's address
-            GEOBENCH_AI_MODEL     the model to ask
-            GEOBENCH_AI_API_KEY   the key
-
-        Without all three there is no provider, and the studio says so
-        rather than pretending.
-        """
-        model = os.environ.get("GEOBENCH_AI_MODEL", "").strip()
-        key = os.environ.get("GEOBENCH_AI_API_KEY", "").strip()
-        if not model or not key:
-            return None
-        base_url = os.environ.get("GEOBENCH_AI_BASE_URL", "").strip()
-        return cls(
-            model=model,
-            base_url=base_url or "https://api.openai.com/v1",
-            api_key=key,
-        )
 
     def complete(self, system: str, user: str) -> str:
         """Ask the model, and return what it said."""

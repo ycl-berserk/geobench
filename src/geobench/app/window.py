@@ -66,13 +66,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from geobench.ai import OpenAICompatibleProvider
+from geobench.ai_settings import resolve_provider
 from geobench.app.ai_panel import AIPanel
 from geobench.app.canvas import FigureCanvas
 from geobench.app.controller import StudioController
 from geobench.app.export import copy_image, copy_svg_source, write_png, write_svg
 from geobench.app.icons import group_icon, tool_icon
-from geobench.app.theme import PALETTE, mono_font
+from geobench.app.settings_dialog import SettingsDialog
+from geobench.app.theme import PALETTE, button_words, mono_font
 from geobench.app.tools import (
     POINT_TOOL,
     SELECT_TOOL,
@@ -215,6 +216,7 @@ class ObjectPicker(QDialog):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        button_words(buttons)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -244,6 +246,7 @@ class PointEditor(QDialog):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        button_words(buttons)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -611,6 +614,12 @@ class StudioWindow(QMainWindow):
         copy_svg_action.triggered.connect(self._copy_svg)
         export_menu.addAction(copy_svg_action)
 
+        settings_menu = menu.addMenu("设置")
+        service_action = QAction("模型服务…", self)
+        service_action.setToolTip("选择模型服务，并告诉它钥匙在哪")
+        service_action.triggered.connect(self._open_settings)
+        settings_menu.addAction(service_action)
+
         edit_menu = menu.addMenu("编辑")
         undo_action = QAction("撤销", self)
         undo_action.setShortcut(QKeySequence.StandardKey.Undo)
@@ -971,13 +980,15 @@ class StudioWindow(QMainWindow):
         canvas: either the parser accepts the text, or the panel shows
         why it refused.
         """
-        provider = OpenAICompatibleProvider.from_environment()
+        resolution = resolve_provider()
         panel = AIPanel(
             self,
-            provider,
+            resolution.provider,
             self.controller.registry,
             self.controller.to_text(),
+            resolution,
         )
+        panel.configure_requested.connect(lambda: self._configure_service(panel))
         if panel.exec() != QDialog.DialogCode.Accepted:
             return
         text = panel.accepted_figure()
@@ -989,6 +1000,26 @@ class StudioWindow(QMainWindow):
             self.status.showMessage(f"这张图画不出来：{exc}")
             return
         self.status.showMessage("AI 画的图已经放到画板上了")
+
+    def _open_settings(self) -> None:
+        """Say which model service to talk to, and where the key is."""
+        dialog = SettingsDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self.status.showMessage("模型服务设置已保存")
+
+    def _configure_service(self, panel: AIPanel) -> None:
+        """Set the model service up, from inside the AI panel.
+
+        The panel asks for it because that is where the user finds out
+        that there is no service to talk to -- so the way out of that
+        has to be right there.
+        """
+        dialog = SettingsDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        resolution = resolve_provider()
+        panel.set_provider(resolution.provider, resolution)
 
     def _edit_point(self, node_id: str) -> None:
         """Let the user type the exact position of a point."""

@@ -6,6 +6,13 @@ refused, the refusal is on the screen with its reason -- because a
 refusal is the honest answer, and hiding it would only move the
 problem somewhere less visible.
 
+It also says **where the model service comes from**, because "it does
+not work" is not an answer, and neither is "check your environment
+variables" to somebody who does not know what an environment variable
+is. When there is no service to talk to, the panel offers the settings
+dialog, which knows how to look at the environment, at a key file, and
+at what the user typed.
+
 The model is called on a background thread. The studio's rule has
 never been that the screen waits for anything, and a model that takes
 ten seconds is no different from a judge that takes ten seconds.
@@ -28,6 +35,8 @@ from PySide6.QtWidgets import (
 )
 
 from geobench.ai import Provider, propose
+from geobench.ai_settings import Resolution
+from geobench.app.theme import button_words
 from geobench.errors import GeobenchError
 from geobench.registry import OperatorRegistry
 
@@ -40,12 +49,16 @@ class AIPanel(QDialog):
     #: The model answered: the text, and the parser's complaint (or "").
     answered = Signal(str, str)
 
+    #: The user wants to set up the model service.
+    configure_requested = Signal()
+
     def __init__(
         self,
         parent: QWidget,
         provider: Provider | None,
         registry: OperatorRegistry,
         current_dsl: str = "",
+        resolution: Resolution | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("AI 作图")
@@ -74,6 +87,10 @@ class AIPanel(QDialog):
         self.ask_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.ask_button.clicked.connect(self._ask)
         row.addWidget(self.ask_button)
+        self.settings_button = QPushButton("设置模型服务…")
+        self.settings_button.setToolTip("换个模型服务，或者告诉它钥匙在哪")
+        self.settings_button.clicked.connect(self.configure_requested.emit)
+        row.addWidget(self.settings_button)
         row.addStretch(1)
         layout.addLayout(row)
 
@@ -88,6 +105,7 @@ class AIPanel(QDialog):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        button_words(buttons)
         self.ok_button = buttons.button(QDialogButtonBox.StandardButton.Ok)
         self.ok_button.setText("在画板上作图")
         self.ok_button.setEnabled(False)
@@ -95,14 +113,34 @@ class AIPanel(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
+        self.set_provider(provider, resolution)
+
+    # -- the service -------------------------------------------------------
+
+    def set_provider(
+        self, provider: Provider | None, resolution: Resolution | None = None
+    ) -> None:
+        """Point the panel at a model service, and say where it came from."""
+        self._provider = provider
         if provider is None:
             self.ask_button.setEnabled(False)
             self.status_label.setText(
-                "没有找到模型服务。设置环境变量 GEOBENCH_AI_MODEL 和 "
-                "GEOBENCH_AI_API_KEY（可选 GEOBENCH_AI_BASE_URL）后再来。"
+                "没有找到模型服务。可以点「设置模型服务…」——"
+                "它会先看你这台机器上已有的环境变量，再让你填。"
             )
-        else:
-            self.status_label.setText(f"模型：{provider.name}")
+            return
+        self.ask_button.setEnabled(True)
+        self.status_label.setText(f"模型：{provider.name}{self._source_text(resolution)}")
+
+    def _source_text(self, resolution: Resolution | None) -> str:
+        """Say where the key came from, in one clause."""
+        if resolution is None or not resolution.source_kind:
+            return ""
+        if resolution.source_kind == "env":
+            return f"（密钥来自环境变量 {resolution.source_name}）"
+        if resolution.source_kind == "file":
+            return f"（密钥来自密钥文件 {resolution.source_name}）"
+        return ""
 
     # -- asking -------------------------------------------------------------
 
