@@ -44,6 +44,12 @@ class Field(Protocol):
     def simplify_to_zero(self, value: ExprLike) -> bool:
         """Return True only if ``value`` is provably the zero expression."""
 
+    def zero_status(self, value: ExprLike) -> bool | None:
+        """Whether the value is the zero expression -- and whether we know."""
+
+    def has_zero_divisor(self, value: ExprLike) -> bool:
+        """Whether the value divides by something that vanishes identically."""
+
     def to_float(self, value: ExprLike) -> float:
         """Display-only approximation. The single place floats may appear."""
 
@@ -124,6 +130,67 @@ class SympyField:
     def sqrt(self, a: ExprLike) -> Expr:
         return sp.sqrt(self.coerce(a))
 
+    def zero_status(self, value: ExprLike) -> bool | None:
+        """Whether this expression is the zero expression -- and whether we know.
+        ``True``   the expression is provably the zero expression;
+        ``False``  the expression is provably *not* zero;
+        ``None``   the expression is not a rational function of its free
+                   symbols, so the question has no cheap answer.
+
+        This is the cheap *complete* test.  For a rational function of the
+        free symbols, "is the numerator the zero polynomial" is a
+        decision, not a search -- so unlike :meth:`simplify_to_zero` this
+        needs no fallback on ``simplify`` and its unbounded cost, and the
+        answer it gives is final.
+        """
+        expr = self.coerce(value)
+        if expr == 0:
+            return True
+        symbols = sorted(expr.free_symbols, key=str)
+        if not symbols:
+            # A plain number: it is zero, or it is not.
+            return bool(expr == 0)
+        if sp.count_ops(expr) > self.identity_budget_ops:
+            return None
+        try:
+            numerator, denominator = sp.fraction(sp.together(expr))
+        except Exception:  # pragma: no cover - sympy internal failure
+            return None
+        try:
+            num_poly = sp.Poly(numerator, *symbols, domain=sp.QQ)
+            den_poly = sp.Poly(denominator, *symbols, domain=sp.QQ)
+        except Exception:  # pragma: no cover - not a rational function
+            return None
+        if den_poly.is_zero:
+            # The denominator vanishes identically: the expression has no
+            # value anywhere, so it is not the zero expression.
+            return False
+        return bool(num_poly.is_zero)
+
+    def has_zero_divisor(self, value: ExprLike) -> bool:
+        """Does this expression divide by something that is identically zero?
+
+        A relation that rests on such a division has no value *anywhere*.
+        The construction under it -- the intersection of two lines that are
+        always parallel, say -- produces nothing, so the relation built on
+        it is not "true" and not "false": it is meaningless, and the
+        kernel must say so rather than prove it.
+
+        The check is on the divisor itself, not on the quotient: a base
+        that vanishes identically makes every negative power of it vanish
+        too.
+        """
+        expr = self.coerce(value)
+        for node in sp.preorder_traversal(expr):
+            if not isinstance(node, sp.Pow):
+                continue
+            exponent = node.exp
+            if not (exponent.is_Integer and exponent.is_negative):
+                continue
+            if self.zero_status(node.base) is True:
+                return True
+        return False
+
     def simplify_to_zero(self, value: ExprLike) -> bool:
         """Return True only when ``value`` is provably the zero expression.
 
@@ -158,9 +225,16 @@ class SympyField:
         symbols = sorted(expr.free_symbols, key=str)
         if symbols:
             try:
-                numerator, _ = sp.fraction(sp.together(expr))
+                numerator, denominator = sp.fraction(sp.together(expr))
             except Exception:  # pragma: no cover - sympy internal failure
-                numerator = expr
+                numerator, denominator = expr, sp.Integer(1)
+            if self._is_zero_polynomial(denominator, symbols):
+                # The expression is a rational function whose denominator
+                # vanishes identically: it has no value *anywhere*, so it
+                # cannot be the zero expression.  Without this guard, 0/0
+                # would pass for 0 -- and a relation that has no meaning
+                # would be reported as proved.
+                return False
             if sp.count_ops(numerator) <= self.identity_budget_ops:
                 try:
                     if sp.Poly(numerator, *symbols, domain=sp.QQ).is_zero:
@@ -186,6 +260,19 @@ class SympyField:
         if verdict is None:
             return False
         return bool(verdict)
+
+    @staticmethod
+    def _is_zero_polynomial(expression: Expr, symbols: list[sp.Symbol]) -> bool:
+        """Is this expression the zero polynomial in these symbols?
+
+        An expression that is not a polynomial in them at all -- because it
+        has a square root in it, say -- is not the zero polynomial; the
+        answer is "no", not "I do not know".
+        """
+        try:
+            return bool(sp.Poly(expression, *symbols, domain=sp.QQ).is_zero)
+        except Exception:  # pragma: no cover - not a polynomial after all
+            return False
 
     def to_float(self, value: ExprLike) -> float:
         return float(sp.N(self.coerce(value)))

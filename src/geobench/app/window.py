@@ -966,11 +966,29 @@ class StudioWindow(QMainWindow):
 
     def _on_construct(self, op: str, args: list[str]) -> None:
         try:
-            self.controller.construct(op, args)
+            node_id = self.controller.construct(op, args)
         except GeobenchError as exc:
             self.status.showMessage(f"构造失败：{exc}")
             return
+        missing = self._missing_reason(node_id)
+        if missing is not None:
+            # The construction went through, but what it built has no
+            # value: the two lines are parallel, the circle has no
+            # radius, the point is not on the circle.  The teacher needs
+            # to hear that now, not discover an empty corner of the
+            # drawing later.
+            self.status.showMessage(
+                _NO_VALUE_ZH.format(name=node_id, reason=_undefined_text(missing))
+            )
+            return
         self.status.showMessage(f"{op}({', '.join(args)})")
+
+    def _missing_reason(self, node_id: str) -> str | None:
+        """Why this object has no value, if it has none."""
+        for name, reason in self.controller.undefined():
+            if name == node_id:
+                return reason
+        return None
 
     def _open_ai_panel(self) -> None:
         """Ask the model for a figure.
@@ -998,6 +1016,18 @@ class StudioWindow(QMainWindow):
             self.controller.load_text(text)
         except Exception as exc:
             self.status.showMessage(f"这张图画不出来：{exc}")
+            return
+        missing = [
+            f"{name}（{_undefined_text(reason)}）"
+            for name, reason in self.controller.undefined()
+        ]
+        if missing:
+            # The figure is on the screen, but part of it could not be
+            # built.  Saying so is the difference between a figure the
+            # teacher can trust and one they have to check themselves.
+            self.status.showMessage(
+                "图已经放到画板上了，但有对象没有值：" + "；".join(missing)
+            )
             return
         self.status.showMessage("AI 画的图已经放到画板上了")
 
@@ -1139,7 +1169,7 @@ class StudioWindow(QMainWindow):
             item.setData(TAIL_ROLE, tail)
             self._step_rows[node_id] = self.steps.count()
             if node_id in undefined:
-                item.setToolTip(f"在这个摆放下没有值：{undefined[node_id]}")
+                item.setToolTip(f"在这个摆放下没有值：{_undefined_text(undefined[node_id])}")
                 item.setData(TAIL_ROLE, f"{tail}  （这个摆放下没有值）")
             self.steps.addItem(item)
         for relation in figure.relations:
@@ -1322,12 +1352,53 @@ _EVIDENCE_ZH: tuple[tuple[str, str], ...] = (
         "the expression reduces to 0 identically:",
         "表达式恒等于 0：",
     ),
+    (
+        "the configuration is degenerate:",
+        "这张图的摆下图退化：",
+    ),
+    (
+        "every sampled placement was degenerate:",
+        "所有采样的摆下图都是退化的：",
+    ),
     ("substitution failed:", "代入失败："),
 )
+
+#: Why an object has no value, in the teacher's language.  The kernel
+#: names the condition that failed; the classroom needs the reason.
+_UNDEFINED_ZH: dict[str, str] = {
+    "parallel_lines": "两条直线平行，没有交点",
+    "discriminant": "判别式为零（退化）",
+    "determinant": "行列式为零（退化）",
+    "point_on_circle": "这个点不在圆上",
+    "b": "分母为零（退化）",
+    "no value at this placement": "在这个摆放下没有值",
+    "the two lines are parallel; there is no intersection": "两条直线平行，没有交点",
+    "the construction divides by something that vanishes identically": "构造里出现恒为零的除数",
+}
+
+#: The kernel says why an object is missing in its own words; the window
+#: says it in the language of the classroom.
+_NO_VALUE_ZH = "对象 {name} 没有值：{reason}"
+
+
+def _undefined_text(reason: str) -> str:
+    """Why an object has no value, in Chinese."""
+    return _UNDEFINED_ZH.get(reason, reason)
 
 _SAMPLES_ZH = re.compile(
     r"the relation holds in all (\d+) samples but the expression did not reduce "
     r"to 0 identically \(size (\d+) ops\): (.*)"
+)
+
+#: "node 'P' has no value: ..." -- an object the construction could not
+#: make at all.
+_NO_VALUE_EVIDENCE = re.compile(r"^node '(?P<name>[^']+)' has no value: (?P<reason>.*)$")
+
+#: "the configuration is degenerate: P has no value here (parallel_lines)"
+#: -- an object the configuration could not make *here*.
+_DEGENERATE_EVIDENCE = re.compile(
+    r"^the configuration is degenerate: (?P<name>\S+) has no value here "
+    r"\((?P<reason>[^)]*)\)$"
 )
 
 
@@ -1337,6 +1408,13 @@ def _evidence_text(evidence: str) -> str:
     if match is not None:
         count, size, expression = match.groups()
         return f"在全部 {count} 个样本里都成立，但表达式没能化简成恒等于 0（{size} 个运算）：{expression}"
+    match = _NO_VALUE_EVIDENCE.match(evidence)
+    if match is not None:
+        return f"对象 {match.group('name')} 没有值：{_undefined_text(match.group('reason'))}"
+    match = _DEGENERATE_EVIDENCE.match(evidence)
+    if match is not None:
+        name = match.group("name")
+        return f"这张图的摆下图退化：{name} 没有值（{_undefined_text(match.group('reason'))}）"
     for english, chinese in _EVIDENCE_ZH:
         if evidence.startswith(english):
             return chinese + evidence[len(english) :].strip()

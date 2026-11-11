@@ -41,6 +41,17 @@ from geobench.registry import OperatorRegistry
 #: The cache key holding a node's evaluation signature.
 CACHE_SIGNATURE = "signature"
 
+#: The cache key holding the reason a node has *no value at all*.
+#:
+#: Most objects that are missing are missing because *this placement* is
+#: degenerate -- a circle through three points that happen to be collinear
+#: right now.  Those are found by the numeric path.  This key is for the
+#: other case: a construction that can never produce an object, whatever
+#: the placement -- the intersection of two lines that are always parallel,
+#: for instance.  The operator says so, and the reason is kept so that
+#: the screen can tell the teacher *why* the object is not there.
+CACHE_NO_VALUE = "no_value"
+
 
 def free_symbols(figure: Figure) -> dict[sp.Symbol, Expr]:
     """Map every free point's symbols to its numeric placement."""
@@ -123,9 +134,43 @@ def evaluate_exact(figure: Figure, registry: OperatorRegistry) -> Figure:
             coords = result["coords"]
             assert isinstance(coords, tuple)
             node.coords = (str(coords[0]), str(coords[1]))
+            node.cache.pop(CACHE_NO_VALUE, None)
+        elif "no_value" in result:
+            # The construction produces no object at all.  The node has no
+            # coordinates, and it keeps the reason the operator gave --
+            # otherwise the next question ("why is there no point here?")
+            # would have no answer.
+            node.coords = None
+        elif _divides_by_nothing(result):
+            # The construction divides by something that vanishes
+            # identically: whatever it computes, it computes nowhere.
+            # The intersection of two lines that are always parallel is
+            # the standard case.  The object therefore has no value --
+            # not here, but ever -- and the figure says so rather than
+            # carrying a 0/0 around (decision D19).
+            numeric.clear_payload(node)
+            node.coords = None
+            node.cache[CACHE_NO_VALUE] = (
+                "the construction divides by something that vanishes identically"
+            )
         numeric.compile_node(node, symbols)
         numeric.compile_conditions(node, symbols)
     return figure
+
+
+def _divides_by_nothing(result: dict[str, object]) -> bool:
+    """Does this construction divide by something that vanishes identically?"""
+    for key in numeric.payload_keys():
+        value = result.get(key)
+        if value is None:
+            continue
+        expressions = value if isinstance(value, tuple) else (value,)
+        for expression in expressions:
+            if not isinstance(expression, sp.Expr):
+                continue
+            if FIELD.has_zero_divisor(expression):
+                return True
+    return False
 
 
 def evaluate_numeric(figure: Figure) -> Figure:
@@ -177,7 +222,9 @@ def evaluate_numeric(figure: Figure) -> Figure:
             continue
         payload = numeric.evaluate_node(node, values)
         if payload is None:
-            node.cache[numeric.CACHE_UNDEFINED] = "no value at this placement"
+            node.cache[numeric.CACHE_UNDEFINED] = str(
+                node.cache.get(CACHE_NO_VALUE, "no value at this placement")
+            )
             node.cache.pop(numeric.CACHE_VALUES, None)
             node.placement = None
             continue
@@ -303,6 +350,12 @@ def numeric_coords(
 def symbolic_coords(figure: Figure, node_id: str) -> tuple[Expr, Expr]:
     node = figure.node(node_id)
     if node.coords is None:
+        reason = node.cache.get(CACHE_NO_VALUE)
+        if reason:
+            # The construction produces no object at all.  Saying *why* is
+            # the difference between "P is missing" and "P cannot exist:
+            # the two lines are parallel".
+            raise StateError(f"node {node_id!r} has no value: {reason}")
         raise StateError(f"node {node_id!r} has no coordinates")
     return FIELD.coerce(node.coords[0]), FIELD.coerce(node.coords[1])
 

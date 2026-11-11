@@ -36,6 +36,18 @@ ATTACHED = "attached"
 _KINDS = (POINT, LINE, SEGMENT, CIRCLE, POLYGON, ARC, SECTOR, NUMBER, RAY, POLYLINE)
 _ROLES = (FREE, DERIVED, ATTACHED)
 
+#: The cache key holding the conditions a construction depends on.
+#:
+#: A construction works on symbols, so it cannot see that *this* placement
+#: is degenerate -- that the two lines happen to be parallel here, say.  It
+#: publishes the conditions instead, and they are decided where the
+#: placement is known.  The two kinds are:
+#:
+#: ``CONDITION_NONZERO``  the expressions that must **not** vanish;
+#: ``CONDITION_ZERO``     the expressions that must vanish.
+CONDITION_NONZERO = "must_be_nonzero"
+CONDITION_ZERO = "must_be_zero"
+
 
 @dataclass(frozen=True)
 class Style:

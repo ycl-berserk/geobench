@@ -24,7 +24,7 @@ from geobench.errors import (
     StateError,
 )
 from geobench.field import FIELD
-from geobench.model import Figure, Node
+from geobench.model import CONDITION_NONZERO, CONDITION_ZERO, Figure, Node
 from geobench.registry import ArgSpec, OperatorRegistry, OpSpec
 
 # -- representation -------------------------------------------------------
@@ -253,9 +253,32 @@ def op_intersect_lines(ctx: OpContext, args: list[str]) -> dict[str, object]:
     det = a1 * b2 - a2 * b1
     if det == 0:
         raise DegenerateError("lines are parallel or coincident; no unique intersection")
+    if FIELD.zero_status(det) is True:
+        # The two lines are parallel for *every* placement of the free
+        # points: the intersection does not exist at all, not merely not
+        # here.  This is the case the structural test above cannot see,
+        # because the two lines are built from other constructions -- the
+        # perpendicular bisector of a side and the altitude from the
+        # opposite vertex, say -- and those constructions are what makes
+        # the lines parallel.
+        #
+        # The point therefore has no value (decision D19): the figure
+        # stays alive and the object is marked as having none, instead of
+        # the whole construction being poisoned by a 0/0.
+        return {
+            "kind": "point",
+            "no_value": "the two lines are parallel; there is no intersection",
+        }
     x = (b1 * c2 - b2 * c1) / det
     y = (c1 * a2 - c2 * a1) / det
-    return {"kind": "point", "coords": (x, y)}
+    return {
+        "kind": "point",
+        "coords": (x, y),
+        # The lines may still be parallel *here*, in this drawing.  The
+        # condition says so, and the numeric path decides it where the
+        # placement is known.
+        CONDITION_NONZERO: {"parallel_lines": det},
+    }
 
 
 def op_intersect_line_circle(ctx: OpContext, args: list[str]) -> dict[str, object]:
@@ -319,7 +342,7 @@ def op_intersect_line_circle(ctx: OpContext, args: list[str]) -> dict[str, objec
             # is not identically zero -- it is zero only for some
             # placements -- so the condition is published and checked by
             # the evaluation pass, where the placement is known.
-            "must_be_nonzero": {"discriminant": disc},
+            CONDITION_NONZERO: {"discriminant": disc},
         }
 
     if selector != "other":
@@ -359,7 +382,7 @@ def op_intersect_line_circle(ctx: OpContext, args: list[str]) -> dict[str, objec
     return {
         "kind": "point",
         "coords": (p0x + t_other * dx, p0y + t_other * dy),
-        "must_be_nonzero": {"discriminant": disc},
+        CONDITION_NONZERO: {"discriminant": disc},
     }
 
 
@@ -380,7 +403,7 @@ def op_circumcenter(ctx: OpContext, args: list[str]) -> dict[str, object]:
         "coords": (ux, uy),
         # Three points are collinear for some placements, not identically,
         # so the condition is published for the evaluation pass to check.
-        "must_be_nonzero": {"determinant": det},
+        CONDITION_NONZERO: {"determinant": det},
     }
 
 
@@ -566,7 +589,7 @@ def op_arc_through(ctx: OpContext, args: list[str]) -> dict[str, object]:
         "arc": (ox, oy, r2, ax, ay, cx, cy, bx, by),
         # Three points are collinear for some placements, not identically,
         # so the condition is published for the evaluation pass to check.
-        "must_be_nonzero": circumcircle.get("must_be_nonzero", {}),
+        CONDITION_NONZERO: circumcircle.get(CONDITION_NONZERO, {}),
     }
 
 
@@ -634,7 +657,7 @@ def op_intersect_circles(ctx: OpContext, args: list[str]) -> dict[str, object]:
         "coords": (bx - dy * s, by + dx * s),
         # Tangency: the two circles meet in a single point, so there is
         # no second intersection to pick.
-        "must_be_nonzero": {"discriminant": n},
+        CONDITION_NONZERO: {"discriminant": n},
     }
 
 
@@ -699,7 +722,7 @@ def op_tangent(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {
         "kind": "line",
         "line": _line_from_normal((px, py), (nx, ny)),
-        "must_be_zero": {"point_on_circle": nx * nx + ny * ny - r2},
+        CONDITION_ZERO: {"point_on_circle": nx * nx + ny * ny - r2},
     }
 
 
@@ -724,7 +747,7 @@ def op_circle_through(ctx: OpContext, args: list[str]) -> dict[str, object]:
         # so the condition is published for the evaluation pass to check.
         # Without it a degenerate placement produces a *complex* centre
         # rather than an undefined circle.
-        "must_be_nonzero": circumcircle.get("must_be_nonzero", {}),
+        CONDITION_NONZERO: circumcircle.get(CONDITION_NONZERO, {}),
     }
 
 
@@ -990,7 +1013,7 @@ def op_measure_slope(ctx: OpContext, args: list[str]) -> dict[str, object]:
         "value": (-a / b,),
         # A line is vertical for some placements, not identically, so the
         # condition is published for the evaluation pass to check.
-        "must_be_nonzero": {"b": b},
+        CONDITION_NONZERO: {"b": b},
     }
 
 

@@ -26,7 +26,7 @@ from sympy import Expr
 from geobench.errors import StateError
 from geobench.evaluate import free_symbols, symbolic_coords
 from geobench.field import FIELD
-from geobench.model import Figure
+from geobench.model import CONDITION_NONZERO, Figure
 from geobench.operators import OpContext
 
 PROVED = "proved"
@@ -525,6 +525,59 @@ def judge_relation(
     return verdict
 
 
+def _missing_value(
+    figure: Figure, args: list[str], placement: dict[sp.Symbol, Expr]
+) -> tuple[str, str] | None:
+    """An object of the relation that has no value at this placement.
+
+    The construction publishes the conditions its answer depends on --
+    "these two lines must not be parallel", "this discriminant must not
+    be zero" -- and those conditions are exact expressions.  Deciding
+    them at the placement is therefore exact too: no approximation is
+    involved, and the answer does not depend on the numeric path.
+
+    Returns the object's name and the reason, or ``None`` when every
+    object has a value.
+    """
+    for arg in args:
+        node = figure.nodes.get(arg)
+        if node is None:
+            continue
+        conditions = node.cache.get(CONDITION_NONZERO)
+        if not isinstance(conditions, dict):
+            continue
+        for name, expression in sorted(conditions.items()):
+            try:
+                value = expression.subs(placement)
+            except Exception:  # pragma: no cover - defensive
+                continue
+            if value == 0:
+                return arg, str(name)
+    return None
+
+
+def _is_admissible(value: Expr) -> bool:
+    """Is this value a real, finite number the kernel can argue about?
+
+    A value that is ``nan`` (a 0/0), infinite, complex, or that still
+    carries free symbols, is not a number at all.  It says one of two
+    things: that *this placement* is degenerate, or that the expression
+    could not be evaluated here.
+
+    Neither is a counterexample.  A counterexample has to be an
+    **admissible** configuration (docs/spec.md section 6.1), and reading
+    a degenerate placement as one would refute true theorems -- the
+    worst failure a judge can have, and one no teacher would forgive.
+    """
+    if value.free_symbols:
+        return False
+    return (
+        value.is_number is True
+        and value.is_real is True
+        and value.is_finite is True
+    )
+
+
 def _judge_uncached(
     figure: Figure,
     judge_id: str,
@@ -548,15 +601,47 @@ def _judge_uncached(
     try:
         expression = spec.impl(ctx, list(args))
     except StateError as exc:
+        # The objects the relation is about do not exist -- the
+        # construction produced nothing.  There is nothing there to be
+        # true or false about, so the judge says so instead of guessing.
         return Verdict(kind=spec.id, verdict=UNDECIDED, scope=scope, evidence=str(exc))
 
     if scope == INSTANCE:
         placement = free_symbols(figure)
+        missing = _missing_value(figure, args, placement)
+        if missing is not None:
+            # One of the objects the relation is about has no value in
+            # this configuration.  There is nothing there to be true or
+            # false about -- and that is not the same as the relation
+            # failing.
+            name, reason = missing
+            return Verdict(
+                kind=spec.id,
+                verdict=UNDECIDED,
+                scope=scope,
+                evidence=(
+                    f"the configuration is degenerate: {name} has no value here "
+                    f"({reason})"
+                ),
+            )
         try:
             value = expression.subs(placement)
         except Exception as exc:  # pragma: no cover - defensive
             return Verdict(
                 kind=spec.id, verdict=UNDECIDED, scope=scope, evidence=f"substitution failed: {exc}"
+            )
+        if not _is_admissible(value):
+            # The configuration as drawn is degenerate: the relation has
+            # no value here.  That is not the same as the relation
+            # failing, and the difference is the whole point.
+            return Verdict(
+                kind=spec.id,
+                verdict=UNDECIDED,
+                scope=scope,
+                evidence=(
+                    "the configuration is degenerate: the relation has no value "
+                    f"here ({sp.sstr(value)})"
+                ),
             )
         if FIELD.simplify_to_zero(value):
             return Verdict(
@@ -583,11 +668,18 @@ def _judge_uncached(
     # sample pays for the symbolic proof.
     samples = _sample(figure, sample_count, seed)
     nonzero: dict[sp.Symbol, Expr] | None = None
+    admissible = 0
     for mapping in samples:
         try:
             value = expression.subs(mapping)
         except Exception:  # pragma: no cover - a bad substitution is not a counterexample
             continue
+        if not _is_admissible(value):
+            # A degenerate placement is not a counterexample.  It says the
+            # construction has no value *there*, not that the relation
+            # fails, so the sample is skipped rather than counted.
+            continue
+        admissible += 1
         if value != 0:
             nonzero = mapping
             break
@@ -601,7 +693,33 @@ def _judge_uncached(
                 f"counterexample: {sp.sstr(expression)[:200]} != 0"
             ),
             witness=_witness(figure, nonzero),
-            samples=sample_count,
+            samples=admissible,
+        )
+
+    if admissible == 0:
+        # No placement could test the relation: every sample was
+        # degenerate.  The relation may still be an identity -- the only
+        # way it could be is for the expression to be the zero
+        # expression -- so the algebra gets its say before the judge
+        # gives up.
+        if FIELD.simplify_to_zero(expression):
+            return Verdict(
+                kind=spec.id,
+                verdict=PROVED,
+                scope=scope,
+                evidence=(
+                    "the expression reduces to 0 identically: "
+                    f"{sp.sstr(expression)[:200]}"
+                ),
+            )
+        return Verdict(
+            kind=spec.id,
+            verdict=UNDECIDED,
+            scope=scope,
+            evidence=(
+                "every sampled placement was degenerate: the relation has no "
+                "value to test, so it can be neither proved nor refuted"
+            ),
         )
 
     if FIELD.simplify_to_zero(expression):
@@ -616,9 +734,9 @@ def _judge_uncached(
         verdict=SUPPORTED,
         scope=scope,
         evidence=(
-            f"the relation holds in all {sample_count} samples but the expression "
+            f"the relation holds in all {admissible} samples but the expression "
             f"did not reduce to 0 identically (size {sp.count_ops(expression)} ops): "
             f"{sp.sstr(expression)[:200]}"
         ),
-        samples=sample_count,
+        samples=admissible,
     )

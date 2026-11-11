@@ -32,7 +32,7 @@ from typing import Any
 import sympy as sp
 from sympy import Expr
 
-from geobench.model import Figure, Node
+from geobench.model import CONDITION_NONZERO, CONDITION_ZERO, Figure, Node
 
 #: The cache keys the numeric path owns.
 CACHE_FN = "numeric_fn"
@@ -123,7 +123,7 @@ def compile_conditions(node: Node, symbols: tuple[sp.Symbol, ...]) -> None:
     that is not identically zero may still vanish at some placements.
     """
     checks: list[tuple[str, Expr, bool]] = []
-    for key, must_vanish in (("must_be_nonzero", False), ("must_be_zero", True)):
+    for key, must_vanish in ((CONDITION_NONZERO, False), (CONDITION_ZERO, True)):
         conditions = node.cache.get(key)
         if not isinstance(conditions, dict) or not conditions:
             continue
@@ -144,6 +144,24 @@ def compile_conditions(node: Node, symbols: tuple[sp.Symbol, ...]) -> None:
         vanish,
         sp.lambdify(used, expressions, modules="math"),
     )
+
+
+def payload_keys() -> tuple[str, ...]:
+    """The cache keys an operator may fill in with an object's shape."""
+    return _PAYLOAD_KEYS
+
+
+def clear_payload(node: Node) -> None:
+    """Forget the shape of an object that has no value.
+
+    An object with no value has no shape either: there is nothing to
+    compile, nothing to draw, and nothing for the numeric path to
+    evaluate.
+    """
+    for key in _PAYLOAD_KEYS:
+        node.cache.pop(key, None)
+    node.cache.pop(CACHE_FN, None)
+    node.cache.pop(CACHE_SYMBOLS, None)
 
 
 def format_float(value: float) -> str:
