@@ -69,7 +69,7 @@ class OpenAICompatibleProvider:
     model: str
     base_url: str = "https://api.openai.com/v1"
     api_key: str = ""
-    timeout: float = 60.0
+    timeout: float = 60
     name: str = "openai-compatible"
 
     @classmethod
