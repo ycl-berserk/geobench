@@ -156,22 +156,30 @@ def oracle_angle_bisector(ctx: OpContext, args: list[str]) -> tuple[Any, Any, An
     return coefficients[0], coefficients[1], coefficients[2]
 
 
-def oracle_tangent(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any]:
-    """The tangent to a circle at a point on it.
+def oracle_tangent(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
+    """The tangents to a circle from a point.
 
-    Written as the **polar** of the point rather than as "the line
-    through the point perpendicular to the radius": the polar of P with
-    respect to (x-cx)^2 + (y-cy)^2 = r^2 is
+    SymPy's own geometry does the work: ``Circle.tangent_lines`` gives
+    the tangent at a point of the circle, and the two tangents from a
+    point outside it.  Which of the two the kernel keeps is a
+    convention and not a fact of the geometry, so the oracle returns
+    both and the harness checks that the kernel's line is one of them.
+
+    For a point on the circle the same line also comes out of the
+    **polar** of the point -- the polar of P with respect to
+    (x-cx)^2 + (y-cy)^2 = r^2 is
 
         (x-cx)(px-cx) + (y-cy)(py-cy) = r^2,
 
-    which is the same line but a different derivation. That the two agree
-    is exactly what the point being on the circle means.
+    which is the tangent when P is on the circle.  That the two agree
+    is exactly what the point being on the circle means, and it is the
+    derivation the kernel's on-circle case reduces to.
     """
     px, py = ctx.point(args[0])
     cx, cy, r2 = ctx.circle(args[1])
-    nx, ny = px - cx, py - cy
-    return (nx, ny, -(nx * cx + ny * cy) - r2)
+    circle = sp.Circle(sp.Point(cx, cy), sp.sqrt(r2))
+    lines = circle.tangent_lines(sp.Point(px, py))
+    return tuple(line.coefficients for line in lines)
 
 
 def oracle_intersect_circles(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:

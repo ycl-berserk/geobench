@@ -41,12 +41,18 @@ _ROLES = (FREE, DERIVED, ATTACHED)
 #: A construction works on symbols, so it cannot see that *this* placement
 #: is degenerate -- that the two lines happen to be parallel here, say.  It
 #: publishes the conditions instead, and they are decided where the
-#: placement is known.  The two kinds are:
+#: placement is known.  The three kinds are:
 #:
 #: ``CONDITION_NONZERO``  the expressions that must **not** vanish;
-#: ``CONDITION_ZERO``     the expressions that must vanish.
+#: ``CONDITION_ZERO``     the expressions that must vanish;
+#: ``CONDITION_NONNEGATIVE``  the expressions that must not be **negative**.
+#:
+#: The third kind is there because "the point must not be inside the
+#: circle" is not an equality: the tangent from a point exists on and
+#: outside the circle, and saying so needs an order, not a vanishing.
 CONDITION_NONZERO = "must_be_nonzero"
 CONDITION_ZERO = "must_be_zero"
+CONDITION_NONNEGATIVE = "must_be_nonnegative"
 
 
 @dataclass(frozen=True)

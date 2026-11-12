@@ -24,7 +24,12 @@ from geobench.errors import (
     StateError,
 )
 from geobench.field import FIELD
-from geobench.model import CONDITION_NONZERO, CONDITION_ZERO, Figure, Node
+from geobench.model import (
+    CONDITION_NONNEGATIVE,
+    CONDITION_NONZERO,
+    Figure,
+    Node,
+)
 from geobench.registry import ArgSpec, OperatorRegistry, OpSpec
 
 # -- representation -------------------------------------------------------
@@ -706,24 +711,92 @@ def op_angle_bisector(ctx: OpContext, args: list[str]) -> dict[str, object]:
 
 
 def op_tangent(ctx: OpContext, args: list[str]) -> dict[str, object]:
-    """The tangent to a circle at a point on it (切线).
+    """The tangent to a circle -- at a point of it, or from a point outside it.
 
-    The tangent at a point of a circle is perpendicular to the radius
-    there. The point must actually lie on the circle; that cannot be
-    checked on symbols alone, so the condition is published and checked
-    at each placement (the point may be on the circle for some
-    placements and off it for others).
+    Two cases, one formula:
+
+    - the point is **on** the circle: the tangent at that point;
+    - the point is **outside** the circle: one of the two tangents from
+      it.  Which of the two is a convention and not a fact of the
+      geometry, so the kernel picks one -- the one whose point of
+      contact lies to the left of the ray from the centre to the point
+      -- and the other is reachable by asking for the mirror image.
+      (GeoGebra draws both; a figure that wants one of them does not
+      care which.)
+
+    The point may not be **inside**: there is no tangent from there, and
+    the object has no value (decision D19) -- the figure stays alive and
+    says why.
+
+    The formula is the same in both cases.  With the centre C, the
+    squared radius r2, the point P, ``u = P - C`` and ``d2 = u.u``, the
+    point of contact is
+
+        T = C + (r2*u + r*sqrt(d2 - r2)*u_perp) / d2,
+
+    and the tangent is the line through T perpendicular to CT.  For a
+    point on the circle the square root vanishes and T collapses to P,
+    which is the tangent at P -- and the line is the polar of P, which
+    is the same line (the oracle says so, independently).
+
+    The condition published is "the point must not be inside the
+    circle": the tangent exists exactly where ``d2 - r2`` is not
+    negative.
     """
     (px, py) = ctx.point(args[0])
-    cx, cy, r2 = ctx.circle(args[1])
-    nx, ny = px - cx, py - cy
-    if nx == 0 and ny == 0:
-        raise DegenerateError("the tangent is undefined at the centre of the circle")
+    (cx, cy, r2) = ctx.circle(args[1])
+    radius_sign = _sign_of(r2)
+    if radius_sign is not None and radius_sign <= 0:
+        return {"kind": "line", "no_value": "the circle has no radius; there is no tangent"}
+    ux, uy = px - cx, py - cy
+    d2 = ux * ux + uy * uy
+    gap = d2 - r2
+    if _sign_of(d2) == 0:
+        # The point is the centre: it is inside the circle, and saying so
+        # plainly is more use than a general complaint.
+        return {
+            "kind": "line",
+            "no_value": "the point is the centre of the circle; there is no tangent",
+        }
+    gap_sign = _sign_of(gap)
+    if gap_sign is not None and gap_sign < 0:
+        # The point is inside the circle: no tangent from there.
+        return {
+            "kind": "line",
+            "no_value": "the point is inside the circle; there is no tangent",
+        }
+    # The contact point, and with it the tangent.
+    length = sp.sqrt(gap)
+    radius = sp.sqrt(r2)
+    a = r2 * ux - radius * length * uy
+    b = r2 * uy + radius * length * ux
+    c = -(a * cx + b * cy) - r2 * d2
     return {
         "kind": "line",
-        "line": _line_from_normal((px, py), (nx, ny)),
-        CONDITION_ZERO: {"point_on_circle": nx * nx + ny * ny - r2},
+        "line": (a, b, c),
+        # The point may not be inside the circle: the tangent exists on
+        # and outside it, and nowhere else.
+        CONDITION_NONNEGATIVE: {"point_not_inside": gap},
     }
+
+
+def _sign_of(value: Expr) -> int | None:
+    """``-1``, ``0`` or ``1`` when the sign of a number is known.
+
+    ``None`` when it is not: the expression still carries symbols, so
+    the sign is not settled yet and the caller has to publish a
+    condition instead of deciding.
+    """
+    if value.is_number is not True:
+        return None
+    try:
+        if value < 0:
+            return -1
+        if value == 0:
+            return 0
+        return 1
+    except TypeError:  # pragma: no cover - a complex number has no order
+        return None
 
 
 def op_segment_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
@@ -1491,7 +1564,7 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             kind="line",
             args=(ArgSpec("p", "point"), ArgSpec("circle", "circle")),
             returns="line",
-            degenerate_when=("p is the centre of the circle",),
+            degenerate_when=("p is inside the circle",),
             oracle="sympy.geometry:Circle.tangent_lines",
         ),
         op_tangent,

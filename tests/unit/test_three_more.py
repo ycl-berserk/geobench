@@ -7,6 +7,8 @@ a circle already knows its centre and its radius.
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from geobench.dsl import parse_dsl
@@ -59,4 +61,13 @@ def test_the_polar_of_a_point_on_the_circle_is_the_tangent(registry: OperatorReg
     evaluate_figure(figure, registry)
     polar = figure.node("极").cache["numeric"]["line"]
     tangent = figure.node("切").cache["numeric"]["line"]
-    assert tuple(polar) == pytest.approx(tuple(tangent))
+    # The two lines are the same line, but a line's coefficients are only
+    # defined up to a factor -- the tangent's formula carries the radius,
+    # the polar's does not -- so both are put in the same scale first.
+    assert _canonical(polar) == pytest.approx(_canonical(tangent))
+
+
+def _canonical(line: tuple[float, float, float]) -> tuple[float, float, float]:
+    a, b, c = line
+    norm = math.hypot(a, b)
+    return (a / norm, b / norm, c / norm)

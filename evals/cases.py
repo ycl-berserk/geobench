@@ -139,6 +139,13 @@ CASES: tuple[Case, ...] = (
         tags=("切线",),
     ),
     Case(
+        name="圆外一点的切线",
+        request="画一个圆c，圆外取一点P，过P作圆c的切线t",
+        must_include=("P", "c", "t"),
+        must_relate=(("相切", ("t", "c")),),
+        tags=("切线",),
+    ),
+    Case(
         name="做不到的切线（圆内点）",
         request="画一个圆c，在圆c内取一点P，过P作圆c的切线t",
         must_include=("P", "c", "t"),

@@ -319,17 +319,30 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
         for _ in range(TARGET):
             pts = _non_degenerate_triangle(rng)
             add(pts, ["A", "circle:A,B,C"], "normal", "value", "tangent at a vertex")
-        # The tangent at the centre of the circle: the radius there is
-        # zero, so there is no tangent.
-        for offset in range(DEGENERATE):
-            pts = {"A": (str(offset), "0"), "B": ("4", "0"), "C": ("2", "3")}
+        # A point **outside** the circle: there are two tangents from it,
+        # and the kernel keeps one of them -- which one is a convention,
+        # not a fact of the geometry, so the oracle returns both.
+        for _ in range(TARGET):
+            pts = {"A": ("0", "0"), "D": (str(rng.randint(3, 9)), str(rng.randint(-4, 4)))}
             add(
                 pts,
-                ["A", "circle:A,4"],
-                "degenerate",
-                "error",
-                "the point is the centre of the circle",
+                ["D", "circle:A,4"],
+                "normal",
+                "value",
+                "tangent from a point outside the circle",
             )
+        # A point **inside** the circle: there is no tangent from there,
+        # and the centre is the sharpest case of it.  The circle has
+        # centre A and squared radius 4, so a point is inside when its
+        # distance from A is less than 2.
+        for coords in (("0", "0"), ("1", "0"), ("0", "1"), ("1", "1"), ("-1", "-1")):
+            pts = {"A": ("0", "0"), "D": coords}
+            note = (
+                "the point is the centre of the circle"
+                if coords == ("0", "0")
+                else "the point is inside the circle"
+            )
+            add(pts, ["D", "circle:A,4"], "degenerate", "error", note)
     elif op_id == "point.intersect_circles":
         for _ in range(TARGET):
             pts = _two_intersecting_circles(rng)
@@ -439,7 +452,10 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
         )
     elif op_id == "sector.three_points":
         for _ in range(TARGET):
-            pts = _points(rng, 3)
+            # The three points must be different: the sector runs from the
+            # centre to its two ends, and an end that sits on the centre
+            # has no end at all.
+            pts = _distinct_points(rng, 3)
             add(
                 {"O": pts["A"], "A": pts["B"], "B": pts["C"]},
                 ["O", "A", "B"],
@@ -976,8 +992,12 @@ OPERATORS = [
 
 
 def main() -> None:
-    rng = random.Random(SEED)
     for op_id in OPERATORS:
+        # Every operator gets its own stream.  With one shared stream,
+        # changing one battery silently rewrites every other one -- and a
+        # battery that nobody looked at can hide a case the kernel gets
+        # wrong.  A stream per operator means a change here stays here.
+        rng = random.Random(f"{SEED}-{op_id}")
         fixtures = battery(op_id, rng)
         save_fixtures(op_id, fixtures)
         degenerate = sum(1 for f in fixtures if f.kind == "degenerate")

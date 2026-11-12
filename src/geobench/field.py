@@ -294,10 +294,34 @@ class SympyField:
         if expr == 0:
             return True
         if expr.is_number:
-            return bool(expr == 0)
+            # A number with radicals is not zero by structure: the
+            # tangent from a point outside a circle has radical
+            # coefficients, and whether the line is tangent to the
+            # circle is exactly the question whether those radicals
+            # cancel.  So the structural comparison is only the first
+            # answer, not the last one.
+            return self._reduce_number_to_zero(expr)
         if sp.count_ops(expr) > self.identity_budget_ops:
             return False
         return self._reduce_to_zero(expr)
+
+    def _reduce_number_to_zero(self, expr: Expr) -> bool:
+        """Is this number exactly zero?
+
+        The structural comparison settles most of them.  The rest are
+        numbers whose radicals cancel -- and there the reductions are
+        cheap, because there are no symbols left to expand.
+        """
+        for candidate in (sp.radsimp(expr), sp.simplify(expr)):
+            if candidate == 0:
+                return True
+        try:
+            verdict = expr.equals(0)
+        except Exception:  # pragma: no cover - sympy internal failure
+            return False
+        if verdict is None:
+            return False
+        return bool(verdict)
 
     def _reduce_to_zero(self, expr: Expr) -> bool:
         """Exact reductions, cheapest first.

@@ -178,10 +178,15 @@ def test_a_parse_error_goes_back_to_the_model(registry: OperatorRegistry) -> Non
 
 
 def test_a_broken_figure_goes_back_to_the_model(registry: OperatorRegistry) -> None:
-    """And so is a figure the kernel does not believe."""
+    """And so is a figure the kernel does not believe.
+
+    A tangent from a point *inside* the circle has no value: there is no
+    tangent from there.  The figure is valid code, so only the kernel can
+    see it -- and it is exactly what the model has to be told.
+    """
     provider = ScriptedProvider(
         [
-            "点 O(0,0) A(2,0) P(4,0)\nc = 圆(O, A)\nt = 切线(P, c)",
+            "点 O(0,0) A(2,0) P(1,0)\nc = 圆(O, A)\nt = 切线(P, c)",
             "点 O(0,0) A(2,0)\nc = 圆(O, A)\nP = 圆上的点(c, 1/4)\nt = 切线(P, c)",
         ]
     )

@@ -288,14 +288,25 @@ def _expressions_equal(left: Expr, right: Expr) -> bool:
 # Operators whose result is one of several roots: the kernel picks one by a
 # convention, so the oracle returns the whole set and the harness checks
 # membership rather than position.
-SET_COMPARISON = {"point.intersect_line_circle", "point.intersect_circles"}
+SET_COMPARISON = {
+    "point.intersect_line_circle",
+    "point.intersect_circles",
+    "line.tangent",
+}
 
 
 def _compare_set(kernel_value: Any, oracle_value: Any) -> str | None:
-    """The kernel's point must be one of the oracle's points."""
+    """The kernel's object must be one of the oracle's objects."""
     kernel_parts = list(kernel_value) if isinstance(kernel_value, tuple) else [kernel_value]
-    if len(kernel_parts) != 2:
-        return f"expected a point, got {len(kernel_parts)} components"
+    if len(kernel_parts) == 2:
+        return _compare_point_set(kernel_parts, oracle_value)
+    if len(kernel_parts) == 3:
+        return _compare_line_set(kernel_parts, oracle_value)
+    return f"expected a point or a line, got {len(kernel_parts)} components"
+
+
+def _compare_point_set(kernel_parts: list[Any], oracle_value: Any) -> str | None:
+    """The kernel's point must be one of the oracle's points."""
     kx, ky = FIELD.coerce(kernel_parts[0]), FIELD.coerce(kernel_parts[1])
     for ox, oy in oracle_value:
         if _expressions_equal(kx, FIELD.coerce(ox)) and _expressions_equal(ky, FIELD.coerce(oy)):
@@ -303,6 +314,25 @@ def _compare_set(kernel_value: Any, oracle_value: Any) -> str | None:
     return (
         f"the kernel's point is not one of the oracle's intersections: "
         f"kernel=({sp.sstr(kx)}, {sp.sstr(ky)})"
+    )
+
+
+def _compare_line_set(kernel_parts: list[Any], oracle_value: Any) -> str | None:
+    """The kernel's line must be one of the oracle's lines.
+
+    A line is only defined up to a factor, so both sides are put in the
+    canonical form before they are compared.
+    """
+    left = canonical_line(*(FIELD.coerce(part) for part in kernel_parts))
+    for candidate in oracle_value:
+        right = canonical_line(*(FIELD.coerce(part) for part in candidate))
+        if all(
+            _expressions_equal(lhs, rhs) for lhs, rhs in zip(left, right, strict=True)
+        ):
+            return None
+    return (
+        f"the kernel's line is not one of the oracle's tangents: "
+        f"kernel=({sp.sstr(left[0])}, {sp.sstr(left[1])}, {sp.sstr(left[2])})"
     )
 
 
@@ -386,6 +416,17 @@ def check_operator(
             if fixture.expect == "error":
                 continue
             mismatches.append(Mismatch(op_id, index, f"kernel raised {exc}, expected a value"))
+            continue
+        if "no_value" in kernel_result:
+            # The kernel refuses in two ways: by raising, or by saying the
+            # object does not exist (decision D19 -- the figure stays
+            # alive and the object is marked as having no value).  Both
+            # are refusals, and the battery accepts either.
+            if fixture.expect == "error":
+                continue
+            mismatches.append(
+                Mismatch(op_id, index, "the kernel says the object has no value, expected a value")
+            )
             continue
         if fixture.expect == "error":
             mismatches.append(

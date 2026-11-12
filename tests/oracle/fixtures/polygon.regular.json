@@ -5,11 +5,131 @@
     {
       "points": {
         "A": [
-          "0",
-          "5"
+          "-8",
+          "-6"
         ],
         "B": [
+          "3",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-8",
+          "-6"
+        ],
+        "B": [
+          "3",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-8",
+          "-6"
+        ],
+        "B": [
+          "3",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "6"
+        ],
+        "B": [
+          "2",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "6"
+        ],
+        "B": [
+          "2",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "6"
+        ],
+        "B": [
+          "2",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
           "6",
+          "-1"
+        ],
+        "B": [
+          "-6",
           "-4"
         ]
       },
@@ -25,11 +145,11 @@
     {
       "points": {
         "A": [
-          "0",
-          "5"
+          "6",
+          "-1"
         ],
         "B": [
-          "6",
+          "-6",
           "-4"
         ]
       },
@@ -45,11 +165,11 @@
     {
       "points": {
         "A": [
-          "0",
-          "5"
+          "6",
+          "-1"
         ],
         "B": [
-          "6",
+          "-6",
           "-4"
         ]
       },
@@ -65,791 +185,11 @@
     {
       "points": {
         "A": [
-          "-1",
-          "-3"
-        ],
-        "B": [
           "-4",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "-3"
+          "1"
         ],
         "B": [
-          "-4",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "-3"
-        ],
-        "B": [
-          "-4",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
           "-3",
-          "5"
-        ],
-        "B": [
-          "6",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "5"
-        ],
-        "B": [
-          "6",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "5"
-        ],
-        "B": [
-          "6",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-3"
-        ],
-        "B": [
-          "4",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-3"
-        ],
-        "B": [
-          "4",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-3"
-        ],
-        "B": [
-          "4",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "5"
-        ],
-        "B": [
-          "3",
-          "2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "5"
-        ],
-        "B": [
-          "3",
-          "2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "5"
-        ],
-        "B": [
-          "3",
-          "2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "1"
-        ],
-        "B": [
-          "-5",
-          "-3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "1"
-        ],
-        "B": [
-          "-5",
-          "-3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "1"
-        ],
-        "B": [
-          "-5",
-          "-3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-3"
-        ],
-        "B": [
-          "2",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-3"
-        ],
-        "B": [
-          "2",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-3"
-        ],
-        "B": [
-          "2",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-1"
-        ],
-        "B": [
-          "3",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-1"
-        ],
-        "B": [
-          "3",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-1"
-        ],
-        "B": [
-          "3",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "5",
-          "8"
-        ],
-        "B": [
-          "6",
-          "4"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "5",
-          "8"
-        ],
-        "B": [
-          "6",
-          "4"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "5",
-          "8"
-        ],
-        "B": [
-          "6",
-          "4"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "5"
-        ],
-        "B": [
-          "3",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "5"
-        ],
-        "B": [
-          "3",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "5"
-        ],
-        "B": [
-          "3",
-          "3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "4"
-        ],
-        "B": [
-          "0",
-          "4"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "4"
-        ],
-        "B": [
-          "0",
-          "4"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "4"
-        ],
-        "B": [
-          "0",
-          "4"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "1"
-        ],
-        "B": [
-          "6",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "1"
-        ],
-        "B": [
-          "6",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "1"
-        ],
-        "B": [
-          "6",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-7"
-        ],
-        "B": [
-          "7",
-          "-3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-7"
-        ],
-        "B": [
-          "7",
-          "-3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-7"
-        ],
-        "B": [
-          "7",
-          "-3"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "-6",
-          "-8"
-        ],
-        "B": [
-          "-2",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "-6",
-          "-8"
-        ],
-        "B": [
-          "-2",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "-6",
-          "-8"
-        ],
-        "B": [
-          "-2",
-          "-8"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "1"
-        ],
-        "B": [
-          "1",
           "-5"
         ]
       },
@@ -865,11 +205,11 @@
     {
       "points": {
         "A": [
-          "3",
+          "-4",
           "1"
         ],
         "B": [
-          "1",
+          "-3",
           "-5"
         ]
       },
@@ -885,11 +225,11 @@
     {
       "points": {
         "A": [
-          "3",
+          "-4",
           "1"
         ],
         "B": [
-          "1",
+          "-3",
           "-5"
         ]
       },
@@ -905,12 +245,12 @@
     {
       "points": {
         "A": [
-          "1",
-          "-2"
+          "6",
+          "-6"
         ],
         "B": [
-          "-4",
-          "-2"
+          "7",
+          "5"
         ]
       },
       "args": [
@@ -925,12 +265,12 @@
     {
       "points": {
         "A": [
-          "1",
-          "-2"
+          "6",
+          "-6"
         ],
         "B": [
-          "-4",
-          "-2"
+          "7",
+          "5"
         ]
       },
       "args": [
@@ -945,72 +285,12 @@
     {
       "points": {
         "A": [
-          "1",
-          "-2"
+          "6",
+          "-6"
         ],
         "B": [
-          "-4",
-          "-2"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "-4"
-        ],
-        "B": [
-          "5",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "-4"
-        ],
-        "B": [
-          "5",
-          "7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "-4"
-        ],
-        "B": [
-          "5",
-          "7"
+          "7",
+          "5"
         ]
       },
       "args": [
@@ -1026,11 +306,11 @@
       "points": {
         "A": [
           "4",
-          "3"
+          "5"
         ],
         "B": [
-          "5",
-          "-8"
+          "4",
+          "2"
         ]
       },
       "args": [
@@ -1046,11 +326,11 @@
       "points": {
         "A": [
           "4",
-          "3"
+          "5"
         ],
         "B": [
-          "5",
-          "-8"
+          "4",
+          "2"
         ]
       },
       "args": [
@@ -1066,11 +346,11 @@
       "points": {
         "A": [
           "4",
-          "3"
+          "5"
         ],
         "B": [
-          "5",
-          "-8"
+          "4",
+          "2"
         ]
       },
       "args": [
@@ -1086,11 +366,11 @@
       "points": {
         "A": [
           "2",
-          "5"
+          "7"
         ],
         "B": [
-          "7",
-          "1"
+          "-2",
+          "4"
         ]
       },
       "args": [
@@ -1106,11 +386,11 @@
       "points": {
         "A": [
           "2",
-          "5"
+          "7"
         ],
         "B": [
-          "7",
-          "1"
+          "-2",
+          "4"
         ]
       },
       "args": [
@@ -1126,11 +406,11 @@
       "points": {
         "A": [
           "2",
-          "5"
+          "7"
         ],
         "B": [
-          "7",
-          "1"
+          "-2",
+          "4"
         ]
       },
       "args": [
@@ -1145,8 +425,188 @@
     {
       "points": {
         "A": [
-          "8",
+          "-4",
+          "-3"
+        ],
+        "B": [
+          "-2",
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-3"
+        ],
+        "B": [
+          "-2",
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-3"
+        ],
+        "B": [
+          "-2",
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-3"
+        ],
+        "B": [
+          "-5",
           "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-3"
+        ],
+        "B": [
+          "-5",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-3"
+        ],
+        "B": [
+          "-5",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "2"
+        ],
+        "B": [
+          "5",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "2"
+        ],
+        "B": [
+          "5",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "2"
+        ],
+        "B": [
+          "5",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-4"
         ],
         "B": [
           "-5",
@@ -1165,8 +625,8 @@
     {
       "points": {
         "A": [
-          "8",
-          "-7"
+          "-7",
+          "-4"
         ],
         "B": [
           "-5",
@@ -1185,8 +645,8 @@
     {
       "points": {
         "A": [
-          "8",
-          "-7"
+          "-7",
+          "-4"
         ],
         "B": [
           "-5",
@@ -1206,11 +666,11 @@
       "points": {
         "A": [
           "-7",
-          "-2"
+          "-6"
         ],
         "B": [
-          "8",
-          "5"
+          "-2",
+          "-7"
         ]
       },
       "args": [
@@ -1226,11 +686,11 @@
       "points": {
         "A": [
           "-7",
-          "-2"
+          "-6"
         ],
         "B": [
-          "8",
-          "5"
+          "-2",
+          "-7"
         ]
       },
       "args": [
@@ -1246,31 +706,151 @@
       "points": {
         "A": [
           "-7",
+          "-6"
+        ],
+        "B": [
+          "-2",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-4"
+        ],
+        "B": [
+          "3",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-4"
+        ],
+        "B": [
+          "3",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-4"
+        ],
+        "B": [
+          "3",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "2"
+        ],
+        "B": [
+          "-4",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "2"
+        ],
+        "B": [
+          "-4",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "2"
+        ],
+        "B": [
+          "-4",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-8",
           "-2"
         ],
         "B": [
-          "8",
-          "5"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "5"
-        ],
-        "B": [
-          "4",
-          "1"
+          "-8",
+          "-3"
         ]
       },
       "args": [
@@ -1285,12 +865,12 @@
     {
       "points": {
         "A": [
-          "8",
-          "5"
+          "-8",
+          "-2"
         ],
         "B": [
-          "4",
-          "1"
+          "-8",
+          "-3"
         ]
       },
       "args": [
@@ -1305,72 +885,12 @@
     {
       "points": {
         "A": [
-          "8",
-          "5"
+          "-8",
+          "-2"
         ],
         "B": [
-          "4",
-          "1"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "5"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a pentagon"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "0"
-        ],
-        "B": [
-          "5",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a triangle"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "0"
-        ],
-        "B": [
-          "5",
-          "-7"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "4"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a square"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "0"
-        ],
-        "B": [
-          "5",
-          "-7"
+          "-8",
+          "-3"
         ]
       },
       "args": [
@@ -1386,11 +906,11 @@
       "points": {
         "A": [
           "-1",
-          "7"
+          "5"
         ],
         "B": [
-          "1",
-          "-4"
+          "-3",
+          "-1"
         ]
       },
       "args": [
@@ -1406,11 +926,11 @@
       "points": {
         "A": [
           "-1",
-          "7"
+          "5"
         ],
         "B": [
-          "1",
-          "-4"
+          "-3",
+          "-1"
         ]
       },
       "args": [
@@ -1426,11 +946,491 @@
       "points": {
         "A": [
           "-1",
-          "7"
+          "5"
+        ],
+        "B": [
+          "-3",
+          "-1"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "3"
+        ],
+        "B": [
+          "-2",
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "3"
+        ],
+        "B": [
+          "-2",
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "3"
+        ],
+        "B": [
+          "-2",
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-2"
+        ],
+        "B": [
+          "7",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-2"
+        ],
+        "B": [
+          "7",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-2"
+        ],
+        "B": [
+          "7",
+          "-7"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "4"
+        ],
+        "B": [
+          "0",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "4"
+        ],
+        "B": [
+          "0",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "4"
+        ],
+        "B": [
+          "0",
+          "0"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "-2"
+        ],
+        "B": [
+          "0",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "-2"
+        ],
+        "B": [
+          "0",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "-2"
+        ],
+        "B": [
+          "0",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "6",
+          "6"
+        ],
+        "B": [
+          "-2",
+          "2"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "6",
+          "6"
+        ],
+        "B": [
+          "-2",
+          "2"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "6",
+          "6"
+        ],
+        "B": [
+          "-2",
+          "2"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "4"
+        ],
+        "B": [
+          "-4",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "4"
+        ],
+        "B": [
+          "-4",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "4"
+        ],
+        "B": [
+          "-4",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "3"
+        ],
+        "B": [
+          "-1",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "3"
+        ],
+        "B": [
+          "-1",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "3"
+        ],
+        "B": [
+          "-1",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "5"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a pentagon"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "6"
         ],
         "B": [
           "1",
-          "-4"
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a triangle"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "6"
+        ],
+        "B": [
+          "1",
+          "5"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "4"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a square"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "6"
+        ],
+        "B": [
+          "1",
+          "5"
         ]
       },
       "args": [
@@ -1465,52 +1465,12 @@
     {
       "points": {
         "A": [
-          "6",
-          "-2"
+          "-2",
+          "-6"
         ],
         "B": [
-          "1",
-          "6"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2"
-      ],
-      "kind": "degenerate",
-      "expect": "error",
-      "note": "two vertices"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "0"
-        ],
-        "B": [
-          "8",
-          "-4"
-        ]
-      },
-      "args": [
-        "A",
-        "B",
-        "2"
-      ],
-      "kind": "degenerate",
-      "expect": "error",
-      "note": "two vertices"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "-8"
-        ],
-        "B": [
-          "0",
-          "0"
+          "-3",
+          "2"
         ]
       },
       "args": [
@@ -1526,11 +1486,51 @@
       "points": {
         "A": [
           "-4",
-          "-7"
+          "4"
         ],
         "B": [
-          "4",
-          "6"
+          "-2",
+          "3"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2"
+      ],
+      "kind": "degenerate",
+      "expect": "error",
+      "note": "two vertices"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "7"
+        ],
+        "B": [
+          "-3",
+          "4"
+        ]
+      },
+      "args": [
+        "A",
+        "B",
+        "2"
+      ],
+      "kind": "degenerate",
+      "expect": "error",
+      "note": "two vertices"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "5"
+        ],
+        "B": [
+          "8",
+          "1"
         ]
       },
       "args": [

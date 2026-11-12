@@ -5,280 +5,280 @@
     {
       "points": {
         "A": [
-          "-6",
-          "2"
-        ],
-        "B": [
-          "1",
-          "-1"
-        ],
-        "C": [
-          "7",
-          "-5"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "4",
-          "-2"
-        ],
-        "B": [
-          "-2",
-          "1"
-        ],
-        "C": [
-          "-7",
-          "-8"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-7"
-        ],
-        "B": [
-          "0",
-          "-1"
-        ],
-        "C": [
-          "6",
-          "1"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "-8"
-        ],
-        "B": [
-          "8",
-          "7"
-        ],
-        "C": [
-          "4",
-          "0"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "-6",
-          "8"
-        ],
-        "B": [
-          "-5",
-          "2"
-        ],
-        "C": [
-          "2",
-          "7"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "4",
-          "1"
-        ],
-        "B": [
-          "-6",
-          "1"
-        ],
-        "C": [
-          "3",
-          "-5"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
           "5",
-          "-8"
-        ],
-        "B": [
-          "6",
-          "-3"
-        ],
-        "C": [
-          "5",
-          "4"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-7"
-        ],
-        "B": [
-          "-7",
-          "-8"
-        ],
-        "C": [
-          "-6",
-          "-4"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "8"
-        ],
-        "B": [
-          "5",
-          "-1"
-        ],
-        "C": [
-          "7",
-          "6"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "6"
-        ],
-        "B": [
-          "8",
-          "-6"
-        ],
-        "C": [
-          "-8",
-          "5"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "0"
-        ],
-        "B": [
-          "-7",
-          "0"
-        ],
-        "C": [
-          "5",
-          "5"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "-6"
-        ],
-        "B": [
-          "-3",
-          "1"
-        ],
-        "C": [
-          "0",
-          "0"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
           "7"
         ],
         "B": [
           "-4",
+          "-1"
+        ],
+        "C": [
+          "-2",
+          "4"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "3",
+          "-6"
+        ],
+        "B": [
+          "-4",
+          "6"
+        ],
+        "C": [
+          "8",
+          "6"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "2"
+        ],
+        "B": [
+          "-1",
+          "7"
+        ],
+        "C": [
+          "8",
+          "7"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "-4"
+        ],
+        "B": [
+          "-4",
+          "7"
+        ],
+        "C": [
+          "-3",
+          "6"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "-5",
+          "-3"
+        ],
+        "B": [
+          "1",
+          "-6"
+        ],
+        "C": [
+          "-4",
+          "5"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-4"
+        ],
+        "B": [
+          "8",
+          "2"
+        ],
+        "C": [
+          "-7",
+          "-8"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "8"
+        ],
+        "B": [
+          "6",
+          "8"
+        ],
+        "C": [
+          "-3",
+          "-8"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "-5"
+        ],
+        "B": [
+          "-8",
+          "-4"
+        ],
+        "C": [
+          "0",
+          "-8"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "-8"
+        ],
+        "B": [
+          "4",
           "1"
         ],
         "C": [
-          "7",
-          "-6"
+          "8",
+          "8"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "2"
+        ],
+        "B": [
+          "8",
+          "3"
+        ],
+        "C": [
+          "-8",
+          "4"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "7"
+        ],
+        "B": [
+          "1",
+          "-1"
+        ],
+        "C": [
+          "-6",
+          "4"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "-2"
+        ],
+        "B": [
+          "-1",
+          "-5"
+        ],
+        "C": [
+          "1",
+          "-8"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "2"
+        ],
+        "B": [
+          "-3",
+          "-2"
+        ],
+        "C": [
+          "4",
+          "-4"
         ]
       },
       "args": [
@@ -292,80 +292,124 @@
       "points": {
         "A": [
           "-8",
+          "2"
+        ],
+        "B": [
+          "2",
+          "-1"
+        ],
+        "C": [
+          "-4",
+          "8"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "6",
+          "8"
+        ],
+        "B": [
+          "-4",
+          "7"
+        ],
+        "C": [
+          "1",
+          "-1"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
           "4"
         ],
         "B": [
-          "3",
+          "-2",
+          "1"
+        ],
+        "C": [
+          "1",
+          "5"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "-2"
+        ],
+        "B": [
+          "1",
           "0"
         ],
         "C": [
-          "-2",
-          "4"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "5",
-          "-8"
-        ],
-        "B": [
-          "7",
-          "2"
-        ],
-        "C": [
-          "-6",
-          "2"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "-6",
-          "-4"
-        ],
-        "B": [
-          "-3",
-          "3"
-        ],
-        "C": [
-          "-3",
-          "-5"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "-5"
-        ],
-        "B": [
           "6",
+          "-6"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "-6",
+          "-6"
+        ],
+        "B": [
+          "-3",
+          "8"
+        ],
+        "C": [
+          "-8",
+          "-8"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "7"
+        ],
+        "B": [
+          "3",
           "-2"
         ],
         "C": [
-          "-3",
+          "8",
           "-3"
         ]
       },
@@ -379,60 +423,16 @@
     {
       "points": {
         "A": [
-          "-3",
-          "7"
+          "-2",
+          "-7"
         ],
         "B": [
-          "0",
-          "-1"
-        ],
-        "C": [
-          "8",
-          "-8"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-4"
-        ],
-        "B": [
-          "3",
-          "-2"
-        ],
-        "C": [
-          "-1",
-          "2"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
           "5",
-          "-4"
-        ],
-        "B": [
-          "-5",
           "6"
         ],
         "C": [
-          "2",
-          "2"
+          "-8",
+          "6"
         ]
       },
       "args": [
@@ -445,38 +445,16 @@
     {
       "points": {
         "A": [
-          "2",
-          "4"
-        ],
-        "B": [
-          "-7",
-          "-8"
-        ],
-        "C": [
-          "-3",
-          "-7"
-        ]
-      },
-      "args": [
-        "circle:A,B,C"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the circle through three points"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
+          "3",
           "-5"
         ],
         "B": [
-          "8",
-          "4"
+          "4",
+          "-6"
         ],
         "C": [
-          "-6",
-          "-6"
+          "-8",
+          "-7"
         ]
       },
       "args": [
@@ -489,16 +467,38 @@
     {
       "points": {
         "A": [
-          "-1",
-          "-7"
+          "6",
+          "-4"
         ],
         "B": [
-          "3",
+          "8",
           "3"
         ],
         "C": [
           "4",
+          "-1"
+        ]
+      },
+      "args": [
+        "circle:A,B,C"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the circle through three points"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "-7"
+        ],
+        "B": [
+          "-2",
           "3"
+        ],
+        "C": [
+          "-2",
+          "8"
         ]
       },
       "args": [
@@ -512,15 +512,15 @@
       "points": {
         "A": [
           "-2",
-          "-8"
+          "6"
         ],
         "B": [
-          "4",
-          "-6"
+          "5",
+          "0"
         ],
         "C": [
-          "-7",
-          "7"
+          "3",
+          "2"
         ]
       },
       "args": [

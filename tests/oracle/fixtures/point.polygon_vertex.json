@@ -5,668 +5,20 @@
     {
       "points": {
         "A": [
-          "-2",
-          "-6"
-        ],
-        "B": [
-          "-7",
-          "-7"
-        ],
-        "C": [
-          "-2",
-          "-8"
-        ],
-        "D": [
-          "7",
-          "-1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "-2",
-          "-6"
-        ],
-        "B": [
-          "-7",
-          "-7"
-        ],
-        "C": [
-          "-2",
-          "-8"
-        ],
-        "D": [
-          "7",
-          "-1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "1"
-        ],
-        "B": [
-          "-7",
-          "-2"
-        ],
-        "C": [
-          "8",
-          "0"
-        ],
-        "D": [
-          "-4",
-          "-1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "1"
-        ],
-        "B": [
-          "-7",
-          "-2"
-        ],
-        "C": [
-          "8",
-          "0"
-        ],
-        "D": [
-          "-4",
-          "-1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "8"
-        ],
-        "B": [
-          "-7",
-          "-3"
-        ],
-        "C": [
-          "-2",
-          "-2"
-        ],
-        "D": [
-          "3",
-          "-8"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "8"
-        ],
-        "B": [
-          "-7",
-          "-3"
-        ],
-        "C": [
-          "-2",
-          "-2"
-        ],
-        "D": [
-          "3",
-          "-8"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "-2"
-        ],
-        "B": [
-          "-5",
-          "8"
-        ],
-        "C": [
-          "-7",
-          "2"
-        ],
-        "D": [
-          "2",
-          "-6"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "-2"
-        ],
-        "B": [
-          "-5",
-          "8"
-        ],
-        "C": [
-          "-7",
-          "2"
-        ],
-        "D": [
-          "2",
-          "-6"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "-2"
-        ],
-        "B": [
-          "-1",
-          "-7"
-        ],
-        "C": [
-          "-8",
-          "-7"
-        ],
-        "D": [
-          "0",
-          "-1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "-2"
-        ],
-        "B": [
-          "-1",
-          "-7"
-        ],
-        "C": [
-          "-8",
-          "-7"
-        ],
-        "D": [
-          "0",
-          "-1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "-6",
-          "0"
-        ],
-        "B": [
-          "2",
-          "-6"
-        ],
-        "C": [
-          "8",
-          "-8"
-        ],
-        "D": [
-          "-6",
-          "0"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "-6",
-          "0"
-        ],
-        "B": [
-          "2",
-          "-6"
-        ],
-        "C": [
-          "8",
-          "-8"
-        ],
-        "D": [
-          "-6",
-          "0"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-7"
-        ],
-        "B": [
-          "0",
-          "4"
-        ],
-        "C": [
-          "3",
-          "4"
-        ],
-        "D": [
-          "4",
-          "-1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "-7",
-          "-7"
-        ],
-        "B": [
-          "0",
-          "4"
-        ],
-        "C": [
-          "3",
-          "4"
-        ],
-        "D": [
-          "4",
-          "-1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "4",
-          "-7"
-        ],
-        "B": [
-          "-4",
-          "1"
-        ],
-        "C": [
-          "-6",
-          "-6"
-        ],
-        "D": [
-          "7",
-          "6"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "4",
-          "-7"
-        ],
-        "B": [
-          "-4",
-          "1"
-        ],
-        "C": [
-          "-6",
-          "-6"
-        ],
-        "D": [
-          "7",
-          "6"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-8"
-        ],
-        "B": [
-          "4",
-          "3"
-        ],
-        "C": [
-          "-5",
-          "-7"
-        ],
-        "D": [
-          "8",
-          "-8"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "-8"
-        ],
-        "B": [
-          "4",
-          "3"
-        ],
-        "C": [
-          "-5",
-          "-7"
-        ],
-        "D": [
-          "8",
-          "-8"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "0"
-        ],
-        "B": [
-          "5",
-          "-8"
-        ],
-        "C": [
-          "-6",
-          "6"
-        ],
-        "D": [
-          "2",
-          "-2"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "8",
-          "0"
-        ],
-        "B": [
-          "5",
-          "-8"
-        ],
-        "C": [
-          "-6",
-          "6"
-        ],
-        "D": [
-          "2",
-          "-2"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "5",
-          "7"
-        ],
-        "B": [
-          "1",
-          "8"
-        ],
-        "C": [
-          "0",
-          "-4"
-        ],
-        "D": [
-          "-7",
-          "-3"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "5",
-          "7"
-        ],
-        "B": [
-          "1",
-          "8"
-        ],
-        "C": [
-          "0",
-          "-4"
-        ],
-        "D": [
-          "-7",
-          "-3"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "2"
-        ],
-        "B": [
-          "0",
-          "0"
-        ],
-        "C": [
-          "7",
-          "-2"
-        ],
-        "D": [
-          "-1",
-          "-1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "2"
-        ],
-        "B": [
-          "0",
-          "0"
-        ],
-        "C": [
-          "7",
-          "-2"
-        ],
-        "D": [
-          "-1",
-          "-1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "-8"
-        ],
-        "B": [
-          "1",
-          "3"
-        ],
-        "C": [
           "6",
           "5"
         ],
+        "B": [
+          "-2",
+          "4"
+        ],
+        "C": [
+          "6",
+          "6"
+        ],
         "D": [
-          "-4",
-          "7"
+          "-8",
+          "5"
         ]
       },
       "args": [
@@ -680,20 +32,74 @@
     {
       "points": {
         "A": [
-          "3",
-          "-8"
-        ],
-        "B": [
-          "1",
-          "3"
-        ],
-        "C": [
           "6",
           "5"
         ],
+        "B": [
+          "-2",
+          "4"
+        ],
+        "C": [
+          "6",
+          "6"
+        ],
         "D": [
-          "-4",
-          "7"
+          "-8",
+          "5"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "3"
+        ],
+        "B": [
+          "-3",
+          "-6"
+        ],
+        "C": [
+          "7",
+          "-1"
+        ],
+        "D": [
+          "5",
+          "2"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "3"
+        ],
+        "B": [
+          "-3",
+          "-6"
+        ],
+        "C": [
+          "7",
+          "-1"
+        ],
+        "D": [
+          "5",
+          "2"
         ]
       },
       "args": [
@@ -708,19 +114,19 @@
       "points": {
         "A": [
           "3",
-          "6"
+          "0"
         ],
         "B": [
-          "5",
-          "-1"
+          "1",
+          "1"
         ],
         "C": [
-          "4",
-          "-2"
+          "-8",
+          "4"
         ],
         "D": [
           "0",
-          "6"
+          "-2"
         ]
       },
       "args": [
@@ -735,19 +141,19 @@
       "points": {
         "A": [
           "3",
-          "6"
+          "0"
         ],
         "B": [
-          "5",
-          "-1"
+          "1",
+          "1"
         ],
         "C": [
-          "4",
-          "-2"
+          "-8",
+          "4"
         ],
         "D": [
           "0",
-          "6"
+          "-2"
         ]
       },
       "args": [
@@ -761,74 +167,20 @@
     {
       "points": {
         "A": [
-          "-5",
-          "1"
+          "0",
+          "-3"
         ],
         "B": [
-          "6",
-          "4"
-        ],
-        "C": [
-          "-1",
-          "-8"
-        ],
-        "D": [
-          "-3",
-          "0"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "1"
-        ],
-        "B": [
-          "6",
-          "4"
-        ],
-        "C": [
-          "-1",
-          "-8"
-        ],
-        "D": [
-          "-3",
-          "0"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "2"
-        ],
-        "B": [
-          "-8",
+          "4",
           "3"
         ],
         "C": [
-          "-5",
-          "-7"
+          "0",
+          "-2"
         ],
         "D": [
-          "-5",
-          "4"
+          "1",
+          "0"
         ]
       },
       "args": [
@@ -842,128 +194,20 @@
     {
       "points": {
         "A": [
-          "3",
-          "2"
+          "0",
+          "-3"
         ],
         "B": [
-          "-8",
+          "4",
           "3"
         ],
         "C": [
-          "-5",
-          "-7"
+          "0",
+          "-2"
         ],
         "D": [
-          "-5",
-          "4"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "8"
-        ],
-        "B": [
-          "-6",
-          "-4"
-        ],
-        "C": [
-          "1",
-          "-6"
-        ],
-        "D": [
-          "8",
-          "-4"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "-8",
-          "8"
-        ],
-        "B": [
-          "-6",
-          "-4"
-        ],
-        "C": [
-          "1",
-          "-6"
-        ],
-        "D": [
-          "8",
-          "-4"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "4",
-          "1"
-        ],
-        "B": [
-          "-3",
-          "5"
-        ],
-        "C": [
           "1",
           "0"
-        ],
-        "D": [
-          "2",
-          "-8"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "4",
-          "1"
-        ],
-        "B": [
-          "-3",
-          "5"
-        ],
-        "C": [
-          "1",
-          "0"
-        ],
-        "D": [
-          "2",
-          "-8"
         ]
       },
       "args": [
@@ -977,20 +221,20 @@
     {
       "points": {
         "A": [
-          "3",
+          "2",
           "-5"
         ],
         "B": [
-          "-3",
-          "8"
+          "-4",
+          "-5"
         ],
         "C": [
-          "-3",
-          "1"
+          "5",
+          "-2"
         ],
         "D": [
-          "-6",
-          "-3"
+          "-8",
+          "-8"
         ]
       },
       "args": [
@@ -1004,19 +248,127 @@
     {
       "points": {
         "A": [
-          "3",
+          "2",
           "-5"
         ],
         "B": [
-          "-3",
-          "8"
+          "-4",
+          "-5"
         ],
         "C": [
-          "-3",
-          "1"
+          "5",
+          "-2"
         ],
         "D": [
-          "-6",
+          "-8",
+          "-8"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "-3"
+        ],
+        "B": [
+          "8",
+          "6"
+        ],
+        "C": [
+          "4",
+          "8"
+        ],
+        "D": [
+          "8",
+          "-2"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "-3"
+        ],
+        "B": [
+          "8",
+          "6"
+        ],
+        "C": [
+          "4",
+          "8"
+        ],
+        "D": [
+          "8",
+          "-2"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "2"
+        ],
+        "B": [
+          "6",
+          "1"
+        ],
+        "C": [
+          "-7",
+          "6"
+        ],
+        "D": [
+          "-7",
+          "-3"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "2"
+        ],
+        "B": [
+          "6",
+          "1"
+        ],
+        "C": [
+          "-7",
+          "6"
+        ],
+        "D": [
+          "-7",
           "-3"
         ]
       },
@@ -1031,19 +383,343 @@
     {
       "points": {
         "A": [
-          "5",
-          "-7"
+          "-6",
+          "3"
         ],
         "B": [
-          "-8",
-          "-6"
+          "4",
+          "-1"
         ],
         "C": [
-          "-4",
+          "3",
+          "4"
+        ],
+        "D": [
+          "8",
+          "1"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-6",
+          "3"
+        ],
+        "B": [
+          "4",
+          "-1"
+        ],
+        "C": [
+          "3",
+          "4"
+        ],
+        "D": [
+          "8",
+          "1"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "3",
+          "0"
+        ],
+        "B": [
+          "1",
+          "-2"
+        ],
+        "C": [
+          "-6",
+          "-6"
+        ],
+        "D": [
+          "-6",
+          "8"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "3",
+          "0"
+        ],
+        "B": [
+          "1",
+          "-2"
+        ],
+        "C": [
+          "-6",
+          "-6"
+        ],
+        "D": [
+          "-6",
+          "8"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "4"
+        ],
+        "B": [
+          "3",
+          "1"
+        ],
+        "C": [
+          "-7",
           "5"
         ],
         "D": [
+          "-8",
+          "-8"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "4"
+        ],
+        "B": [
+          "3",
+          "1"
+        ],
+        "C": [
+          "-7",
+          "5"
+        ],
+        "D": [
+          "-8",
+          "-8"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
+          "-1"
+        ],
+        "B": [
+          "-6",
+          "1"
+        ],
+        "C": [
           "7",
+          "2"
+        ],
+        "D": [
+          "0",
+          "-1"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
+          "-1"
+        ],
+        "B": [
+          "-6",
+          "1"
+        ],
+        "C": [
+          "7",
+          "2"
+        ],
+        "D": [
+          "0",
+          "-1"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "1"
+        ],
+        "B": [
+          "5",
+          "-5"
+        ],
+        "C": [
+          "0",
+          "-1"
+        ],
+        "D": [
+          "7",
+          "-1"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "1"
+        ],
+        "B": [
+          "5",
+          "-5"
+        ],
+        "C": [
+          "0",
+          "-1"
+        ],
+        "D": [
+          "7",
+          "-1"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-1"
+        ],
+        "B": [
+          "-6",
+          "-3"
+        ],
+        "C": [
+          "8",
+          "1"
+        ],
+        "D": [
+          "1",
+          "-2"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-1"
+        ],
+        "B": [
+          "-6",
+          "-3"
+        ],
+        "C": [
+          "8",
+          "1"
+        ],
+        "D": [
+          "1",
+          "-2"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "1"
+        ],
+        "B": [
+          "8",
+          "-6"
+        ],
+        "C": [
+          "8",
+          "-2"
+        ],
+        "D": [
+          "0",
           "-4"
         ]
       },
@@ -1058,19 +734,19 @@
     {
       "points": {
         "A": [
-          "5",
-          "-7"
+          "2",
+          "1"
         ],
         "B": [
-          "-8",
+          "8",
           "-6"
         ],
         "C": [
-          "-4",
-          "5"
+          "8",
+          "-2"
         ],
         "D": [
-          "7",
+          "0",
           "-4"
         ]
       },
@@ -1085,19 +761,505 @@
     {
       "points": {
         "A": [
-          "4",
-          "-1"
+          "-6",
+          "-5"
         ],
         "B": [
-          "0",
+          "-4",
+          "1"
+        ],
+        "C": [
+          "-7",
+          "-6"
+        ],
+        "D": [
+          "7",
+          "-6"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-6",
+          "-5"
+        ],
+        "B": [
+          "-4",
+          "1"
+        ],
+        "C": [
+          "-7",
+          "-6"
+        ],
+        "D": [
+          "7",
+          "-6"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "4"
+        ],
+        "B": [
+          "-6",
+          "-8"
+        ],
+        "C": [
+          "-6",
+          "-6"
+        ],
+        "D": [
+          "-1",
+          "-1"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "4"
+        ],
+        "B": [
+          "-6",
+          "-8"
+        ],
+        "C": [
+          "-6",
+          "-6"
+        ],
+        "D": [
+          "-1",
+          "-1"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "8"
+        ],
+        "B": [
+          "-8",
+          "3"
+        ],
+        "C": [
+          "-7",
+          "-2"
+        ],
+        "D": [
+          "2",
+          "6"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "8"
+        ],
+        "B": [
+          "-8",
+          "3"
+        ],
+        "C": [
+          "-7",
+          "-2"
+        ],
+        "D": [
+          "2",
+          "6"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "5"
+        ],
+        "B": [
+          "7",
           "-3"
         ],
         "C": [
-          "-2",
-          "3"
+          "-6",
+          "0"
         ],
         "D": [
-          "-4",
+          "0",
+          "0"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "5"
+        ],
+        "B": [
+          "7",
+          "-3"
+        ],
+        "C": [
+          "-6",
+          "0"
+        ],
+        "D": [
+          "0",
+          "0"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
+          "6"
+        ],
+        "B": [
+          "8",
+          "-5"
+        ],
+        "C": [
+          "2",
+          "-4"
+        ],
+        "D": [
+          "4",
+          "-7"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
+          "6"
+        ],
+        "B": [
+          "8",
+          "-5"
+        ],
+        "C": [
+          "2",
+          "-4"
+        ],
+        "D": [
+          "4",
+          "-7"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "0"
+        ],
+        "B": [
+          "4",
+          "-5"
+        ],
+        "C": [
+          "-1",
+          "-1"
+        ],
+        "D": [
+          "4",
+          "-3"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "0"
+        ],
+        "B": [
+          "4",
+          "-5"
+        ],
+        "C": [
+          "-1",
+          "-1"
+        ],
+        "D": [
+          "4",
+          "-3"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "2"
+        ],
+        "B": [
+          "-5",
+          "3"
+        ],
+        "C": [
+          "6",
+          "5"
+        ],
+        "D": [
+          "1",
+          "3"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "2"
+        ],
+        "B": [
+          "-5",
+          "3"
+        ],
+        "C": [
+          "6",
+          "5"
+        ],
+        "D": [
+          "1",
+          "3"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "8"
+        ],
+        "B": [
+          "-5",
+          "-1"
+        ],
+        "C": [
+          "6",
+          "-7"
+        ],
+        "D": [
+          "8",
+          "-7"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "8"
+        ],
+        "B": [
+          "-5",
+          "-1"
+        ],
+        "C": [
+          "6",
+          "-7"
+        ],
+        "D": [
+          "8",
+          "-7"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "-4"
+        ],
+        "B": [
+          "8",
+          "-5"
+        ],
+        "C": [
+          "5",
+          "4"
+        ],
+        "D": [
+          "-8",
+          "-8"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "1"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the first vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "-4"
+        ],
+        "B": [
+          "8",
+          "-5"
+        ],
+        "C": [
+          "5",
+          "4"
+        ],
+        "D": [
+          "-8",
+          "-8"
+        ]
+      },
+      "args": [
+        "polygon:A,B,C,D",
+        "3"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "the third vertex"
+    },
+    {
+      "points": {
+        "A": [
+          "4",
+          "-7"
+        ],
+        "B": [
+          "0",
+          "-8"
+        ],
+        "C": [
+          "-6",
+          "5"
+        ],
+        "D": [
+          "1",
           "2"
         ]
       },
@@ -1113,181 +1275,19 @@
       "points": {
         "A": [
           "4",
-          "-1"
+          "-7"
         ],
         "B": [
           "0",
-          "-3"
+          "-8"
         ],
         "C": [
-          "-2",
-          "3"
+          "-6",
+          "5"
         ],
         "D": [
-          "-4",
+          "1",
           "2"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "5"
-        ],
-        "B": [
-          "8",
-          "8"
-        ],
-        "C": [
-          "-2",
-          "-7"
-        ],
-        "D": [
-          "2",
-          "1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "5"
-        ],
-        "B": [
-          "8",
-          "8"
-        ],
-        "C": [
-          "-2",
-          "-7"
-        ],
-        "D": [
-          "2",
-          "1"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "-2"
-        ],
-        "B": [
-          "-6",
-          "5"
-        ],
-        "C": [
-          "-7",
-          "8"
-        ],
-        "D": [
-          "6",
-          "7"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "-2"
-        ],
-        "B": [
-          "-6",
-          "5"
-        ],
-        "C": [
-          "-7",
-          "8"
-        ],
-        "D": [
-          "6",
-          "7"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "3"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the third vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "3"
-        ],
-        "B": [
-          "3",
-          "-6"
-        ],
-        "C": [
-          "1",
-          "-2"
-        ],
-        "D": [
-          "-2",
-          "8"
-        ]
-      },
-      "args": [
-        "polygon:A,B,C,D",
-        "1"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "the first vertex"
-    },
-    {
-      "points": {
-        "A": [
-          "3",
-          "3"
-        ],
-        "B": [
-          "3",
-          "-6"
-        ],
-        "C": [
-          "1",
-          "-2"
-        ],
-        "D": [
-          "-2",
-          "8"
         ]
       },
       "args": [

@@ -32,7 +32,13 @@ from typing import Any
 import sympy as sp
 from sympy import Expr
 
-from geobench.model import CONDITION_NONZERO, CONDITION_ZERO, Figure, Node
+from geobench.model import (
+    CONDITION_NONNEGATIVE,
+    CONDITION_NONZERO,
+    CONDITION_ZERO,
+    Figure,
+    Node,
+)
 
 #: The cache keys the numeric path owns.
 CACHE_FN = "numeric_fn"
@@ -112,28 +118,34 @@ def compile_conditions(node: Node, symbols: tuple[sp.Symbol, ...]) -> None:
     must not be zero", "the point must lie on the circle"), and they are
     checked numerically, where the placement is known.
 
-    Two kinds of condition:
+    Three kinds of condition:
 
     - ``must_be_nonzero`` -- the expression must **not** vanish (the
       three points must not be collinear);
     - ``must_be_zero`` -- the expression **must** vanish (the point of
-      tangency must lie on the circle).
+      tangency must lie on the circle);
+    - ``must_be_nonnegative`` -- the expression must not be **negative**
+      (the point must not be inside the circle).
 
     Both are published rather than checked, because a symbolic expression
     that is not identically zero may still vanish at some placements.
     """
-    checks: list[tuple[str, Expr, bool]] = []
-    for key, must_vanish in ((CONDITION_NONZERO, False), (CONDITION_ZERO, True)):
+    checks: list[tuple[str, Expr, str]] = []
+    for key, flag in (
+        (CONDITION_NONZERO, "nonzero"),
+        (CONDITION_ZERO, "zero"),
+        (CONDITION_NONNEGATIVE, "nonnegative"),
+    ):
         conditions = node.cache.get(key)
         if not isinstance(conditions, dict) or not conditions:
             continue
         for name in sorted(conditions):
-            checks.append((name, conditions[name], must_vanish))
+            checks.append((name, conditions[name], flag))
     if not checks:
         return
     names = tuple(name for name, _, _ in checks)
     expressions = tuple(expression for _, expression, _ in checks)
-    vanish = tuple(flag for _, _, flag in checks)
+    flags = tuple(flag for _, _, flag in checks)
     used = _used_symbols(expressions, symbols)
     # The condition has its own list of symbols: the payload's list says
     # which values the compiled payload takes, and overwriting it would
@@ -141,7 +153,7 @@ def compile_conditions(node: Node, symbols: tuple[sp.Symbol, ...]) -> None:
     node.cache[CACHE_CONDITION_SYMBOLS] = used
     node.cache[CACHE_CONDITION_FN] = (
         names,
-        vanish,
+        flags,
         sp.lambdify(used, expressions, modules="math"),
     )
 
@@ -406,22 +418,25 @@ def failing_condition(node: Node, values: dict[sp.Symbol, float]) -> str | None:
     compiled = node.cache.get(CACHE_CONDITION_FN)
     if compiled is None:
         return None
-    names, vanish, function = compiled
+    names, flags, function = compiled
     symbols = node.cache.get(CACHE_CONDITION_SYMBOLS) or ()
     try:
         arguments = [values[symbol] for symbol in symbols]
         result = function(*arguments)
     except (ArithmeticError, ValueError, TypeError, KeyError):
         return None
-    for name, value, must_vanish in zip(names, result, vanish, strict=False):
+    for name, value, flag in zip(names, result, flags, strict=False):
         try:
             number = float(value)
         except (TypeError, ValueError):
             continue
         if not math.isfinite(number):
             return str(name)
-        if must_vanish:
+        if flag == "zero":
             if number != 0:
+                return str(name)
+        elif flag == "nonnegative":
+            if number < 0:
                 return str(name)
         elif number == 0:
             return str(name)

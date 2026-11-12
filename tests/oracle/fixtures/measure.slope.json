@@ -5,120 +5,12 @@
     {
       "points": {
         "A": [
-          "3",
-          "4"
+          "4",
+          "-4"
         ],
         "B": [
-          "-4",
-          "0"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "-7"
-        ],
-        "B": [
-          "-2",
-          "-8"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
           "-3",
-          "7"
-        ],
-        "B": [
-          "-2",
-          "2"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "4"
-        ],
-        "B": [
-          "3",
-          "-3"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "-3",
-          "-1"
-        ],
-        "B": [
-          "-8",
-          "0"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "7",
-          "7"
-        ],
-        "B": [
-          "-2",
-          "0"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "0"
-        ],
-        "B": [
-          "8",
-          "-1"
+          "6"
         ]
       },
       "args": [
@@ -132,11 +24,11 @@
       "points": {
         "A": [
           "1",
-          "-6"
+          "-8"
         ],
         "B": [
-          "5",
-          "-4"
+          "-6",
+          "3"
         ]
       },
       "args": [
@@ -149,29 +41,83 @@
     {
       "points": {
         "A": [
-          "8",
+          "-3",
+          "7"
+        ],
+        "B": [
+          "-2",
+          "6"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "7",
+          "-2"
+        ],
+        "B": [
+          "0",
+          "7"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "2",
+          "5"
+        ],
+        "B": [
+          "6",
+          "6"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "5"
+        ],
+        "B": [
+          "-1",
+          "3"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
           "-7"
         ],
         "B": [
           "-2",
-          "1"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "-3"
-        ],
-        "B": [
-          "-1",
           "5"
         ]
       },
@@ -185,11 +131,47 @@
     {
       "points": {
         "A": [
-          "-4",
-          "8"
+          "-6",
+          "6"
         ],
         "B": [
-          "7",
+          "2",
+          "-2"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "8",
+          "-5"
+        ],
+        "B": [
+          "-8",
+          "-6"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "-4",
+          "-5"
+        ],
+        "B": [
+          "1",
           "0"
         ]
       },
@@ -203,12 +185,174 @@
     {
       "points": {
         "A": [
-          "5",
-          "-5"
+          "-7",
+          "7"
         ],
         "B": [
           "-1",
+          "4"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "0"
+        ],
+        "B": [
+          "2",
+          "7"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
+          "8"
+        ],
+        "B": [
+          "5",
+          "-2"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "-7",
+          "7"
+        ],
+        "B": [
+          "3",
+          "-6"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "0",
           "3"
+        ],
+        "B": [
+          "1",
+          "4"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "-3",
+          "-1"
+        ],
+        "B": [
+          "6",
+          "4"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "-2",
+          "1"
+        ],
+        "B": [
+          "-7",
+          "8"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "1",
+          "0"
+        ],
+        "B": [
+          "7",
+          "3"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "-1",
+          "3"
+        ],
+        "B": [
+          "4",
+          "-3"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "normal",
+      "expect": "value",
+      "note": "a slanting line"
+    },
+    {
+      "points": {
+        "A": [
+          "5",
+          "1"
+        ],
+        "B": [
+          "-5",
+          "2"
         ]
       },
       "args": [
@@ -222,47 +366,11 @@
       "points": {
         "A": [
           "-4",
-          "4"
+          "2"
         ],
         "B": [
-          "2",
-          "3"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "4",
-          "-2"
-        ],
-        "B": [
-          "-2",
-          "-4"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
           "6",
-          "1"
-        ],
-        "B": [
-          "7",
-          "8"
+          "-4"
         ]
       },
       "args": [
@@ -279,115 +387,7 @@
           "-4"
         ],
         "B": [
-          "6",
-          "7"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "2",
-          "6"
-        ],
-        "B": [
-          "5",
-          "-2"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "-7"
-        ],
-        "B": [
           "1",
-          "1"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "1",
-          "-4"
-        ],
-        "B": [
-          "2",
-          "-5"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "0",
-          "-7"
-        ],
-        "B": [
-          "-4",
-          "3"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "6",
-          "-1"
-        ],
-        "B": [
-          "-5",
-          "-2"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "normal",
-      "expect": "value",
-      "note": "a slanting line"
-    },
-    {
-      "points": {
-        "A": [
-          "-5",
-          "4"
-        ],
-        "B": [
-          "8",
           "0"
         ]
       },
@@ -401,12 +401,12 @@
     {
       "points": {
         "A": [
-          "5",
-          "-6"
+          "7",
+          "4"
         ],
         "B": [
-          "6",
-          "-4"
+          "4",
+          "-6"
         ]
       },
       "args": [
@@ -419,12 +419,12 @@
     {
       "points": {
         "A": [
-          "-1",
-          "-1"
+          "1",
+          "4"
         ],
         "B": [
-          "8",
-          "-6"
+          "-5",
+          "-5"
         ]
       },
       "args": [
@@ -473,11 +473,11 @@
     {
       "points": {
         "A": [
-          "7",
-          "-6"
+          "-5",
+          "8"
         ],
         "B": [
-          "7",
+          "-5",
           "7"
         ]
       },
@@ -491,29 +491,11 @@
     {
       "points": {
         "A": [
-          "2",
-          "7"
+          "-2",
+          "0"
         ],
         "B": [
-          "2",
-          "7"
-        ]
-      },
-      "args": [
-        "line:A,B"
-      ],
-      "kind": "degenerate",
-      "expect": "error",
-      "note": "a vertical line has no finite slope"
-    },
-    {
-      "points": {
-        "A": [
-          "-1",
-          "3"
-        ],
-        "B": [
-          "-1",
+          "-2",
           "7"
         ]
       },
@@ -527,11 +509,29 @@
     {
       "points": {
         "A": [
-          "3",
-          "-1"
+          "5",
+          "-2"
         ],
         "B": [
-          "3",
+          "5",
+          "7"
+        ]
+      },
+      "args": [
+        "line:A,B"
+      ],
+      "kind": "degenerate",
+      "expect": "error",
+      "note": "a vertical line has no finite slope"
+    },
+    {
+      "points": {
+        "A": [
+          "-8",
+          "-2"
+        ],
+        "B": [
+          "-8",
           "7"
         ]
       },

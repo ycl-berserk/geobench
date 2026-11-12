@@ -26,7 +26,7 @@ from sympy import Expr
 from geobench.errors import StateError
 from geobench.evaluate import free_symbols, symbolic_coords
 from geobench.field import FIELD
-from geobench.model import CONDITION_NONZERO, Figure
+from geobench.model import CONDITION_NONNEGATIVE, CONDITION_NONZERO, Figure
 from geobench.operators import OpContext
 
 PROVED = "proved"
@@ -532,9 +532,10 @@ def _missing_value(
 
     The construction publishes the conditions its answer depends on --
     "these two lines must not be parallel", "this discriminant must not
-    be zero" -- and those conditions are exact expressions.  Deciding
-    them at the placement is therefore exact too: no approximation is
-    involved, and the answer does not depend on the numeric path.
+    be zero", "this point must not be inside this circle" -- and those
+    conditions are exact expressions.  Deciding them at the placement is
+    therefore exact too: no approximation is involved, and the answer
+    does not depend on the numeric path.
 
     Returns the object's name and the reason, or ``None`` when every
     object has a value.
@@ -543,17 +544,35 @@ def _missing_value(
         node = figure.nodes.get(arg)
         if node is None:
             continue
-        conditions = node.cache.get(CONDITION_NONZERO)
-        if not isinstance(conditions, dict):
-            continue
-        for name, expression in sorted(conditions.items()):
-            try:
-                value = expression.subs(placement)
-            except Exception:  # pragma: no cover - defensive
+        for key, fails in (
+            (CONDITION_NONZERO, lambda value: value == 0),
+            (CONDITION_NONNEGATIVE, lambda value: _is_negative(value)),
+        ):
+            conditions = node.cache.get(key)
+            if not isinstance(conditions, dict):
                 continue
-            if value == 0:
-                return arg, str(name)
+            for name, expression in sorted(conditions.items()):
+                try:
+                    value = expression.subs(placement)
+                except Exception:  # pragma: no cover - defensive
+                    continue
+                if fails(value):
+                    return arg, str(name)
     return None
+
+
+def _is_negative(value: Expr) -> bool:
+    """Is this value a number that is known to be negative?
+
+    Only a *number* can be: a value that still carries symbols is not
+    settled, and a value that is not real has no order at all.
+    """
+    if value.is_number is not True or value.is_real is not True:
+        return False
+    try:
+        return bool(value < 0)
+    except TypeError:  # pragma: no cover - defensive
+        return False
 
 
 def _is_admissible(value: Expr) -> bool:
