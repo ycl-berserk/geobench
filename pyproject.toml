@@ -84,7 +84,11 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
-pythonpath = ["src"]
+# "." is the repository root: the evaluation set (evals/) lives there and
+# is imported by the CI gate that replays the recorded AI answers.  CI
+# runs pytest bare, so the working directory is not on sys.path by
+# itself -- without this the gate cannot even be collected.
+pythonpath = ["src", "."]
 addopts = "-ra --strict-markers"
 markers = [
   "oracle: cross-checked against an independent implementation",

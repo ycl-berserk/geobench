@@ -65,6 +65,7 @@ jobs:
   #   perf        -> T016
   #   app         -> T019
   #   degeneracy  -> T006
+  #   eval        -> T041
   gates:
     runs-on: ubuntu-latest
     steps:
@@ -100,5 +101,11 @@ jobs:
         run: pytest tests/perf -q
       - name: app
         run: pytest tests/app -q
+      # The AI's own answers are gated here: the recorded figures are
+      # replayed through the same harness the live run uses, so a kernel
+      # change that breaks them is caught here rather than in front of
+      # a teacher.  Never the network.
+      - name: eval
+        run: pytest tests/eval -q
       - name: the coverage table is up to date
         run: python scripts/gen_coverage.py --check
