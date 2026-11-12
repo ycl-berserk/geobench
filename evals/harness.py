@@ -5,6 +5,13 @@ provider, a case and a registry, and returns a verdict about the
 figure.  That is what makes it usable twice -- in CI with a **fake**
 provider (never the network), and by hand against a real service.
 
+There are two kinds of question, and they are kept apart on purpose:
+
+- the **cases** (:mod:`evals.cases`) measure the contract: does the
+  model know our language, our commands and our conventions?
+- the **statements** (:mod:`evals.statements`) measure the product:
+  type a problem, get a figure that satisfies it?
+
 The expectations are checked on the **figure**, not on the text: a
 model may write the same figure in a different order.  What is checked
 is that the objects the problem names are there, that the claims hold
@@ -18,6 +25,7 @@ import math
 from dataclasses import dataclass, field
 
 from evals.cases import Case
+from evals.statements import Statement
 from geobench.ai import Problem, Provider, propose
 from geobench.dsl import parse_dsl
 from geobench.dsl.errors import DSLParseError
@@ -210,6 +218,182 @@ def _check_angles(case: Case, figure: Figure) -> tuple[str, ...]:
     return tuple(wrong)
 
 
+# -- the statements ---------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class StatementResult:
+    """What came back for a problem statement, and how it held up.
+
+    Three outcomes are kept apart, because they are three different
+    failures:
+
+    - **unmet** -- the figure *contradicts* the statement (the sides
+      are not the lengths the statement says);
+    - **unanswered** -- the figure does not even have the objects the
+      statement names, so it never addressed the question;
+    - **refused** -- the model said the request cannot be done.
+    """
+
+    statement: Statement
+    text: str
+    parsed: bool
+    error: str = ""
+    unmet: tuple[str, ...] = ()
+    """Conditions the figure does not satisfy."""
+
+    unanswered: tuple[str, ...] = ()
+    """Conditions that could not be checked -- an object is missing."""
+
+    missing: tuple[str, ...] = ()
+    """Objects the statement names that the figure does not have."""
+
+    problems: tuple[Problem, ...] = ()
+    refused: bool = False
+    attempts: int = 1
+
+    @property
+    def satisfied(self) -> bool:
+        """Is this a figure a teacher could hand out?"""
+        return (
+            self.parsed
+            and not self.unmet
+            and not self.unanswered
+            and not self.missing
+            and not self.problems
+        )
+
+    @property
+    def outcome(self) -> str:
+        """One word for what happened -- this is what CI compares."""
+        if not self.parsed:
+            return "parse-failure"
+        if self.refused:
+            return "refused"
+        if self.satisfied:
+            return "satisfied"
+        return "unsatisfied"
+
+    def reasons(self) -> list[str]:
+        """Why it failed, in a sentence each."""
+        out: list[str] = []
+        if not self.parsed:
+            out.append(f"解析失败：{self.error}")
+        if self.refused:
+            out.append("模型说做不到")
+        for problem in self.problems:
+            out.append(problem.to_text())
+        for name in self.unmet:
+            out.append(f"条件不满足：{name}")
+        for name in self.unanswered:
+            out.append(f"条件没法验（缺对象）：{name}")
+        for name in self.missing:
+            out.append(f"少了 {name}")
+        return out
+
+
+def run_statement(
+    provider: Provider,
+    statement: Statement,
+    registry: OperatorRegistry,
+    retries: int = 2,
+) -> StatementResult:
+    """Ask the model for this figure, and check it against the statement."""
+    proposal = propose(provider, statement.request, "", registry, retries=retries)
+    if not proposal.ok:
+        return StatementResult(
+            statement=statement,
+            text=proposal.text,
+            parsed=False,
+            error=proposal.error or "the model said nothing usable",
+            attempts=proposal.attempts,
+        )
+    figure = evaluate_figure(proposal.figure, registry)
+    unmet: list[str] = []
+    unanswered: list[str] = []
+    for condition in statement.conditions:
+        try:
+            verdict = condition.check(figure)
+        except Exception:  # pragma: no cover - a check that cannot run
+            verdict = None
+        if verdict is True:
+            continue
+        if verdict is None:
+            unanswered.append(condition.name)
+        else:
+            unmet.append(condition.name)
+    missing = tuple(name for name in statement.must_include if name not in figure.nodes)
+    refused = not figure.nodes and "#" in proposal.text
+    return StatementResult(
+        statement=statement,
+        text=proposal.text,
+        parsed=True,
+        unmet=tuple(unmet),
+        unanswered=tuple(unanswered),
+        missing=missing,
+        problems=tuple(proposal.problems),
+        refused=refused,
+        attempts=proposal.attempts,
+    )
+
+
+@dataclass
+class StatementReport:
+    """The whole run over the statements, and what it says."""
+
+    results: list[StatementResult] = field(default_factory=list)
+
+    @property
+    def satisfied(self) -> int:
+        return sum(1 for result in self.results if result.satisfied)
+
+    @property
+    def total(self) -> int:
+        return len(self.results)
+
+    def by_group(self) -> dict[str, tuple[int, int]]:
+        """How each kind of statement did: (satisfied, total)."""
+        counts: dict[str, list[int]] = {}
+        for result in self.results:
+            group = result.statement.tags[0] if result.statement.tags else "其他"
+            entry = counts.setdefault(group, [0, 0])
+            entry[1] += 1
+            if result.satisfied:
+                entry[0] += 1
+        return {group: (value[0], value[1]) for group, value in sorted(counts.items())}
+
+    def summary(self) -> str:
+        """The report, in lines."""
+        lines = []
+        for result in self.results:
+            mark = "PASS" if result.satisfied else "FAIL"
+            group = result.statement.tags[0] if result.statement.tags else ""
+            lines.append(f"[{mark}] {result.statement.name}  ({group})")
+            for reason in result.reasons():
+                lines.append(f"        · {reason}")
+        lines.append("")
+        for group, (passed, total) in self.by_group().items():
+            lines.append(f"{group}：{passed}/{total}")
+        lines.append("")
+        lines.append(f"{self.satisfied}/{self.total} 满足题面条件")
+        return "\n".join(lines)
+
+
+def run_all_statements(
+    provider: Provider,
+    registry: OperatorRegistry,
+    statements: tuple[Statement, ...] | None = None,
+    retries: int = 2,
+) -> StatementReport:
+    """Run every statement, and report."""
+    from evals.statements import STATEMENTS
+
+    report = StatementReport()
+    for statement in statements if statements is not None else STATEMENTS:
+        report.results.append(run_statement(provider, statement, registry, retries=retries))
+    return report
+
+
 def _coordinates(figure: Figure, name: str) -> tuple[float, float] | None:
     try:
         return numeric_coords(figure, name)
@@ -293,4 +477,13 @@ def run_all(
     return report
 
 
-__all__ = ["CaseResult", "Report", "run_all", "run_case"]
+__all__ = [
+    "CaseResult",
+    "Report",
+    "StatementReport",
+    "StatementResult",
+    "run_all",
+    "run_all_statements",
+    "run_case",
+    "run_statement",
+]

@@ -311,7 +311,14 @@ class SympyField:
         The structural comparison settles most of them.  The rest are
         numbers whose radicals cancel -- and there the reductions are
         cheap, because there are no symbols left to expand.
+
+        The assumptions system is asked first: it answers most algebraic
+        numbers in microseconds, while ``simplify`` on a residual with
+        nested radicals can take seconds.
         """
+        verdict = expr.is_zero
+        if verdict is not None:
+            return bool(verdict)
         for candidate in (sp.radsimp(expr), sp.simplify(expr)):
             if candidate == 0:
                 return True

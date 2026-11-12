@@ -252,20 +252,14 @@ def canonical_line(a: Expr, b: Expr, c: Expr) -> tuple[Expr, Expr, Expr]:
 def _expressions_equal(left: Expr, right: Expr) -> bool:
     """Are two exact expressions the same number?
 
-    ``simplify_to_zero`` is the fast path, but it only handles polynomials over
-    rationals. Two expressions involving radicals can be equal without their
-    difference reducing to zero by that route -- the incenter is the classic
-    case -- so a radical-aware reduction is tried as well.
-
-    Before either of those, there is a much cheaper question: the fixtures
-    use *exact integer* coordinates, so both sides are concrete algebraic
-    numbers. If they agree to twelve digits they are the same number, and
-    saying so takes microseconds instead of minutes. The exact reduction
-    still runs when the numbers differ, so a genuine mismatch is still
-    caught.
+    The fixtures use *exact integer* coordinates, so both sides are
+    concrete algebraic numbers.  Two numbers are compared **numerically
+    first**: if they agree to twelve digits they are the same number,
+    and that takes microseconds.  The exact reductions are the
+    fallback, not the fast path -- a residual with nested radicals (the
+    tangent from a point outside a circle has them) can take seconds to
+    simplify, and this runs thousands of times per battery.
     """
-    if FIELD.simplify_to_zero(left - right):
-        return True
     if not left.free_symbols and not right.free_symbols:
         try:
             lhs = complex(sp.N(left, 30))
@@ -274,8 +268,9 @@ def _expressions_equal(left: Expr, right: Expr) -> bool:
             lhs = rhs = None
         if lhs is not None and rhs is not None:
             scale = max(1.0, abs(lhs), abs(rhs))
-            if abs(lhs - rhs) <= 1e-12 * scale:
-                return True
+            return abs(lhs - rhs) <= 1e-12 * scale
+    if FIELD.simplify_to_zero(left - right):
+        return True
     difference = left - right
     if sp.count_ops(difference) > 2000:
         return False
