@@ -36,6 +36,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 
 from geobench.commands import (
+    COMMANDS,
     JUDGEMENT,
     SELECTORS,
     CommandSpec,
@@ -409,7 +410,7 @@ class Parser:
         """
         candidates = lookup_all(name)
         if not candidates:
-            raise self._fail(span, f"不认识的命令 {name!r}")
+            raise self._fail(span, self._unknown_command(name, args))
         if judgement is None:
             order = [c for c in candidates if c.kind != JUDGEMENT]
             order += [c for c in candidates if c.kind == JUDGEMENT]
@@ -436,6 +437,28 @@ class Parser:
         if unimplemented:
             raise self._fail(span, f"命令 {name!r} 尚未实现")
         raise self._fail(span, f"命令 {name!r} 不能接受这些参数")
+
+    def _unknown_command(self, name: str, args: list[Arg]) -> str:
+        """Why this command is not a command -- and what to write instead.
+
+        The error is the *teaching* channel: it goes straight back to
+        whoever wrote the line, and a complaint that says what to do
+        gets the line fixed.  "Unknown command 'A'" says nothing; "a
+        free point is written 点 A(x, y)" is a sentence somebody can
+        act on.
+        """
+        if len(args) == 2 and all(arg.kind == "number" for arg in args):
+            # `A(0,0)` -- two numbers in brackets is a point, and a point
+            # is declared with 点 in front.  This is the mistake a model
+            # makes most often, so it is the one worth naming.
+            return (
+                f"自由点要写成「点 {name}(x, y)」——"
+                f"「点」字不能省（你写的是 {name}({args[0].value}, {args[1].value})）"
+            )
+        near = _closest_command(name)
+        if near:
+            return f"不认识的命令 {name!r}；你是不是想写「{near}」？"
+        return f"不认识的命令 {name!r}"
 
     def _fits(self, command: CommandSpec, args: list[Arg]) -> bool:
         """Do these arguments fit this operator's contract?"""
@@ -503,7 +526,17 @@ class Parser:
             args=operator_args,
         )
         self.figure.add_node(node)
-        self.scope.objects[name] = Ref(name=name, kind=kind, node_id=name)
+        # A segment remembers its two ends, so that a relation may be
+        # written the way a paper writes it -- ``断言 相等(AB, AC)`` --
+        # rather than only as four points.  Without the ends, a segment
+        # that was *drawn* could not be opened up, while the same
+        # segment written as two letters could.
+        endpoints: tuple[str, ...] = ()
+        if kind == "segment" and len(operator_args) == 2:
+            endpoints = (str(operator_args[0]), str(operator_args[1]))
+        self.scope.objects[name] = Ref(
+            name=name, kind=kind, node_id=name, endpoints=endpoints
+        )
 
     # -- names -------------------------------------------------------------
 
@@ -625,6 +658,69 @@ def _resolve_alias(command: CommandSpec) -> CommandSpec:
         return command
     target = by_id(command.alias_of)
     return target if target is not None else command
+
+
+def _closest_command(name: str) -> str:
+    """The command somebody probably meant, if there is one.
+
+    A name that is one keystroke away from a command is almost always a
+    typo of that command, and saying which one turns a dead end into a
+    fix.
+
+    The comparison is **exact**: an integer edit distance, with the
+    number of mistakes allowed depending on how long the name is.  There
+    is no similarity ratio to tune and no float to write down -- the
+    kernel has no float literals (decision D18), and a fuzzy threshold
+    would be one more thing whose value nobody could explain.
+    """
+    limit = 2 if len(name) >= 5 else 1
+    best = ""
+    best_distance = limit + 1
+    chinese_first = _has_cjk(name)
+    for command in COMMANDS:
+        pairs = (
+            (command.name_zh, command.name_en)
+            if chinese_first
+            else (command.name_en, command.name_zh)
+        )
+        for candidate in pairs:
+            distance = _edit_distance(name, candidate, limit)
+            if distance < best_distance:
+                best_distance = distance
+                best = candidate
+    return best
+
+
+def _has_cjk(text: str) -> bool:
+    """Does this text contain a Chinese character?"""
+    return any("\u4e00" <= character <= "\u9fff" for character in text)
+
+
+def _edit_distance(first: str, second: str, limit: int) -> int:
+    """How many single-character edits turn ``first`` into ``second``.
+
+    The answer is exact, but the search stops as soon as the distance is
+    known to be beyond ``limit`` -- the caller only cares whether the
+    two names are close, not how close.
+    """
+    if abs(len(first) - len(second)) > limit:
+        return limit + 1
+    previous = list(range(len(second) + 1))
+    for i, left in enumerate(first, start=1):
+        current = [i]
+        row_minimum = i
+        for j, right in enumerate(second, start=1):
+            if left == right:
+                cost = previous[j - 1]
+            else:
+                cost = min(previous[j - 1], previous[j], current[j - 1]) + 1
+            current.append(cost)
+            row_minimum = min(row_minimum, cost)
+        if row_minimum > limit:
+            return limit + 1
+        previous = current
+    distance = previous[-1]
+    return distance if distance <= limit else limit + 1
 
 
 def _judgement_fits(command: CommandSpec, args: list[Arg]) -> bool:

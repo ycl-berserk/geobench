@@ -23,6 +23,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from geobench.commands import COMMANDS
 from geobench.dsl.errors import DSLParseError, Span
 
 
@@ -53,6 +54,16 @@ class Token:
 
 #: The statement heads. Everything else is a name.
 KEYWORDS = frozenset({"点", "断言"})
+
+#: The names the command table knows.
+#:
+#: A Chinese run that is one of them is a **command name**, whole.  That
+#: matters: ``点在`` is one command ("the point lies on"), and splitting
+#: it at the ``点`` keyword would leave ``在`` behind -- which is how one
+#: of the seventeen relations came to be unwritable.
+_COMMAND_NAMES = frozenset(
+    name for command in COMMANDS for name in (command.name_zh, command.name_en)
+)
 
 SYMBOLS = frozenset({"⊥", "∥", "∩", "≠", "⊙", "△"})
 
@@ -133,27 +144,33 @@ def tokenize_line(text: str, line_number: int) -> list[Token]:
             while index < length and _is_cjk(text[index]):
                 index += 1
             run = text[start:index]
-            head = _statement_head(run)
-            if head is not None:
-                tokens.append(
-                    Token(TokenKind.KEYWORD, head, _span(line_number, start + 1, len(head)))
-                )
-                rest = run[len(head) :]
-                tokens.append(
-                    Token(
-                        TokenKind.IDENT,
-                        rest,
-                        _span(line_number, start + len(head) + 1, len(rest)),
-                    )
-                )
-            elif run in KEYWORDS:
+            if run in KEYWORDS:
                 tokens.append(
                     Token(TokenKind.KEYWORD, run, _span(line_number, start + 1, len(run)))
                 )
-            else:
+            elif run in _COMMAND_NAMES:
+                # A command name, whole: 点在 is one word, not 点 plus 在.
                 tokens.append(
                     Token(TokenKind.IDENT, run, _span(line_number, start + 1, len(run)))
                 )
+            else:
+                head = _statement_head(run)
+                if head is not None:
+                    tokens.append(
+                        Token(TokenKind.KEYWORD, head, _span(line_number, start + 1, len(head)))
+                    )
+                    rest = run[len(head) :]
+                    tokens.append(
+                        Token(
+                            TokenKind.IDENT,
+                            rest,
+                            _span(line_number, start + len(head) + 1, len(rest)),
+                        )
+                    )
+                else:
+                    tokens.append(
+                        Token(TokenKind.IDENT, run, _span(line_number, start + 1, len(run)))
+                    )
             continue
         if char.isalpha() or char == "_":
             start = index

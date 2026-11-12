@@ -27,22 +27,26 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
 from geobench.commands import COMMANDS
 from geobench.dsl import parse_dsl
 from geobench.errors import GeobenchError
+from geobench.evaluate import evaluate_figure, undefined_nodes
+from geobench.judges import INSTANCE, REFUTED, UNDECIDED, JudgeRegistry, judge_relation
 from geobench.model import Figure
 from geobench.registry import OperatorRegistry
 
 __all__ = [
     "PROMPT_PATH",
     "OpenAICompatibleProvider",
+    "Problem",
     "Proposal",
     "Provider",
     "build_prompt",
+    "check_figure",
     "propose",
 ]
 
@@ -50,6 +54,16 @@ __all__ = [
 #: table, so the model can never be told about a command that does not
 #: exist, or miss one that does.
 PROMPT_PATH = Path(__file__).resolve().parents[2] / "prompts" / "nl-to-dsl.md"
+
+#: The conventions a competition figure follows.  The model is told the
+#: rules; without them it draws a figure that is right but does not look
+#: like the one in the paper.
+STANDARDS_PATH = Path(__file__).resolve().parents[2] / "prompts" / "figure-standards.md"
+
+#: Worked examples.  A rule that is demonstrated is obeyed; a rule that
+#: is only stated is forgotten -- and the difference between the two is
+#: the whole reliability of this channel.
+EXAMPLES_PATH = Path(__file__).resolve().parents[2] / "prompts" / "figure-examples.md"
 
 
 class Provider(Protocol):
@@ -119,16 +133,111 @@ class Proposal:
     parser's own complaint -- the line and the reason -- and it is the
     answer that matters: it says exactly what the model got wrong, and
     it can be sent back.
+
+    ``problems`` is the kernel's own verdict on the figure: an object
+    that cannot exist, or a claim the drawn figure does not satisfy.
+    Those are not parser errors -- the code is perfectly good -- but
+    they are exactly what a teacher would bounce the picture for, so
+    they are said out loud.
     """
 
     text: str
     figure: Figure | None = None
     error: str | None = None
     attempts: int = 1
+    problems: list[Problem] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
         return self.figure is not None
+
+    @property
+    def clean(self) -> bool:
+        """The figure is not just parseable, but sound."""
+        return self.ok and not self.problems
+
+    @property
+    def refused(self) -> bool:
+        """The model said the request cannot be done.
+
+        A request like "draw the tangent from a point inside the circle"
+        has no answer, and the honest reply is to say so.  The model
+        says it in a comment, so the figure is empty and the words are
+        in the text.
+        """
+        return (
+            self.figure is not None
+            and not self.figure.nodes
+            and "#" in self.text
+        )
+
+
+@dataclass(frozen=True)
+class Problem:
+    """Something wrong with the figure the model proposed.
+
+    The kernel is the judge of a figure, not only of a relation.  Two
+    things are wrong with a figure that the parser cannot see: an
+    object that **cannot exist** (the intersection of two lines that
+    are always parallel), and a **claim the drawn figure does not
+    satisfy** (the tangent from a point inside a circle).  Both are
+    things the model can fix, so both are said out loud and sent back.
+    """
+
+    kind: str
+    """``"no-value"``, ``"refuted"``, ``"undecided"`` or ``"broken"``."""
+
+    subject: str
+    """The object or the relation at fault."""
+
+    reason: str = ""
+    """The kernel's own words about it."""
+
+    def to_text(self) -> str:
+        """The problem, in the language of the classroom."""
+        if self.kind == "no-value":
+            return f"对象 {self.subject} 没有值（{self.reason}）"
+        if self.kind == "refuted":
+            return f"断言 {self.subject} 在这张图上不成立"
+        if self.kind == "undecided":
+            return f"断言 {self.subject} 无法判定（{self.reason}）"
+        return f"这张图画不出来：{self.reason}"
+
+
+def check_figure(figure: Figure, registry: OperatorRegistry) -> list[Problem]:
+    """What is wrong with this figure, if anything.
+
+    The figure is evaluated first -- the judge needs the exact path --
+    and then two things are looked at:
+
+    - the objects that have **no value** (a degenerate construction);
+    - the claims the figure makes, judged **in the drawn
+      configuration**, because that is the question "is this picture
+      consistent with what it claims" -- and it is answered in
+      milliseconds, while the theorem-level question can take a minute.
+    """
+    problems: list[Problem] = []
+    try:
+        evaluated = evaluate_figure(figure, registry)
+    except GeobenchError as exc:
+        return [Problem(kind="broken", subject="整张图", reason=str(exc))]
+    for node_id, reason in undefined_nodes(evaluated):
+        problems.append(Problem(kind="no-value", subject=node_id, reason=reason))
+    if not evaluated.relations:
+        return problems
+    judges = JudgeRegistry()
+    for relation in evaluated.relations:
+        subject = f"{relation.kind}({', '.join(relation.args)})"
+        verdict = judge_relation(
+            evaluated, relation.kind, list(relation.args), judges, scope=INSTANCE
+        )
+        if verdict.verdict == REFUTED:
+            problems.append(Problem(kind="refuted", subject=subject))
+        elif verdict.verdict == UNDECIDED:
+            problems.append(
+                Problem(kind="undecided", subject=subject, reason=verdict.evidence)
+            )
+    return problems
 
 
 def command_list(registry: OperatorRegistry | None = None) -> str:
@@ -159,9 +268,22 @@ def build_prompt(request: str, current: str = "", registry: OperatorRegistry | N
 
     The current figure is given as context, so the model can use the
     points that are already there instead of inventing new ones.
+
+    The prompt is in three layers, and each layer earns its place:
+
+    - the **rules** (the template), short and pointed;
+    - the **standards** -- the conventions of a competition figure;
+    - the **examples** -- worked figures, which are obeyed far more
+      reliably than rules are;
+    - and the **command list**, which is generated from the command table
+      so that it cannot drift away from the code.
     """
     template = PROMPT_PATH.read_text(encoding="utf-8")
-    system = template.replace("{commands}", command_list(registry))
+    system = (
+        template.replace("{commands}", command_list(registry))
+        .replace("{standards}", STANDARDS_PATH.read_text(encoding="utf-8"))
+        .replace("{examples}", EXAMPLES_PATH.read_text(encoding="utf-8"))
+    )
     if current.strip():
         user = (
             "当前这张图是这样的（这是背景，不要改动它）：\n"
@@ -194,34 +316,58 @@ def propose(
     request: str,
     current: str = "",
     registry: OperatorRegistry | None = None,
-    retries: int = 1,
+    retries: int = 2,
 ) -> Proposal:
-    """Ask the model for a figure, and let the parser judge it.
+    """Ask the model for a figure, and let the kernel judge it.
 
-    The parser's complaint goes back to the model, once: a model that
-    is told "line 3: 点 A 的坐标应该是两个数" usually gets it right the
-    second time. If it does not, the proposal is refused -- and the
-    refusal is the honest answer.
+    There are two kinds of "no", and both go back to the model:
+
+    - the **parser** refuses the text -- it says which line and what is
+      wrong with it;
+    - the **kernel** judges the figure -- an object that cannot exist,
+      or a claim the drawn figure does not satisfy.
+
+    The second one is the interesting half.  A model that is told "your
+    figure has an object with no value: the two lines are parallel"
+    fixes it; a model that is only told "the parser said no" fixes the
+    syntax and repeats the same mistake.
     """
     system, user = build_prompt(request, current, registry)
-    last_error: str | None = None
+    feedback: str | None = None
+    text = ""
+    attempt = 0
+    figure: Figure | None = None
+    problems: list[Problem] = []
     for attempt in range(1, max(1, retries + 1) + 1):
         message = user
-        if last_error is not None:
+        if feedback is not None:
             message = (
                 f"{user}\n\n"
-                "上一次你写的作图代码解析失败了：\n"
-                f"{last_error}\n"
-                "请修正后重新给出完整的作图代码。"
+                f"{feedback}\n"
+                "请修正后重新给出完整的作图代码（还是只输出代码）。"
             )
         text = _clean(provider.complete(system, message))
         try:
             figure = parse_dsl(text)
         except GeobenchError as exc:
-            last_error = str(exc)
+            feedback = f"上一次你写的作图代码解析失败了：\n{exc}"
             continue
         except Exception as exc:  # pragma: no cover - the parser's own errors
-            last_error = f"{type(exc).__name__}: {exc}"
+            feedback = f"上一次你写的作图代码解析失败了：\n{type(exc).__name__}: {exc}"
             continue
-        return Proposal(text=text, figure=figure, attempts=attempt)
-    return Proposal(text=text, error=last_error or "the model said nothing usable", attempts=attempt)
+        problems = check_figure(figure, registry) if registry is not None else []
+        if not problems or attempt == max(1, retries + 1):
+            return Proposal(
+                text=text, figure=figure, attempts=attempt, problems=problems
+            )
+        feedback = (
+            "上一次你写的作图代码解析器接受了，但内核查出图有问题：\n"
+            + "\n".join(f"- {problem.to_text()}" for problem in problems)
+            + "\n请改到没有问题为止。"
+        )
+    return Proposal(
+        text=text,
+        error=feedback if figure is None else None,
+        attempts=attempt,
+        problems=problems,
+    )

@@ -34,7 +34,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from geobench.ai import Provider, propose
+from geobench.ai import Proposal, Provider, propose
 from geobench.ai_settings import Resolution
 from geobench.app.theme import button_words
 from geobench.errors import GeobenchError
@@ -46,8 +46,9 @@ __all__ = ["AIPanel"]
 class AIPanel(QDialog):
     """Ask the model for a figure, and judge what comes back."""
 
-    #: The model answered: the text, and the parser's complaint (or "").
-    answered = Signal(str, str)
+    #: The model answered: the proposal, and the failure that stopped it
+    #: ("" when there was none).
+    answered = Signal(object, str)
 
     #: The user wants to set up the model service.
     configure_requested = Signal()
@@ -162,24 +163,49 @@ class AIPanel(QDialog):
             try:
                 proposal = propose(provider, request, current, registry)
             except GeobenchError as exc:
-                self.answered.emit("", str(exc))
+                self.answered.emit(None, str(exc))
                 return
-            self.answered.emit(proposal.text, proposal.error or "")
+            self.answered.emit(proposal, proposal.error or "")
 
         self.answered.connect(self._receive)
         threading.Thread(target=work, daemon=True).start()
 
-    def _receive(self, text: str, error: str) -> None:
+    def _receive(self, proposal: object, error: str) -> None:
         """The model answered, on the main thread."""
         self.ask_button.setEnabled(True)
-        self._text = text
-        self.result_edit.setPlainText(text)
+        if not isinstance(proposal, Proposal):
+            self.ok_button.setEnabled(False)
+            self.status_label.setText(f"没有拿到作图代码：{error}")
+            return
+        self._text = proposal.text
+        self.result_edit.setPlainText(proposal.text)
         if error:
             self.ok_button.setEnabled(False)
             self.status_label.setText(f"解析器拒绝了这段代码：{error}")
             return
+        if proposal.problems:
+            # The code parsed, but the kernel found something wrong with
+            # the figure.  Saying so is the whole point: a figure with an
+            # object that cannot exist is exactly what a teacher would
+            # bounce, and the teacher should not have to find it.
+            self.ok_button.setEnabled(True)
+            self.status_label.setText(
+                "解析器接受了，但内核查出这张图有问题：\n"
+                + "\n".join(f"· {problem.to_text()}" for problem in proposal.problems)
+            )
+            return
+        if proposal.refused:
+            # The model said the request cannot be done.  That is a
+            # legitimate answer -- a figure is not better than an
+            # honest "this does not exist".
+            self.ok_button.setEnabled(False)
+            self.status_label.setText("模型说这个任务做不到（上面就是它给的理由）。")
+            return
         self.ok_button.setEnabled(True)
-        self.status_label.setText("解析器接受了。点「在画板上作图」把它画出来。")
+        self.status_label.setText(
+            "解析器接受了，内核也查过这张图：没有问题。"
+            "点「在画板上作图」把它画出来。"
+        )
 
     # -- applying -----------------------------------------------------------
 
