@@ -729,13 +729,16 @@ def _judge_uncached(
             scope=scope,
             evidence=f"the expression reduces to 0 identically: {sp.sstr(expression)[:200]}",
         )
+    note = FIELD.reduction_note(expression)
     return Verdict(
         kind=spec.id,
         verdict=SUPPORTED,
         scope=scope,
         evidence=(
             f"the relation holds in all {admissible} samples but the expression "
-            f"did not reduce to 0 identically (size {sp.count_ops(expression)} ops): "
+            f"did not reduce to 0 identically"
+            + (f" ({note})" if note else "")
+            + f" (size {sp.count_ops(expression)} ops): "
             f"{sp.sstr(expression)[:200]}"
         ),
         samples=admissible,

@@ -1387,7 +1387,13 @@ def _undefined_text(reason: str) -> str:
 
 _SAMPLES_ZH = re.compile(
     r"the relation holds in all (\d+) samples but the expression did not reduce "
-    r"to 0 identically \(size (\d+) ops\): (.*)"
+    r"to 0 identically(?: \(([^)]*)\))? \(size (\d+) ops\): (.*)"
+)
+
+#: "the expansion would have up to N terms, over the budget of M" -- the
+#: reason the kernel gave up on a proof.
+_BUDGET_ZH = re.compile(
+    r"^the expansion would have up to (\d+) terms, over the budget of (\d+)$"
 )
 
 #: "node 'P' has no value: ..." -- an object the construction could not
@@ -1406,8 +1412,19 @@ def _evidence_text(evidence: str) -> str:
     """The evidence, in Chinese."""
     match = _SAMPLES_ZH.match(evidence)
     if match is not None:
-        count, size, expression = match.groups()
-        return f"在全部 {count} 个样本里都成立，但表达式没能化简成恒等于 0（{size} 个运算）：{expression}"
+        count, note, size, expression = match.groups()
+        reason = ""
+        if note:
+            budget = _BUDGET_ZH.match(note)
+            if budget is not None:
+                terms, limit = budget.groups()
+                reason = f"（展开后可能有 {terms} 项，超出预算 {limit}）"
+            else:
+                reason = f"（{note}）"
+        return (
+            f"在全部 {count} 个样本里都成立，但表达式没能化简成恒等于 0"
+            f"{reason}（{size} 个运算）：{expression}"
+        )
     match = _NO_VALUE_EVIDENCE.match(evidence)
     if match is not None:
         return f"对象 {match.group('name')} 没有值：{_undefined_text(match.group('reason'))}"

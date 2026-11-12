@@ -25,6 +25,8 @@ construction has no value is not admissible.
 
 from __future__ import annotations
 
+import time
+
 import pytest
 import sympy as sp
 
@@ -36,6 +38,7 @@ from geobench.judges import (
     INSTANCE,
     PROVED,
     REFUTED,
+    SUPPORTED,
     UNDECIDED,
     JudgeRegistry,
     judge_relation,
@@ -53,6 +56,26 @@ bc = 直线(B,C)
 d = 垂直(D, bc)
 ah = 直线(A,H)
 P = 交点(d, ah)
+ab = 直线(A,B)
+ac = 直线(A,C)
+de = 平行(D, ac)
+df = 平行(D, ab)
+E = 交点(de, ab)
+F = 交点(df, ac)
+"""
+
+#: The same problem with its point P put where it can exist: the foot of
+#: the altitude from A.  Then the claim is the **nine-point circle** --
+#: the midpoint of a side, the midpoints of the other two sides, and the
+#: foot of the altitude all lie on one circle.
+NINE_POINT_CIRCLE = """
+点 A(2,3) B(0,0) C(5,0)
+O = 外心(A,B,C)
+H = 垂心(A,B,C)
+D = 中点(B,C)
+bc = 直线(B,C)
+ah = 直线(A,H)
+P = 垂足(A, bc)
 ab = 直线(A,B)
 ac = 直线(A,C)
 de = 平行(D, ac)
@@ -176,6 +199,64 @@ def test_the_identity_scope_survives_a_degenerate_placement(
     assert verdict.verdict == PROVED, verdict.evidence
 
 
+# -- the same problem, with a point that can exist -------------------------
+
+
+@pytest.fixture(scope="module")
+def nine_point(registry: OperatorRegistry):
+    """The same figure, with P where it can exist: the altitude's foot."""
+    return evaluate_figure(parse_dsl(NINE_POINT_CIRCLE), registry)
+
+
+def test_the_nine_point_circle_holds_for_the_drawn_figure(
+    nine_point, judges: JudgeRegistry
+) -> None:
+    """D, E, F and the foot of the altitude lie on one circle.
+
+    E and F are the midpoints of AB and AC (the midline theorem), so
+    D, E, F are the three side midpoints; with the foot of the altitude
+    they are four of the nine points of the nine-point circle.
+    """
+    verdict = judge_relation(nine_point, "concyclic", ["D", "E", "F", "P"], judges, scope=INSTANCE)
+    assert verdict.verdict == PROVED, verdict.evidence
+
+
+def test_the_identity_proof_is_bounded(nine_point, judges: JudgeRegistry) -> None:
+    """The identity scope gives up rather than taking half an hour.
+
+    Clearing the denominators of this determinant produces hundreds of
+    millions of terms -- more memory than the machine has.  Expanding it
+    anyway is not a proof, it is an outage: the same expression was
+    measured at 70 seconds, 19 minutes and 32 minutes on the same
+    machine.  So the kernel says "holds in the samples, not proved",
+    and says why.
+    """
+    verdict = judge_relation(nine_point, "concyclic", ["D", "E", "F", "P"], judges, scope=IDENTITY)
+    assert verdict.verdict == SUPPORTED, verdict.evidence
+    assert "budget" in verdict.evidence
+
+
+def test_the_nine_point_circle_is_true_for_every_triangle(
+    registry: OperatorRegistry, judges: JudgeRegistry
+) -> None:
+    """Not just for the triangle that was drawn.
+
+    The *identity* scope does not depend on the placement, so the
+    interesting check here is the drawn configuration: the same four
+    points, in four different triangles.
+    """
+    for ax, ay, cx in ((2, 3, 5), (1, 3, 5), (3, 2, 6), (-1, 4, 5)):
+        dsl = NINE_POINT_CIRCLE.replace("A(2,3)", f"A({ax},{ay})").replace("C(5,0)", f"C({cx},0)")
+        figure = evaluate_figure(parse_dsl(dsl), registry)
+        verdict = judge_relation(figure, "concyclic", ["D", "E", "F", "P"], judges, scope=INSTANCE)
+        assert verdict.verdict == PROVED, (f"A({ax},{ay}) C({cx},0): {verdict.evidence}")
+
+
+def test_the_nine_point_circle_has_no_missing_object(nine_point) -> None:
+    """Every object in it has a value, so nothing is missing."""
+    assert undefined_nodes(nine_point) == []
+
+
 # -- the arithmetic underneath ---------------------------------------------
 
 
@@ -210,3 +291,22 @@ def test_the_zero_test_answers_completely() -> None:
     # Something that is not a rational function of its symbols: the
     # honest answer is "I do not know".
     assert FIELD.zero_status(sp.sin(x) ** 2 + sp.cos(x) ** 2 - 1) is None
+
+
+def test_an_enormous_expansion_is_refused_before_it_is_attempted() -> None:
+    """The budget is about the *expansion*, not the expression.
+
+    A determinant cleared of its denominators is a few hundred
+    operations long and expands to hundreds of millions of terms.  The
+    size of the expression says nothing about what expanding it costs,
+    so the budget counts terms -- and it refuses before the work starts.
+    """
+    x, y = sp.symbols("x y")
+    huge = sp.prod((x + index * y) ** 40 for index in range(1, 12))
+    assert sp.count_ops(huge) < FIELD.identity_budget_ops, "the fixture should be small"
+    assert FIELD.expansion_size(huge) > FIELD.expand_term_budget
+
+    start = time.perf_counter()
+    assert not FIELD.simplify_to_zero(huge)
+    elapsed = time.perf_counter() - start
+    assert elapsed < 5.0, f"refusing the expansion took {elapsed:.1f} s"

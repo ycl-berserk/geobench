@@ -67,6 +67,18 @@ class SympyField:
     def __init__(self, identity_budget_ops: int = 20000, expand_budget_ops: int = 400) -> None:
         self.identity_budget_ops = identity_budget_ops
         self.expand_budget_ops = expand_budget_ops
+        #: The most terms the expansion of a numerator may have.  This is
+        #: the budget that matters: the size of the *unexpanded* expression
+        #: says nothing about what expanding it costs.  A determinant
+        #: cleared of its denominators can have hundreds of millions of
+        #: terms, and expanding that is not a proof -- it is an outage.
+        #:
+        #: The number is calibrated against the proofs that have to keep
+        #: working (the circumcentre: 3.4 million terms, seven seconds)
+        #: and against the one that has to stop (the nine-point circle:
+        #: 398 million terms, half an hour and more memory than the
+        #: machine has).
+        self.expand_term_budget = 10_000_000
         #: The strings this field has already parsed. Parsing is the
         #: slowest thing the exact path does, and the same strings come
         #: back every time: a point's coordinates, its placement.
@@ -191,6 +203,78 @@ class SympyField:
                 return True
         return False
 
+    def expansion_size(self, value: ExprLike) -> int:
+        """How many terms the expansion of this expression would have.
+
+        The bound is exact for a polynomial and cheap to compute: the
+        expansion of a sum is the sum of the expansions, and the
+        expansion of a product is the product of the expansions.  So the
+        tree itself says how big the expansion would be, *before* the
+        work is done.
+
+        It is a bound, not the exact count -- cancellation may make the
+        real number smaller -- but a bound is what a budget needs.
+        """
+        return self._term_bound(self.coerce(value), self.expand_term_budget)
+
+    def _term_bound(self, expression: Expr, limit: int) -> int:
+        """The number of terms the expansion would have, at most."""
+        if expression.is_Add:
+            total = 0
+            for part in expression.args:
+                total += self._term_bound(part, limit)
+                if total > limit:
+                    return limit + 1
+            return total
+        if expression.is_Mul:
+            product = 1
+            for part in expression.args:
+                product *= self._term_bound(part, limit)
+                if product > limit:
+                    return limit + 1
+            return product
+        if expression.is_Pow:
+            exponent = expression.exp
+            if not (exponent.is_Integer and 0 < int(exponent) <= 64):
+                # A negative or fractional power is not a polynomial, and
+                # a huge one is out of any budget.
+                return limit + 1
+            base = cast(Expr, expression.base)
+            count = 1
+            for _ in range(int(exponent)):
+                count *= self._term_bound(base, limit)
+                if count > limit:
+                    return limit + 1
+            return count
+        return 1
+
+    def reduction_note(self, value: ExprLike) -> str:
+        """Why this expression could not be reduced, in one sentence.
+
+        Empty when the reduction was not refused on size -- the caller
+        uses it to tell the reader *why* the answer is "holds in the
+        samples, but not proved" rather than just that.
+        """
+        expr = self.coerce(value)
+        if not expr.free_symbols:
+            return ""
+        try:
+            numerator, _ = sp.fraction(sp.together(expr))
+        except Exception:  # pragma: no cover - sympy internal failure
+            return ""
+        size = self._term_bound(numerator, 10**12)
+        if size > self.expand_term_budget:
+            if size > 10**12:
+                return (
+                    "the expansion would have more than a trillion terms, over "
+                    f"the budget of {self.expand_term_budget}"
+                )
+            return (
+                f"the expansion would have up to {size} terms, over the "
+                f"budget of {self.expand_term_budget}"
+            )
+        return ""
+
     def simplify_to_zero(self, value: ExprLike) -> bool:
         """Return True only when ``value`` is provably the zero expression.
 
@@ -221,6 +305,13 @@ class SympyField:
         The order matters: clearing denominators and testing the numerator as
         a polynomial is far cheaper than asking sympy to ``simplify`` a
         rational function, whose default heuristics expand eagerly.
+
+        Everything here is bounded by the size of the *expansion*, not by
+        the size of the expression.  The two are wildly different: a
+        determinant of four points whose coordinates are rational functions
+        is a few hundred operations long and expands to hundreds of
+        millions of terms.  A budget that counted operations would wave
+        that through; a budget that counts terms does not.
         """
         symbols = sorted(expr.free_symbols, key=str)
         if symbols:
@@ -236,6 +327,14 @@ class SympyField:
                 # would be reported as proved.
                 return False
             if sp.count_ops(numerator) <= self.identity_budget_ops:
+                if self._term_bound(numerator, self.expand_term_budget) > self.expand_term_budget:
+                    # Expanding this would take longer than anyone would
+                    # wait, and would use more memory than the machine
+                    # should spare.  The judge falls back to sampling,
+                    # which is honest about how much it knows -- and the
+                    # other reductions below are no cheaper, because they
+                    # all expand too.
+                    return False
                 try:
                     if sp.Poly(numerator, *symbols, domain=sp.QQ).is_zero:
                         return True
