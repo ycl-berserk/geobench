@@ -52,9 +52,9 @@ class ReplayProvider:
     def complete(self, system: str, user: str) -> str:
         self.calls += 1
         # The **longest** matching request wins.  One statement's request
-        # can begin with a case's whole request ("...作圆c在P点的切线t" vs
-        # "...作圆c在P点的切线t，连结OP"), and answering with the shorter
-        # one would replay the wrong figure.
+        # can begin with a case's whole request (the case asks for the
+        # tangent at P; the statement asks for it and then joins OP), and
+        # answering with the shorter one would replay the wrong figure.
         candidates: list[tuple[int, str]] = []
         for case in CASES:
             if case.request in user and case.name in RECORDED_CASES:
