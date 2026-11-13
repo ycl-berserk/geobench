@@ -174,6 +174,7 @@ def test_unequal_ratios_are_refuted(judges: JudgeRegistry) -> None:
 # -- the centres ------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_the_circumcentre_is_proved(registry: OperatorRegistry, judges: JudgeRegistry) -> None:
     figure = _figure({"A": ("0", "0"), "B": ("6", "0"), "C": ("2", "4")})
     _derived(figure, "O", "point", "point.circumcenter", ["A", "B", "C"])

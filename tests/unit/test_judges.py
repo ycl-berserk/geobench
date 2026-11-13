@@ -118,6 +118,7 @@ def test_perpendicular_can_be_proved(registry: OperatorRegistry, judges: JudgeRe
     assert verdict.verdict == PROVED, verdict.evidence
 
 
+@pytest.mark.slow
 def test_concyclic_of_two_altitude_feet_is_proved(
     registry: OperatorRegistry, judges: JudgeRegistry
 ) -> None:

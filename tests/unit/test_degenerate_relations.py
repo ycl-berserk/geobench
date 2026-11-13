@@ -221,6 +221,7 @@ def test_the_nine_point_circle_holds_for_the_drawn_figure(
     assert verdict.verdict == PROVED, verdict.evidence
 
 
+@pytest.mark.slow
 def test_the_identity_proof_is_bounded(nine_point, judges: JudgeRegistry) -> None:
     """The identity scope gives up rather than taking half an hour.
 

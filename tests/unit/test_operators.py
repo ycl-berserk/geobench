@@ -8,6 +8,8 @@ These tests pin down the conventions the oracle deliberately leaves free.
 
 from __future__ import annotations
 
+import pytest
+
 from geobench.errors import AmbiguousIntersectionError
 from geobench.evaluate import evaluate_figure, undefined_nodes
 from geobench.model import CIRCLE, DERIVED, FREE, LINE, POINT, SEGMENT, Figure, Node
@@ -48,6 +50,7 @@ def _evaluate(figure: Figure) -> Figure:
     return figure
 
 
+@pytest.mark.slow
 def test_the_other_intersection_works_when_the_known_point_is_at_the_base() -> None:
     """Regression: the known point sat at the base of the parameterisation.
 
@@ -104,6 +107,7 @@ def test_the_two_indices_are_the_two_different_intersections() -> None:
     assert ("0", "0") in placements
 
 
+@pytest.mark.slow
 def test_the_other_intersection_agrees_with_one_of_the_indices() -> None:
     """"Other" must be one of the two indexed roots -- not a third point."""
     points = []
@@ -125,6 +129,7 @@ def test_the_other_intersection_agrees_with_one_of_the_indices() -> None:
     assert points[2] in points[:2]
 
 
+@pytest.mark.slow
 def test_the_other_intersection_needs_a_known_point_on_the_circle() -> None:
     """Without a known point on the circle, "other" is ambiguous -- not a guess."""
     figure = Figure(id="fig_ambiguous")
@@ -167,6 +172,7 @@ def test_the_other_intersection_needs_a_known_point_on_the_circle() -> None:
     raise AssertionError("an ambiguous 'other intersection' must be refused")
 
 
+@pytest.mark.slow
 def test_a_tangent_line_has_no_second_point() -> None:
     """A tangent line meets the circle once; there is no 'other' point.
 
