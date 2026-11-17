@@ -366,6 +366,23 @@ class StudioController:
         )
         self._changed()
 
+    def set_label(self, node_id: str, label: str) -> None:
+        """What the object is called on the figure.
+
+        The name in the construction and the name on the paper are two
+        different things: a midpoint built as ``M`` may be ``D`` in the
+        problem, and a paper that says D while the figure says M is a
+        paper with a mistake in it. An empty label falls back to the
+        object's name.
+        """
+        figure = self.figure()
+        node = figure.nodes.get(node_id)
+        if node is None:
+            raise GeobenchError(f"unknown node id {node_id!r}")
+        self.push_undo()
+        node.style = replace(node.style, label=label.strip() or None)
+        self._changed()
+
     def draggable(self, node_id: str) -> bool:
         """Can this node be dragged? Free points and points on an object."""
         node = self.figure().nodes.get(node_id)

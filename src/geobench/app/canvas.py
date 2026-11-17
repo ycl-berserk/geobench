@@ -27,7 +27,7 @@ from PySide6.QtGui import (
     QPen,
     QPolygonF,
 )
-from PySide6.QtWidgets import QMenu, QWidget
+from PySide6.QtWidgets import QInputDialog, QMenu, QWidget
 
 from geobench.app.controller import StudioController
 from geobench.app.theme import PALETTE
@@ -693,6 +693,7 @@ class FigureCanvas(QWidget):
         show_action = menu.addAction("\u663e\u793a" if hidden else "\u9690\u85cf")
         dashed = node.style.line_style == "dashed"
         line_action = menu.addAction("\u5b9e\u7ebf" if dashed else "\u865a\u7ebf")
+        label_action = menu.addAction("\u6539\u6807\u7b7e\u2026")
         menu.addSeparator()
         delete_action = menu.addAction("\u5220\u9664")
         show_action.triggered.connect(
@@ -701,8 +702,27 @@ class FigureCanvas(QWidget):
         line_action.triggered.connect(
             lambda: self.controller.set_auxiliary(node_id, not dashed)
         )
+        # The name in the construction and the name on the paper are two
+        # things: a midpoint built as M may be D in the problem.
+        label_action.triggered.connect(lambda: self._edit_label(node_id))
         delete_action.triggered.connect(lambda: self.deleteRequested.emit(node_id))
         return menu
+
+    def _edit_label(self, node_id: str) -> None:
+        """Ask for the label this object should show, and set it."""
+        node = self.controller.figure().nodes.get(node_id)
+        if node is None:
+            return
+        current = node.style.label or node.label or node_id
+        text, accepted = QInputDialog.getText(
+            self,
+            "\u6539\u6807\u7b7e",
+            f"{node_id} \u5728\u56fe\u4e0a\u53eb\u4ec0\u4e48\uff1f\uff08\u7a7a\u7740\u5c31\u7528\u540d\u5b57\uff09",
+            text=current,
+        )
+        if not accepted:
+            return
+        self.controller.set_label(node_id, text)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """The return key finishes a variable tool; Delete removes what is selected."""
