@@ -27,6 +27,8 @@ import math
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from geobench.errors import GeobenchError
+from geobench.evaluate import numeric_coords
 from geobench.model import Figure
 
 #: How close two lengths have to be to count as equal.
@@ -51,14 +53,18 @@ class Condition:
 
 
 def coordinates(figure: Figure, name: str) -> tuple[float, float] | None:
-    """Where a point is on the drawing, or ``None`` when it has no place."""
+    """Where a point is on the drawing, or ``None`` when it has no place.
+
+    The reading goes through the kernel's own numeric path, not through
+    ``float(node.placement)``: a placement is exact, so it may be
+    ``2*sqrt(3)``, and ``float()`` cannot read that.
+    """
     node = figure.nodes.get(name)
-    if node is None or node.kind != "point" or node.placement is None:
+    if node is None or node.kind != "point" or node.coords is None:
         return None
     try:
-        x, y = node.placement
-        return (float(x), float(y))
-    except (TypeError, ValueError):  # pragma: no cover - defensive
+        return numeric_coords(figure, name)
+    except (GeobenchError, TypeError, ValueError, ZeroDivisionError):
         return None
 
 

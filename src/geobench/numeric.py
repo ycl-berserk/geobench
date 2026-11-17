@@ -32,6 +32,8 @@ from typing import Any
 import sympy as sp
 from sympy import Expr
 
+from geobench.errors import FieldError
+from geobench.field import FIELD
 from geobench.model import (
     CONDITION_NONNEGATIVE,
     CONDITION_NONZERO,
@@ -351,11 +353,12 @@ def intersection_near(
 def placement_float(value: str) -> float | None:
     """A placement as a number, or None if it is not one.
 
-    A placement is **exact**: it is a rational, written "101/100", or a
-    whole number, written "3". Reading it with float() alone throws away
-    every point that is not on a whole coordinate -- and then everything
-    built on such a point has no value either, and the figure quietly
-    falls apart.
+    A placement is **exact**: it is a rational, written "101/100", a
+    whole number, written "3", or a number that needs a root, written
+    "2*sqrt(3)". Reading it with float() alone throws away every point
+    that is not on a whole coordinate -- and then everything built on
+    such a point has no value either, and the figure quietly falls
+    apart.
     """
     try:
         return float(value)
@@ -364,6 +367,10 @@ def placement_float(value: str) -> float | None:
     try:
         return float(Fraction(value))
     except (TypeError, ValueError, ZeroDivisionError):
+        pass
+    try:
+        return float(FIELD.coerce(value))
+    except (FieldError, TypeError, ValueError):
         return None
 
 

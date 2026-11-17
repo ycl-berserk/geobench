@@ -220,6 +220,26 @@ class Figure:
         self._check_node_shape(node)
         self.nodes[node.id] = node
 
+    def replace_node(self, node: Node) -> None:
+        """Redefine an object: the same id, a new construction.
+
+        GeoGebra lets a label be defined again, and a construction often
+        wants two steps under one name (rotate a point, then scale it).
+        Dependents point at the id, so they follow the new definition.
+
+        The version is bumped here, and that is not bookkeeping: a free
+        point is never re-evaluated, so without the bump a dependant
+        would keep the expression it built from the *old* definition.
+        """
+        if node.id not in self.nodes:
+            raise ModelError(f"node id {node.id!r} does not exist")
+        if node.role == DERIVED and node.op in self.ATTACHING_OPS:
+            node.role = "attached"
+        self._check_node_shape(node)
+        self.nodes[node.id] = node
+        versions = self.runtime.setdefault("versions", {})
+        versions[node.id] = versions.get(node.id, 0) + 1
+
     def remove_node(self, node_id: str) -> None:
         if node_id not in self.nodes:
             raise ModelError(f"unknown node id {node_id!r}")

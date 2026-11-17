@@ -35,6 +35,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
+import sympy as sp
+from sympy import Expr
+
 from geobench.commands import (
     COMMANDS,
     JUDGEMENT,
@@ -65,6 +68,10 @@ from geobench.operators import register_builtins as _register_builtins
 from geobench.registry import OperatorRegistry, OpSpec
 
 # -- object table ----------------------------------------------------------
+
+#: The functions a coordinate may use.  Only ``sqrt``: a coordinate is a
+#: number, and a number that needs a logarithm is not one a figure has.
+_VALUE_FUNCTIONS = {"sqrt": sp.sqrt}
 
 
 @dataclass
@@ -219,26 +226,113 @@ class Parser:
             if index >= len(tokens) or not tokens[index].is_punct("("):
                 raise self._fail(tokens[index - 1].span, "点的名字后面应该跟坐标")
             index += 1
-            x, index = self._expect_number(tokens, index, line)
+            x, index = self._expect_value(tokens, index, line)
             if index >= len(tokens) or not tokens[index].is_punct(","):
                 raise self._fail(tokens[index - 1].span, "两个坐标之间应该有逗号")
             index += 1
-            y, index = self._expect_number(tokens, index, line)
+            y, index = self._expect_value(tokens, index, line)
             if index >= len(tokens) or not tokens[index].is_punct(")"):
                 raise self._fail(tokens[index - 1].span, "坐标后面应该有右括号")
             index += 1
             self._add_free_point(name_token.text, x, y, name_token.span)
 
-    def _expect_number(self, tokens: list[Token], index: int, line: Line) -> tuple[str, int]:
-        token = self._peek(tokens, index)
-        if token is None or token.kind is not TokenKind.NUMBER:
-            span = token.span if token else Span(line=line.number, col=1)
-            raise self._fail(span, "这里应该是一个数")
-        return token.text, index + 1
+    # -- an exact coordinate ------------------------------------------------
+
+    def _expect_value(self, tokens: list[Token], index: int, line: Line) -> tuple[str, int]:
+        """One coordinate, exactly.
+
+        ``3``, ``-3``, ``1/2``, ``2*sqrt(3)``, ``(1+sqrt(5))/2`` -- any
+        number that can be written exactly.  A decimal is read as the
+        rational it is (``2.5`` is ``5/2``), so the kernel never sees a
+        float.
+
+        This is not a calculator: the only function is ``sqrt``, and
+        there are no variables.  A coordinate is a number, not a program
+        -- which is also why the error says so when somebody writes
+        ``sqrt(a)``.
+        """
+        had = index
+        value, index = self._value_sum(tokens, index, line)
+        if value.free_symbols:
+            raise self._fail(
+                tokens[had].span,
+                "坐标必须是数：可以用 sqrt(3)、1/2 这样的精确写法，但不能带字母",
+            )
+        return str(value), index
+
+    def _value_sum(self, tokens: list[Token], index: int, line: Line) -> tuple[Expr, int]:
+        value, index = self._value_product(tokens, index, line)
+        while index < len(tokens):
+            token = tokens[index]
+            if token.kind is TokenKind.SYMBOL and token.text in "+-":
+                right, index = self._value_product(tokens, index + 1, line)
+                value = value + right if token.text == "+" else value - right
+            elif token.kind is TokenKind.NUMBER and token.text.startswith("-"):
+                # The lexer folds a minus into the number that follows it,
+                # so "2*sqrt(3)-1" arrives as two numbers with no operator
+                # between them.
+                value = value + self._number(token)
+                index += 1
+            else:
+                break
+        return value, index
+
+    def _value_product(self, tokens: list[Token], index: int, line: Line) -> tuple[Expr, int]:
+        value, index = self._value_factor(tokens, index, line)
+        while index < len(tokens):
+            token = tokens[index]
+            if token.kind is not TokenKind.SYMBOL or token.text not in "*/":
+                break
+            right, index = self._value_factor(tokens, index + 1, line)
+            if token.text == "*":
+                value = value * right
+            else:
+                if right == 0:
+                    raise self._fail(token.span, "除以零")
+                value = value / right
+        return value, index
+
+    def _value_factor(self, tokens: list[Token], index: int, line: Line) -> tuple[Expr, int]:
+        if index >= len(tokens):
+            raise self._fail(Span(line=line.number, col=1), "坐标没写完")
+        token = tokens[index]
+        if token.kind is TokenKind.NUMBER:
+            return self._number(token), index + 1
+        if token.kind is TokenKind.SYMBOL and token.text == "-":
+            value, index = self._value_factor(tokens, index + 1, line)
+            return -value, index
+        if token.kind is TokenKind.SYMBOL and token.text == "+":
+            return self._value_factor(tokens, index + 1, line)
+        if token.kind is TokenKind.IDENT and token.text in _VALUE_FUNCTIONS:
+            if index + 1 >= len(tokens) or not tokens[index + 1].is_punct("("):
+                raise self._fail(token.span, f"{token.text} 后面应该跟括号")
+            value, index = self._value_sum(tokens, index + 2, line)
+            if index >= len(tokens) or not tokens[index].is_punct(")"):
+                raise self._fail(token.span, "括号没关上")
+            return _VALUE_FUNCTIONS[token.text](value), index + 1
+        if token.is_punct("("):
+            value, index = self._value_sum(tokens, index + 1, line)
+            if index >= len(tokens) or not tokens[index].is_punct(")"):
+                raise self._fail(token.span, "括号没关上")
+            return value, index + 1
+        if token.kind is TokenKind.IDENT:
+            if index + 1 < len(tokens) and tokens[index + 1].is_punct("("):
+                raise self._fail(token.span, f"坐标里只有 sqrt，没有 {token.text}")
+            raise self._fail(
+                token.span,
+                f"{token.text!r} 不是数 —— 坐标里不能有字母，"
+                "只能用数字、sqrt(3)、1/2 这样的写法",
+            )
+        raise self._fail(token.span, "这里应该是一个数（可以用 sqrt(3) 这样的写法）")
+
+    def _number(self, token: Token) -> Expr:
+        """A number token as the exact number it is."""
+        try:
+            return sp.Rational(token.text)
+        except (TypeError, ValueError, ZeroDivisionError):
+            raise self._fail(token.span, f"{token.text!r} 不是一个数") from None
 
     def _add_free_point(self, name: str, x: str, y: str, span: Span) -> None:
-        if name in self.scope.objects:
-            raise self._fail(span, f"名字 {name!r} 已经用过了")
         node = Node(
             id=name,
             kind=POINT,
@@ -246,7 +340,7 @@ class Parser:
             coords=(f"x_{name}", f"y_{name}"),
             placement=(x, y),
         )
-        self.figure.add_node(node)
+        self._install(node, span)
         self.scope.objects[name] = Ref(name=name, kind="point", node_id=name)
 
     # -- △ABC -------------------------------------------------------------
@@ -284,8 +378,6 @@ class Parser:
         if name_token.kind is not TokenKind.IDENT:
             raise self._fail(name_token.span, "左边应该是一个名字")
         name = name_token.text
-        if name in self.scope.objects:
-            raise self._fail(name_token.span, f"名字 {name!r} 已经用过了")
         command_token = rest[0]
         if command_token.kind not in {TokenKind.IDENT, TokenKind.KEYWORD}:
             raise self._fail(command_token.span, "这里应该是一个命令名")
@@ -525,7 +617,7 @@ class Parser:
             op=command.id,
             args=operator_args,
         )
-        self.figure.add_node(node)
+        self._install(node, span)
         # A segment remembers its two ends, so that a relation may be
         # written the way a paper writes it -- ``断言 相等(AB, AC)`` --
         # rather than only as four points.  Without the ends, a segment
@@ -537,6 +629,49 @@ class Parser:
         self.scope.objects[name] = Ref(
             name=name, kind=kind, node_id=name, endpoints=endpoints
         )
+
+    def _install(self, node: Node, span: Span) -> None:
+        """Put an object into the figure, replacing one with the same name.
+
+        A label may be defined again -- GeoGebra allows it, and a
+        construction often wants two steps with one name: rotate a point,
+        then scale it, and call the result ``D``.  The new definition
+        replaces the old one, and everything that used the name follows,
+        because dependents point at the **id**, not at the definition.
+
+        What is *not* allowed is a definition that runs through itself:
+        ``D = 中点(D, B)`` has no answer, and neither has ``D`` defined
+        through ``E`` while ``E`` is defined through ``D``.
+        """
+        if node.id not in self.figure.nodes:
+            self.figure.add_node(node)
+            return
+        if self._depends_on(node, node.id):
+            raise self._fail(
+                span,
+                f"{node.id!r} 的定义绕回了它自己 —— "
+                f"中间结果换个名字：先写 E = …，再写 {node.id} = …(E, …)",
+            )
+        self.figure.replace_node(node)
+
+    def _depends_on(self, node: Node, name: str) -> bool:
+        """Does this definition reach ``name`` through the figure?"""
+        seen: set[str] = set()
+        pending = [arg for arg in node.args if arg in self.figure.nodes]
+        while pending:
+            current = pending.pop()
+            if current == name:
+                return True
+            if current in seen:
+                continue
+            seen.add(current)
+            # An operator's arguments are not all node ids: a rotation
+            # carries an angle, a selector carries an index.  Only the
+            # ids lead anywhere.
+            pending.extend(
+                arg for arg in self.figure.nodes[current].args if arg in self.figure.nodes
+            )
+        return False
 
     # -- names -------------------------------------------------------------
 

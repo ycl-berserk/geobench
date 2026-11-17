@@ -54,7 +54,7 @@ AB = 线段(A, B)
 AC = 线段(A, C)
 BC = 线段(B, C)
 m = 角平分线(B, A, C)
-D = 交点(BC, m)
+D = 交点(m, BC)
 AD = 线段(A, D)""",
     "三条中线与重心": """点 A(2,3) B(0,0) C(5,0)
 AB = 线段(A, B)
@@ -93,8 +93,8 @@ H = 垂足(A, bc)
 AH = 线段(A, H)""",
     "平行四边形（边长 + 角）": """点 A(0,0) B(5,0)
 D = 旋转(B, 60, A)
-D = 位似(D, 3/5, A)
-C = 平移(B, D)
+E = 位似(D, 3/5, A)
+C = 平移(B, E)
 AB = 线段(A, B)
 BC = 线段(B, C)
 CD = 线段(C, D)
@@ -111,8 +111,7 @@ CD = 线段(C, D)
 DA = 线段(D, A)
 AC = 线段(A, C)
 BD = 线段(B, D)""",
-    "等边三角形 + 外接圆 + 内切圆": """点 A(0,0) B(4,0)
-C = 旋转(B, 60, A)
+    "等边三角形 + 外接圆 + 内切圆": """点 A(0,0) B(4,0) C(2,2*sqrt(3))
 AB = 线段(A, B)
 BC = 线段(B, C)
 CA = 线段(C, A)
@@ -123,8 +122,8 @@ c = 圆(O, 2)
 t = 切线(P, c)""",
     "等腰三角形 + 中点 + 高": """点 A(0,3) B(-2,0) C(2,0)
 AB = 线段(A, B)
+AC = 线段(A, C)
 BC = 线段(B, C)
-CA = 线段(C, A)
 D = 中点(B, C)
 AD = 线段(A, D)""",
     "等腰三角形的顶角平分线": """点 A(0,3) B(-2,0) C(2,0)
@@ -157,18 +156,15 @@ AB = 线段(A, B)
 BC = 线段(B, C)
 CA = 线段(C, A)
 bc = 直线(B, C)
-ad = 垂直(A, bc)
-D = 交点(ad, bc)
-AD = 线段(A, D)
 ac = 直线(A, C)
-be = 垂直(B, ac)
-E = 交点(be, ac)
-BE = 线段(B, E)
 ab = 直线(A, B)
-cf = 垂直(C, ab)
-F = 交点(cf, ab)
+D = 垂足(A, bc)
+E = 垂足(B, ac)
+F = 垂足(C, ab)
+AD = 线段(A, D)
+BE = 线段(B, E)
 CF = 线段(C, F)
-H = 交点(ad, be)""",
+H = 垂心(A, B, C)""",
     "内心与角平分线": """点 A(0,3) B(-2,0) C(2,0)
 AB = 线段(A, B)
 BC = 线段(B, C)
@@ -222,7 +218,7 @@ BC = 线段(B, C)
 CA = 线段(C, A)
 c = 外接圆(A, B, C)
 n = 内切圆(A, B, C)""",
-    "两条中线的交点是重心": """点 A(0,4) B(-3,0) C(3,0)
+    "两条中线的交点是重心": """点 A(2,3) B(0,0) C(5,0)
 AB = 线段(A, B)
 BC = 线段(B, C)
 CA = 线段(C, A)
@@ -271,7 +267,7 @@ OUTCOMES_CASES: dict[str, str] = {
 #: "unsatisfied", "refused" or "parse-failure".
 OUTCOMES_STATEMENTS: dict[str, str] = {
     "直角三角形（3-4-5）+ 垂足": "satisfied",
-    "平行四边形（边长 + 角）": "parse-failure",
+    "平行四边形（边长 + 角）": "unsatisfied",
     "矩形（边长）": "satisfied",
     "菱形（对角线）": "satisfied",
     "等边三角形 + 外接圆 + 内切圆": "satisfied",
