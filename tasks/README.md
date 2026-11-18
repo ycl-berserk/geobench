@@ -92,6 +92,8 @@
 | [T044](T044-dsl-exact-coordinates-and-redefinition.md) | 两个 DSL 的洞：同名重定义、坐标支持精确表达式 | DSL · 内核 | 已实现（数值条件 6/6） | T043 |
 | [T045](T045-object-label.md) | 卷面上的标签：改标签，不改构造 | 应用 | 已实现 | T032 |
 | [T046](T046-constraint-solver.md) | 约束求解：让内核算坐标，且只接受精确解 | 内核 · DSL | 已实现 | T044 |
+| [T047](T047-interactive-html.md) | 可拖动的 HTML 导出（一页 11 KB） | 应用 | 已实现 | T018 · T046 |
+| [T048](T048-ai-cost.md) | AI 通道的成本：先量，再砍 | 服务端 | 已量 + 第一批优化 | T041 · T043 |
 | [T020b](T020b-usable-canvas.md) | 让画板真的能用（固定视角 · 备好工具 · 手势规则 · 全中文） | 渲染 | 已实现 | T019 |
 | [T031b](T031b-measurement-family.md) | 测量族：距离/长度/面积/周长/角度/半径/斜率/方向 | 算子 · 图元 | 已实现 | T028 · T029 |
 | [T029](T029-polygon-family.md) | 多边形族：多边形（就是它的边） | 算子 · 图元 | 已实现 | T025 |

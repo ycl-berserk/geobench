@@ -37,6 +37,9 @@ ALLOWED_MODULES = {
     "exactly.  The floats never reach a verdict: what comes out is exact "
     "coordinates, and tests/unit/dsl/test_constraints asserts that they are "
     "expressions, not decimals.",
+    "export_html": "the page draws in pixels, like the screen and the SVG writer; "
+    "the formulas it prints are the kernel's exact expressions, and the numbers "
+    "here are stroke widths and a fallback centre.",
 }
 
 

@@ -90,6 +90,12 @@ class OpenAICompatibleProvider:
     api_key: str = ""
     timeout: float = 60
     name: str = "openai-compatible"
+    #: The answer is a figure, which is short: a few dozen lines at most.
+    #: Without a bound the service is free to think out loud for a
+    #: thousand tokens, and the teacher waits for all of it -- and pays
+    #: for it.  A ceiling is not a limit on quality; it is a limit on
+    #: rambling.
+    max_tokens: int = 700
 
     def complete(self, system: str, user: str) -> str:
         """Ask the model, and return what it said."""
@@ -101,6 +107,7 @@ class OpenAICompatibleProvider:
                     {"role": "user", "content": user},
                 ],
                 "temperature": 0,
+                "max_tokens": self.max_tokens,
             }
         ).encode("utf-8")
         request = urllib.request.Request(

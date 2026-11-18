@@ -71,6 +71,7 @@ from geobench.app.ai_panel import AIPanel
 from geobench.app.canvas import FigureCanvas
 from geobench.app.controller import StudioController
 from geobench.app.export import copy_image, copy_svg_source, write_png, write_svg
+from geobench.app.export_html import write_html
 from geobench.app.icons import group_icon, tool_icon
 from geobench.app.settings_dialog import SettingsDialog
 from geobench.app.theme import PALETTE, button_words, mono_font
@@ -606,6 +607,9 @@ class StudioWindow(QMainWindow):
         export_png_action = QAction("导出 PNG…", self)
         export_png_action.triggered.connect(self._export_png)
         export_menu.addAction(export_png_action)
+        export_html_action = QAction("导出 HTML（可以拖动）…", self)
+        export_html_action.triggered.connect(self._export_html)
+        export_menu.addAction(export_html_action)
         export_menu.addSeparator()
         copy_picture_action = QAction("复制图形到剪贴板", self)
         copy_picture_action.triggered.connect(self._copy_picture)
@@ -647,6 +651,32 @@ class StudioWindow(QMainWindow):
             self.status.showMessage(f"导出失败：{exc}")
             return
         self.status.showMessage("已导出 SVG")
+
+    def _export_html(self) -> None:
+        """Write the figure as a page a student can drag.
+
+        A picture in a document is a claim that something is true; a
+        picture a student can move is the argument for it.
+        """
+        path, _ = QFileDialog.getSaveFileName(
+            self, "导出 HTML", "图形.html", "网页 (*.html)"
+        )
+        if not path:
+            return
+        try:
+            write_html(
+                self.controller.figure(),
+                self.controller.style,
+                Path(path),
+                title=Path(path).stem,
+            )
+        except GeobenchError as exc:
+            self.status.showMessage(f"导出失败：{exc}")
+            return
+        except OSError as exc:
+            self.status.showMessage(f"导出失败：{exc}")
+            return
+        self.status.showMessage("已导出 HTML（在学生那边可以直接拖动）")
 
     def _export_png(self) -> None:
         """Write the figure to a file, as a picture."""
