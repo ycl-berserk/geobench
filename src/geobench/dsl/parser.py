@@ -165,7 +165,11 @@ _TYPE_FITS: dict[str, frozenset[str]] = {
     "circle": frozenset({"circle"}),
     "polygon": frozenset({"polygon"}),
     "scalar": frozenset({"number"}),
-    "selector": frozenset({"selector"}),
+    # A selector may be written as a Chinese word (第一交点) or as the
+    # index it is: 交点(直线, 圆, 0).  GeoGebra counts from 1 and this
+    # language counts from 0, so the *number* has to be accepted here --
+    # and it is, since T034 needed to write imported figures.
+    "selector": frozenset({"selector", "number"}),
 }
 
 

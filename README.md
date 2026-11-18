@@ -6,6 +6,10 @@
 > 已实现：构造图、精确算术、14 个算子（全部经独立实现对拍）、9 个判定器、竞赛图规范 SVG 渲染、**中文几何 DSL（确定性解析器）**、**MCP 服务端（`geo_state` / `geo_construct` / `geo_evaluate`）**。
 > 未实现：约束求解、退化检测器全目录、渲染服务、交互前端、其余 MCP 工具。
 > 实现的契约在 [`docs/spec.md`](docs/spec.md)，DSL 语法在 [`docs/dsl-spec.md`](docs/dsl-spec.md)，生产方式在 [`docs/ai-workflow.md`](docs/ai-workflow.md)，决策记录在 [`docs/decisions.md`](docs/decisions.md)。
+> **这个项目里想得比较巧的几个地方**：[`docs/ideas.md`](docs/ideas.md) ——
+> 「模型只负责翻译、解析器负责拒绝」「错误信息是教学通道」「反例必须是合法构型」
+> 「化简预算按展开项数算」「对拍先比数再化简」「可拖动网页 = 每个对象一个 JS 函数（11 KB）」
+> 「省 token 的账在固定前缀上」「约束求解只动尽量少的点、只接受精确解」……
 >
 > English version: [README.en.md](README.en.md)
 
