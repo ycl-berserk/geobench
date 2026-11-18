@@ -41,6 +41,7 @@ from sympy import Expr
 from geobench.commands import (
     COMMANDS,
     JUDGEMENT,
+    MEASUREMENT,
     SELECTORS,
     CommandSpec,
     by_id,
@@ -48,6 +49,9 @@ from geobench.commands import (
 )
 from geobench.dsl.errors import DSLParseError, Span
 from geobench.dsl.lexer import Line, Token, TokenKind, tokenize
+from geobench.errors import StateError
+from geobench.evaluate import evaluate_figure
+from geobench.judges import JudgeContext, JudgeRegistry
 from geobench.model import (
     ARC,
     CIRCLE,
@@ -64,14 +68,33 @@ from geobench.model import (
     Node,
     Relation,
 )
+from geobench.operators import OpContext
 from geobench.operators import register_builtins as _register_builtins
 from geobench.registry import OperatorRegistry, OpSpec
+from geobench.solve import Condition, solve
 
 # -- object table ----------------------------------------------------------
 
 #: The functions a coordinate may use.  Only ``sqrt``: a coordinate is a
 #: number, and a number that needs a logarithm is not one a figure has.
 _VALUE_FUNCTIONS = {"sqrt": sp.sqrt}
+
+
+@dataclass(frozen=True)
+class _Pending:
+    """A constraint as written, before the figure is evaluated.
+
+    A judgement cannot produce its expression until the figure has been
+    evaluated (a line's coefficients live in the cache), and a
+    constraint may name an object that comes later in the script.  So
+    the pieces are kept and turned into an expression at the end.
+    """
+
+    label: str
+    command: Token
+    args: list[Arg]
+    right: Expr | None = None
+    right_call: tuple[Token, list[Arg]] | None = None
 
 
 @dataclass
@@ -156,6 +179,10 @@ class Parser:
         self.figure = Figure(id="fig_dsl")
         self.scope = Scope()
         self._auto_names: dict[str, int] = {}
+        #: The conditions the figure has to satisfy, in the order written.
+        #: They are solved *after* the whole figure is built, because a
+        #: constraint may name anything that comes later in the script.
+        self.constraints: list[_Pending] = []
 
     # -- token helpers ----------------------------------------------------
 
@@ -174,6 +201,7 @@ class Parser:
             if not line.tokens:
                 continue
             self._parse_line(line)
+        self._solve_constraints()
         return self.figure
 
     def _parse_line(self, line: Line) -> None:
@@ -184,6 +212,9 @@ class Parser:
             return
         if head.is_keyword("断言"):
             self._parse_assertion(tokens)
+            return
+        if head.is_keyword("约束"):
+            self._parse_constraint(tokens)
             return
         if head.text in {"\u9690\u85cf", "Hide"}:
             self._parse_attribute(tokens, hidden=True)
@@ -385,12 +416,18 @@ class Parser:
         self._build(command_token.text, args, name, command_token.span)
 
     def _parse_call(self, command_token: Token, tokens: list[Token]) -> list[Arg]:
-        if len(tokens) < 2 or not tokens[1].is_punct("("):
+        args, _ = self._parse_call_at(command_token, tokens, 1)
+        return args
+
+    def _parse_call_at(
+        self, command_token: Token, tokens: list[Token], start: int
+    ) -> tuple[list[Arg], int]:
+        if start >= len(tokens) or not tokens[start].is_punct("("):
             raise self._fail(command_token.span, "命令后面应该跟括号里的参数")
-        index = 2
+        index = start + 1
         args: list[Arg] = []
         if index < len(tokens) and tokens[index].is_punct(")"):
-            return args
+            return args, index + 1
         while True:
             token = self._peek(tokens, index)
             if token is None:
@@ -411,7 +448,7 @@ class Parser:
         closing = self._peek(tokens, index)
         if closing is None or not closing.is_punct(")"):
             raise self._fail(command_token.span, "括号没有关上")
-        return args
+        return args, index + 1
 
     def _resolve_name(self, token: Token) -> Arg:
         name = token.text
@@ -466,6 +503,150 @@ class Parser:
         args = self._parse_call(command_token, tokens[1:])
         command = self._resolve(command_token.text, args, command_token.span, judgement=True)
         self._add_relation(command, args)
+
+    # -- 约束: a condition the figure has to satisfy ---------------------
+
+    def _parse_constraint(self, tokens: list[Token]) -> None:
+        """A condition the figure has to satisfy (约束).
+
+        Two shapes, one meaning -- an expression that must be zero::
+
+            约束 垂直(AB, AC)          a judgement
+            约束 长度(AB) = 5          an equation
+            约束 角度(B, A, C) = 40
+            约束 长度(AB) = 长度(AC)
+
+        The pieces are recorded here and turned into expressions *after*
+        the whole script is read: a constraint may name an object that
+        comes later, and a judgement needs the figure to be evaluated
+        before it can produce its expression.
+        """
+        if len(tokens) < 2:
+            raise self._fail(
+                tokens[0].span, "约束后面应该是一个条件，例如 约束 垂直(AB, AC)"
+            )
+        command_token = tokens[1]
+        if command_token.kind not in {TokenKind.IDENT, TokenKind.KEYWORD}:
+            raise self._fail(command_token.span, "这里应该是一个条件名")
+        args, index = self._parse_call_at(command_token, tokens, 2)
+        label = f"{command_token.text}({', '.join(arg.name for arg in args)})"
+        right: Expr | None = None
+        right_call: tuple[Token, list[Arg]] | None = None
+        if index < len(tokens) and tokens[index].is_punct("="):
+            token = self._peek(tokens, index + 1)
+            if token is None:
+                raise self._fail(tokens[-1].span, "等号后面还缺一个数")
+            if token.kind is TokenKind.NUMBER:
+                right = self._number(token)
+                index += 2
+            elif token.kind is TokenKind.IDENT:
+                call_args, after = self._parse_call_at(token, tokens, index + 2)
+                right_call = (token, call_args)
+                index = after
+            else:
+                raise self._fail(
+                    token.span, "等号后面应该是一个数，或者 长度(…)、角度(…) 这样的量"
+                )
+            label += " = …"
+        if index != len(tokens):
+            raise self._fail(tokens[index].span, "约束后面多了东西")
+        self.constraints.append(
+            _Pending(
+                label=label,
+                command=command_token,
+                args=args,
+                right=right,
+                right_call=right_call,
+            )
+        )
+
+    def _relation_expression(self, command_token: Token, args: list[Arg]) -> Expr:
+        """A judgement, as the expression that must vanish for it to hold."""
+        candidates = lookup_all(command_token.text)
+        if candidates and all(candidate.kind != JUDGEMENT for candidate in candidates):
+            raise self._fail(
+                command_token.span,
+                f"{command_token.text!r} 不是一个条件 —— 约束要用 垂直/平行/共线/"
+                "共圆/相等/中点 这样的判定，或者写成 长度(AB) = 5",
+            )
+        command = self._resolve(
+            command_token.text, args, command_token.span, judgement=True
+        )
+        if command.kind != JUDGEMENT:
+            raise self._fail(
+                command_token.span,
+                f"{command_token.text!r} 不是一个条件 —— 约束要用 垂直/平行/共线/"
+                "共圆/相等/中点 这样的判定，或者写成 长度(AB) = 5",
+            )
+        expanded = _expand_segments(args)
+        if len(expanded) != command.arity:
+            expanded = args
+        ids = [_relation_arg(arg) for arg in expanded]
+        spec = JudgeRegistry().spec(command.id)
+        context = JudgeContext(figure=self.figure, ctx=OpContext(self.figure))
+        return spec.impl(context, ids)
+
+    def _measure_expression(self, command_token: Token, args: list[Arg]) -> Expr:
+        """A measurement, as the exact number it measures."""
+        command = self._resolve(
+            command_token.text, args, command_token.span, judgement=False
+        )
+        if command.kind != MEASUREMENT:
+            raise self._fail(
+                command_token.span,
+                f"{command_token.text!r} 不是一个数 —— 等式的两边要用 "
+                "长度/距离/角度/面积/半径 这样的量，或者一个数",
+            )
+        ids = [
+            self._segment_node(arg) if arg.kind == "segment" else _operator_arg(arg)
+            for arg in args
+        ]
+        impl = _operators().implementation(command.id)
+        if impl is None:  # pragma: no cover - every measurement is implemented
+            raise self._fail(command_token.span, f"命令 {command_token.text!r} 还没有实现")
+        try:
+            result = impl(OpContext(self.figure), ids)
+        except StateError as exc:
+            raise self._fail(command_token.span, f"{command_token.text!r} 量不出来：{exc}") from None
+        value = result.get("value")
+        if not isinstance(value, tuple) or not value:
+            raise self._fail(command_token.span, f"{command_token.text!r} 不是一个数")
+        return value[0]
+
+    def _solve_constraints(self) -> None:
+        """Find coordinates that satisfy every constraint, exactly."""
+        if not self.constraints:
+            return
+        # The judgements read the evaluated figure (a line's coefficients
+        # live in the cache), so the figure is evaluated first.
+        evaluate_figure(self.figure, _operators())
+        conditions: list[Condition] = []
+        for pending in self.constraints:
+            if pending.right is None and pending.right_call is None:
+                expression = self._relation_expression(pending.command, pending.args)
+            else:
+                left = self._measure_expression(pending.command, pending.args)
+                if pending.right is not None:
+                    expression = left - pending.right
+                else:
+                    token, args = pending.right_call  # type: ignore[misc]
+                    expression = left - self._measure_expression(token, args)
+            conditions.append(Condition(pending.label, expression))
+
+        outcome = solve(self.figure, conditions)
+        if not outcome.ok:
+            raise self._fail(
+                self.constraints[0].command.span,
+                f"约束解不出来：{outcome.reason}",
+            )
+        for node_id, (x, y) in outcome.placements.items():
+            node = self.figure.nodes.get(node_id)
+            if node is not None:
+                node.placement = (x, y)
+        self.figure.runtime["solution"] = {
+            "degrees_of_freedom": outcome.degrees_of_freedom,
+            "moved": list(outcome.moved),
+        }
 
     def _add_relation(self, command: CommandSpec, args: list[Arg]) -> None:
         """Record a relation about the figure."""
@@ -881,14 +1062,27 @@ def _judgement_fits(command: CommandSpec, args: list[Arg]) -> bool:
 #: The operator registry, built once: the parser asks it whether an
 #: argument list fits an operator.
 _OPERATOR_SPECS: dict[str, OpSpec] = {}
+_OPERATORS: OperatorRegistry | None = None
+
+
+def _operators() -> OperatorRegistry:
+    """The operators, built once.
+
+    The parser needs their *implementations* -- not just their specs --
+    to turn a constraint like ``长度(AB) = 5`` into an expression.
+    """
+    global _OPERATORS
+    if _OPERATORS is None:
+        registry = OperatorRegistry()
+        _register_builtins(registry)
+        _OPERATORS = registry
+    return _OPERATORS
 
 
 def _operator_spec(command_id: str) -> OpSpec | None:
     """The contract of an operator: what its arguments must be."""
     if not _OPERATOR_SPECS:
-        registry = OperatorRegistry()
-        _register_builtins(registry)
-        for spec in registry.all_specs():
+        for spec in _operators().all_specs():
             _OPERATOR_SPECS[spec.id] = spec
     return _OPERATOR_SPECS.get(command_id)
 

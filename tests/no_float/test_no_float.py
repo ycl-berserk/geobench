@@ -32,6 +32,11 @@ ALLOWED_MODULES = {
     "and never computes geometry",
     "theme": "the theme carries point sizes and paddings",
     "icons": "the icons are drawn in pixels",
+    "solve": "the solver *searches* with floating point -- Newton steps on the "
+    "free points' coordinates -- and then rationalises the answer and checks it "
+    "exactly.  The floats never reach a verdict: what comes out is exact "
+    "coordinates, and tests/unit/dsl/test_constraints asserts that they are "
+    "expressions, not decimals.",
 }
 
 

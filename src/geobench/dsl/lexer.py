@@ -53,7 +53,7 @@ class Token:
 
 
 #: The statement heads. Everything else is a name.
-KEYWORDS = frozenset({"点", "断言"})
+KEYWORDS = frozenset({"点", "断言", "约束"})
 
 #: The names the command table knows.
 #:
