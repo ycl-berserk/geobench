@@ -90,6 +90,10 @@ def test_a_parallel_to_a_segment(controller: StudioController) -> None:
 def test_the_parallel_is_parallel_to_the_segment(controller: StudioController) -> None:
     """Not just any line: the same direction as the segment."""
     controller.construct("line.parallel_through", ["C", "s1"], "p")
+    # The exact layer is a separate pass now: the screen is drawn first,
+    # and the expressions arrive behind it.  What this test is about is
+    # the expression.
+    controller.evaluate_exact()
     figure = controller.figure()
     segment = figure.nodes["s1"]
     parallel = figure.nodes["p"]

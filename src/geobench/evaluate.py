@@ -32,7 +32,7 @@ import sympy as sp
 from sympy import Expr
 
 from geobench import numeric
-from geobench.errors import OpNotImplementedError, StateError
+from geobench.errors import DegenerateError, GeobenchError, OpNotImplementedError, StateError
 from geobench.field import FIELD
 from geobench.model import Figure, Node
 from geobench.operators import NumericOpContext, OpContext
@@ -242,7 +242,9 @@ def _divides_by_nothing(result: dict[str, object]) -> bool:
 _NO_VALUE = (StateError, TypeError, ValueError, KeyError, ArithmeticError)
 
 
-def evaluate_numeric_direct(figure: Figure, registry: OperatorRegistry) -> Figure:
+def evaluate_numeric_direct(
+    figure: Figure, registry: OperatorRegistry, strict: bool = False
+) -> Figure:
     """Fill the numeric payloads **without** the exact path.
 
     The picture needs numbers, not expressions.  When the exact
@@ -254,21 +256,34 @@ def evaluate_numeric_direct(figure: Figure, registry: OperatorRegistry) -> Figur
     That is the whole point of the numeric path (decision D18), and it
     is why the operators are written against a context rather than
     against the figure: only the inputs change.
+
+    ``strict`` is for the moment a construction is **added**.  An
+    operator that refuses a construction outright -- a line through the
+    same point twice -- must still refuse, or the figure ends up with a
+    node that can never have a value.  A construction that is merely
+    degenerate *at this placement* (three collinear points, two parallel
+    lines) is not a refusal: it is an object that is undefined here,
+    exactly as GeoGebra draws it (decision D19).  The two are told apart
+    by the error: :class:`DegenerateError` means "not here", anything
+    else means "not this".
     """
     ctx = NumericOpContext(figure)
     for node_id in dependency_order(figure):
         node = figure.nodes[node_id]
         if node.kind == "point" and node.role == "free" and node.op is None:
-            values = numeric.free_values(figure)
             coords = (
-                numeric.placement_float(node.placement[0]),
-                numeric.placement_float(node.placement[1]),
-            ) if node.placement is not None else (None, None)
+                (
+                    numeric.placement_float(node.placement[0]),
+                    numeric.placement_float(node.placement[1]),
+                )
+                if node.placement is not None
+                else (None, None)
+            )
             if coords[0] is None or coords[1] is None:
-                node.cache.pop(numeric.CACHE_VALUES, None)
+                _undefined_direct(node, "no numeric position")
                 continue
+            node.cache.pop(numeric.CACHE_UNDEFINED, None)
             node.cache[numeric.CACHE_VALUES] = {"coords": coords}
-            del values
             continue
         if node.role in ("free", "attached") and node.op is None:
             continue
@@ -279,8 +294,9 @@ def evaluate_numeric_direct(figure: Figure, registry: OperatorRegistry) -> Figur
             elif node.op == "point.on_line":
                 position = numeric.point_on_line(figure, node.args[0], node.args[1])
             if position is None:
-                node.cache.pop(numeric.CACHE_VALUES, None)
+                _undefined_direct(node, "the circle has no radius here")
                 continue
+            node.cache.pop(numeric.CACHE_UNDEFINED, None)
             node.cache[numeric.CACHE_VALUES] = {"coords": position}
             node.placement = (
                 numeric.format_float(position[0]),
@@ -294,8 +310,21 @@ def evaluate_numeric_direct(figure: Figure, registry: OperatorRegistry) -> Figur
             continue
         try:
             result = impl(ctx, list(node.args))
-        except _NO_VALUE:
-            node.cache.pop(numeric.CACHE_VALUES, None)
+        except _NO_VALUE as exc:
+            # A construction whose inputs are all there, and whose
+            # operator still refuses, is not a placement problem: the
+            # construction itself is wrong (a line through one point
+            # twice).  Refusing it is what keeps the figure free of
+            # nodes that can never have a value.  A construction whose
+            # inputs are missing is just downstream of something
+            # undefined, and stays undefined with it.
+            if strict and _refusable(exc) and _inputs_have_values(figure, node):
+                raise
+            _undefined_direct(node, str(exc) or type(exc).__name__)
+            continue
+        reason = result.get("no_value")
+        if reason is not None:
+            _undefined_direct(node, str(reason))
             continue
         payload: dict[str, object] = {key: None for key in numeric.payload_keys()}
         for key in numeric.payload_keys():
@@ -308,8 +337,59 @@ def evaluate_numeric_direct(figure: Figure, registry: OperatorRegistry) -> Figur
             except (TypeError, ValueError):
                 continue
             payload[key] = converted[0] if len(converted) == 1 else converted
+        if node.kind == "point" and payload.get("coords") is None:
+            _undefined_direct(node, "no value at this placement")
+            continue
+        node.cache.pop(numeric.CACHE_UNDEFINED, None)
         node.cache[numeric.CACHE_VALUES] = payload
+        if node.kind == "point":
+            # The app reads a point's position from the placement, and a
+            # derived point has no exact one to keep: what it has is where
+            # the numbers put it.
+            coords = cast(tuple[float, float], payload["coords"])
+            node.placement = (
+                numeric.format_float(coords[0]),
+                numeric.format_float(coords[1]),
+            )
     return figure
+
+
+def _undefined_direct(node: Node, reason: str) -> None:
+    """Mark a node as undefined at this placement, and say why.
+
+    The picture keeps the object out, the steps pane keeps the reason,
+    and the figure as a whole survives (decision D19).
+    """
+    node.cache[numeric.CACHE_UNDEFINED] = reason
+    node.cache.pop(numeric.CACHE_VALUES, None)
+    if node.kind == "point":
+        node.placement = None
+
+
+def _refusable(exc: BaseException) -> bool:
+    """Is this failure about the construction, not about the placement?"""
+    if isinstance(exc, DegenerateError):
+        return False
+    return isinstance(exc, GeobenchError)
+
+
+def _inputs_have_values(figure: Figure, node: Node) -> bool:
+    """Do all of this node's inputs have a numeric value right now?
+
+    If they do, the operator's refusal is about the construction.  If
+    they do not, the node is downstream of something undefined, and it
+    is undefined for the same reason -- not a refusal.
+    """
+    for arg in node.args:
+        source = figure.nodes.get(arg)
+        if source is None:
+            continue
+        payload = source.cache.get(numeric.CACHE_VALUES)
+        if not payload:
+            return False
+        if not any(value is not None for value in payload.values()):
+            return False
+    return True
 
 
 def evaluate_numeric(figure: Figure) -> Figure:

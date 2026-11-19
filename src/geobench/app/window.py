@@ -85,6 +85,7 @@ from geobench.app.tools import (
 from geobench.commands import COMMANDS, JUDGEMENT, by_id
 from geobench.errors import GeobenchError
 from geobench.judges import IDENTITY, INSTANCE, Verdict
+from geobench.model import Figure
 
 
 @dataclass(frozen=True)
@@ -354,6 +355,9 @@ class StudioWindow(QMainWindow):
     #: The verdicts have arrived. The number tells which request they
     #: answer, so that a slow proof for an old figure can be dropped.
     verdictsReady = Signal(int, list)
+    #: The exact evaluation finished: the request, the figure it ran on,
+    #: and what it found out about itself.
+    exactReady = Signal(int, object, dict)
 
     def __init__(self, controller: StudioController | None = None) -> None:
         super().__init__()
@@ -461,7 +465,10 @@ class StudioWindow(QMainWindow):
         self._dragging = False
         self._judge_request = 0
         self._judge_pending = False
+        self._exact_request = 0
+        self._exact_running = False
         self.verdictsReady.connect(self._on_verdicts)
+        self.exactReady.connect(self._on_exact)
         self.refresh()
         # A tool is armed from the start. An empty toolbar and an idle
         # canvas look like a program that is not working: a click with
@@ -1133,24 +1140,72 @@ class StudioWindow(QMainWindow):
     # -- refreshing --------------------------------------------------------
 
     def refresh(self) -> None:
-        """Redraw the steps and the judgements."""
+        """Redraw the steps, and send the exact evaluation to a worker.
+
+        The picture is already on the screen (the controller draws it
+        numerically); what is missing is the ability to *judge* it, and
+        that is the slow part.  So it runs the way a proof runs: on a
+        copy, in another thread, and the table is filled when it
+        arrives.
+        """
         self._refresh_steps()
-        self._refresh_judgements()
-        inexact = self.controller.inexact()
-        if inexact:
-            # The figure is on screen and can be dragged -- it was drawn
-            # numerically -- but a claim about it cannot be judged: the
-            # exact expression is out of budget.  The reader has to know
-            # that, or the split between "drawn" and "judged" is a
-            # surprise at the wrong moment.
-            self.status.showMessage(
-                f"这张图画得出来，也可以拖；但它太大，精确求值超出预算，判定不回答（{inexact}）"
-            )
-            return
+        self._refresh_exact()
         if self._dragging:
             # The drag is over; the verdicts have been settled.
             self._dragging = False
             self.status.showMessage("松手了：判定已按新的位置算过")
+
+    def _refresh_exact(self) -> None:
+        """Evaluate exactly, behind the picture.
+
+        At most one worker runs at a time.  A figure is built one
+        construction at a time, and starting a whole exact evaluation per
+        keystroke would put a dozen of them on the CPU at once, all but
+        one of them already out of date.  Instead the request is bumped,
+        and when the running worker finishes it notices that its answer
+        is stale and starts again on the figure as it is now.
+        """
+        self._exact_request += 1
+        request = self._exact_request
+        if self._exact_running:
+            return
+        self._exact_running = True
+        figure = self.controller.snapshot_figure()
+
+        def work() -> None:
+            state: dict[str, str]
+            try:
+                state = self.controller.evaluate_exact_figure(figure)
+            except GeobenchError as exc:  # pragma: no cover - worker safety
+                state = {"status": "failed", "reason": str(exc)}
+            self.exactReady.emit(request, figure, state)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_exact(self, request: int, figure: object, state: dict[str, str]) -> None:
+        """The exact evaluation arrived: absorb it and judge if we can."""
+        self._exact_running = False
+        if request != self._exact_request:
+            # The figure changed while this was being evaluated: the
+            # answer is about a figure that no longer exists.  Ask again,
+            # about the one that does.
+            self._refresh_exact()
+            return
+        if not isinstance(figure, Figure):  # pragma: no cover - defensive
+            return
+        if not self.controller.absorb_exact(figure, dict(state)):
+            return
+        self._refresh_steps()
+        inexact = self.controller.inexact()
+        if inexact:
+            self._verdicts = []
+            self.judgements.setRowCount(0)
+            self._set_judgement_note("这张图太大，判定不回答")
+            self.status.showMessage(
+                f"这张图画得出来，也可以拖；但它太大，精确求值超出预算，判定不回答（{inexact}）"
+            )
+            return
+        self._refresh_judgements()
 
     def _point_moved(self, node_id: str) -> None:
         """A point moved: one row of the steps pane changed, and that is all.
@@ -1232,7 +1287,18 @@ class StudioWindow(QMainWindow):
         A proof can take seconds. The screen must not wait for it, so
         the work happens on a copy of the figure, in another thread, and
         the table is filled when the answer arrives.
+
+        Nothing is judged while the exact evaluation is still on its
+        way: a verdict about a figure that has only been drawn
+        numerically would be a verdict about the wrong thing.  The exact
+        pass calls this again when it arrives.
         """
+        if self.controller.exact_pending():
+            self._set_judgement_note("精确求值中……判定随后就来")
+            return
+        if self.controller.inexact():
+            self._set_judgement_note("这张图太大，判定不回答")
+            return
         self._judge_request += 1
         request = self._judge_request
         figure = self.controller.snapshot_figure()
@@ -1408,6 +1474,7 @@ _EVIDENCE_ZH: tuple[tuple[str, str], ...] = (
 #: names the condition that failed; the classroom needs the reason.
 _UNDEFINED_ZH: dict[str, str] = {
     "parallel_lines": "两条直线平行，没有交点",
+    "lines are parallel or coincident; no unique intersection": "两条直线平行，没有交点",
     "discriminant": "判别式为零（退化）",
     "determinant": "行列式为零（退化）",
     "point_on_circle": "这个点不在圆上",

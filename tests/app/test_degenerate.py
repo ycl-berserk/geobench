@@ -59,6 +59,9 @@ def app() -> QApplication:
 def controller() -> StudioController:
     controller = StudioController()
     controller.load_text(PROBLEM)
+    # These tests are about what the screen says about a *finished*
+    # figure: the exact layer has arrived, and the reasons are known.
+    controller.evaluate_exact()
     return controller
 
 

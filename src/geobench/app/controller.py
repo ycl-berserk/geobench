@@ -204,21 +204,89 @@ class StudioController:
         return self.store.figure(self.figure_id)
 
     def evaluate(self) -> Figure:
-        """Re-evaluate and repaint the numbers.
+        """Draw now; the exact path fills in behind the picture.
 
-        The exact path runs first.  If a construction's exact expression
-        is too big to be worth computing -- a figure with several circle
-        intersections, imported from GeoGebra, say -- the figure is
-        **drawn numerically** instead: it looks the same, it drags the
-        same, and its claims are refused rather than judged on numbers.
-        A slow answer is a worse experience than an honest one.
+        The **picture** is numeric, and it is three milliseconds for a
+        figure of forty objects.  The exact layer is what judging needs,
+        and it can take minutes on a figure with circle intersections --
+        so it never runs on the way to the screen.  The figure is marked
+        ``pending``, and the window asks for the exact evaluation on a
+        copy, in another thread, exactly the way it asks for verdicts.
+
+        That is the whole deal: **the teacher never waits for a
+        decision**; what they get at once is the figure, and what
+        arrives later is the ability to judge it.
         """
         figure = self.figure()
+        figure.runtime["exact"] = {"status": "pending", "reason": ""}
+        evaluate_numeric_direct(figure, self.registry, strict=True)
+        return figure
+
+    def evaluate_exact(self) -> Figure:
+        """Run the exact pass now, and wait for it.
+
+        The screen never calls this: it runs the same pass on a copy, in
+        a worker, so the picture is on screen first (see
+        ``Window._refresh_exact``).  This is the synchronous version --
+        what a test needs, and what "tell me now" means.
+        """
+        figure = self.figure()
+        self.evaluate_exact_figure(figure)
+        return figure
+
+    def evaluate_exact_figure(self, figure: Figure) -> dict[str, str]:
+        """Evaluate a figure exactly, and draw it if that is out of budget.
+
+        Safe to call on a copy from a worker thread: it touches only the
+        figure it was given.  The figure that comes back is ready to be
+        absorbed -- exact where exactness is affordable, numeric
+        everywhere else.
+        """
         evaluate_figure(figure, self.registry)
-        state = figure.runtime.get("exact") or {}
+        state = dict(figure.runtime.get("exact") or {})
         if state.get("status") == "too-big":
             evaluate_numeric_direct(figure, self.registry)
-        return figure
+        return state
+
+    def _numeric_pass(self) -> None:
+        """Recompute the picture, with whichever path can do it now.
+
+        While the exact evaluation is on its way (or was out of budget)
+        the compiled functions do not exist yet, so the drag runs the
+        operators on numbers directly -- the same arithmetic, the same
+        picture, three milliseconds.  Once the exact pass has been
+        absorbed, the compiled path is faster and is what runs.
+        """
+        figure = self.figure()
+        if self.exact_pending() or self.inexact():
+            evaluate_numeric_direct(figure, self.registry)
+        else:
+            evaluate_numeric(figure)
+
+    def absorb_exact(self, done: Figure, state: dict[str, str]) -> bool:
+        """Take the exact evaluation a worker finished, if it still fits.
+
+        The worker ran on a copy, so the answer is only about the figure
+        it copied: if the construction has changed since, the answer is
+        about a figure that no longer exists and is dropped.
+        """
+        live = self.figure()
+        if set(done.nodes) != set(live.nodes):
+            return False
+        for node_id, node in live.nodes.items():
+            source = done.nodes[node_id]
+            node.coords = source.coords
+            node.cache.update(source.cache)
+        live.runtime["exact"] = dict(state)
+        # The worker computed the numbers at the placement *it* copied.
+        # If a point moved while it was thinking, those numbers are old
+        # ones, and the picture would jump back for a frame.  Redraw at
+        # the placement the figure has now.
+        if state.get("status") == "too-big":
+            evaluate_numeric_direct(live, self.registry)
+        else:
+            evaluate_numeric(live)
+        return True
 
     def primitives(self) -> list[Primitive]:
         """What the screen should draw."""
@@ -228,14 +296,20 @@ class StudioController:
         return undefined_nodes(self.figure())
 
     def inexact(self) -> str:
-        """Why this figure cannot be judged, or "" when it can."""
+        """Why this figure cannot be judged, or "" when it can.
+
+        ``pending`` is not a reason: the exact evaluation is on its way.
+        """
         state = self.figure().runtime.get("exact") or {}
-        if state.get("status") == "too-big":
-            return str(
-                state.get("reason")
-                or "这张图太大，精确求值超出预算"
-            )
+        status = state.get("status")
+        if status in ("too-big", "failed"):
+            return str(state.get("reason") or "精确求值没有完成")
         return ""
+
+    def exact_pending(self) -> bool:
+        """Is the exact evaluation still on its way?"""
+        state = self.figure().runtime.get("exact") or {}
+        return state.get("status") == "pending"
 
     # -- editing -----------------------------------------------------------
 
@@ -294,7 +368,7 @@ class StudioController:
         if node.role != "free":
             raise GeobenchError(f"node {node_id!r} is not a free point")
         node.placement = (_exact(x), _exact(y))
-        evaluate_numeric(figure)
+        self._numeric_pass()
         self._moved(node_id)
 
     def _set_parameter(self, node_id: str, x: float, y: float) -> None:
@@ -318,7 +392,7 @@ class StudioController:
         node.args = [target, parameter]
         # Only the numeric path: the exact expression is rebuilt once, on
         # release, not on every frame of the drag.
-        evaluate_numeric(figure)
+        self._numeric_pass()
         # A drag is a move, not a change: the steps pane updates the one
         # row that changed, and the verdicts are settled on release. A
         # proof request per frame would be a thread per frame.
@@ -351,7 +425,7 @@ class StudioController:
         placement = (_exact_text(x), _exact_text(y))
         self.push_undo()
         node.placement = placement
-        evaluate_numeric(figure)
+        self._numeric_pass()
         self._moved(node_id)
 
     def set_hidden(self, node_id: str, hidden: bool) -> None:
@@ -573,8 +647,17 @@ class StudioController:
     # -- judging -----------------------------------------------------------
 
     def judge(self, scope: str = IDENTITY) -> list[Verdict]:
-        """Judge every relation of the figure."""
-        return self.judge_figure(self.figure(), scope)
+        """Judge every relation of the figure, exactly, right now.
+
+        The screen never calls this: it judges a snapshot in a worker
+        (see ``Window._refresh_exact``).  This is the synchronous
+        version -- "tell me now" -- so it makes the figure exact first
+        if the background evaluation has not got there yet.
+        """
+        figure = self.figure()
+        if self.exact_pending():
+            self.evaluate_exact_figure(figure)
+        return self.judge_figure(figure, scope)
 
     def snapshot_figure(self) -> Figure:
         """A copy of the figure, safe to judge in another thread.
