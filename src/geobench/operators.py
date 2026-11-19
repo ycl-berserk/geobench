@@ -135,6 +135,69 @@ OpImpl = Callable[[OpContext, list[str]], dict[str, object]]
 # -- helpers ---------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class NumericOpContext(OpContext):
+    """An operator context that reads the **numbers**, not the symbols.
+
+    The same operator code, fed the numeric payloads instead of the exact
+    expressions.  That is how a figure whose exact expressions are too
+    big is still drawn, dragged and measured: the geometry is the same
+    arithmetic, and only the inputs are different.
+
+    It never produces a verdict (decision D18).  What comes out of here
+    is a picture; what a claim is worth still has to be decided on the
+    exact path, or not at all.
+    """
+
+    def _numbers(self, node_id: str, key: str) -> tuple[float, ...] | None:
+        node = self.figure.node(node_id)
+        payload = node.cache.get("numeric")
+        if not payload:
+            return None
+        values = payload.get(key)
+        if values is None:
+            return None
+        return tuple(float(value) for value in values)
+
+    def point(self, node_id: str) -> tuple[Expr, Expr]:
+        node = self.figure.node(node_id)
+        if node.kind != "point":
+            raise StateError(f"node {node_id!r} is not a point")
+        values = self._numbers(node_id, "coords")
+        if values is None or len(values) < 2:
+            raise StateError(f"point {node_id!r} has no numeric position")
+        return (sp.Float(values[0]), sp.Float(values[1]))
+
+    def line(self, node_id: str) -> LineCoeffs:
+        values = self._numbers(node_id, "line")
+        if values is None or len(values) < 3:
+            raise StateError(f"line {node_id!r} has no numeric coefficients")
+        return (sp.Float(values[0]), sp.Float(values[1]), sp.Float(values[2]))
+
+    def circle(self, node_id: str) -> CircleData:
+        values = self._numbers(node_id, "circle")
+        if values is None or len(values) < 3:
+            raise StateError(f"circle {node_id!r} has no numeric radius")
+        return (sp.Float(values[0]), sp.Float(values[1]), sp.Float(values[2]))
+
+    def segment(self, node_id: str) -> tuple[Expr, Expr, Expr, Expr]:
+        values = self._numbers(node_id, "segment")
+        if values is None or len(values) < 4:
+            raise StateError(f"segment {node_id!r} has no numeric ends")
+        return (
+            sp.Float(values[0]),
+            sp.Float(values[1]),
+            sp.Float(values[2]),
+            sp.Float(values[3]),
+        )
+
+    def polygon(self, node_id: str) -> tuple[Expr, ...]:
+        values = self._numbers(node_id, "polygon")
+        if values is None:
+            raise StateError(f"polygon {node_id!r} has no numeric vertices")
+        return tuple(sp.Float(value) for value in values)
+
+
 def _line_through(a: tuple[Expr, Expr], b: tuple[Expr, Expr]) -> LineCoeffs:
     """Implicit coefficients of the line through two points."""
     (x1, y1), (x2, y2) = a, b

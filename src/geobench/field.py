@@ -64,6 +64,20 @@ class SympyField:
     falls back to sampling.
     """
 
+    #: How big an expression the zero test is willing to build a
+    #: polynomial out of.
+    #:
+    #: Calibrated, not guessed.  The determinant that decides "are these
+    #: two lines identically parallel" is 73 operations on a real figure
+    #: and is decided in a second; the determinant of two lines in a
+    #: figure with circle intersections is 8063 operations and building a
+    #: polynomial out of it takes minutes.  Two thousand sits between
+    #: them with a factor of twenty-five on the small side and four on
+    #: the large one.  (The *expansion* budget does not separate these:
+    #: both come out at the ceiling, which is why this one is counted in
+    #: operations.)
+    zero_test_budget_ops: int = 2000
+
     def __init__(self, identity_budget_ops: int = 20000, expand_budget_ops: int = 400) -> None:
         self.identity_budget_ops = identity_budget_ops
         self.expand_budget_ops = expand_budget_ops
@@ -155,6 +169,12 @@ class SympyField:
         needs no fallback on ``simplify`` and its unbounded cost, and the
         answer it gives is final.
         """
+        if isinstance(value, sp.Float):
+            # The numeric path runs the same operators on numbers.  A
+            # number is zero or it is not -- there is no identity to
+            # decide -- and refusing the question would drop every
+            # construction that asks it.
+            return bool(value == 0)
         expr = self.coerce(value)
         if expr == 0:
             return True
@@ -162,7 +182,9 @@ class SympyField:
         if not symbols:
             # A plain number: it is zero, or it is not.
             return bool(expr == 0)
-        if sp.count_ops(expr) > self.identity_budget_ops:
+        if sp.count_ops(expr) > self.zero_test_budget_ops:
+            # Building the polynomial is where the minutes go, and the
+            # honest answer is that we do not know.
             return None
         try:
             numerator, denominator = sp.fraction(sp.together(expr))
@@ -192,6 +214,9 @@ class SympyField:
         that vanishes identically makes every negative power of it vanish
         too.
         """
+        if isinstance(value, sp.Float):
+            # A number does not vanish identically.
+            return False
         expr = self.coerce(value)
         for node in sp.preorder_traversal(expr):
             if not isinstance(node, sp.Pow):

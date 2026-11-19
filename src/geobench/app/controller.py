@@ -28,6 +28,7 @@ from geobench.errors import GeobenchError
 from geobench.evaluate import (
     evaluate_figure,
     evaluate_numeric,
+    evaluate_numeric_direct,
     parameter_on_circle,
     undefined_nodes,
 )
@@ -203,9 +204,20 @@ class StudioController:
         return self.store.figure(self.figure_id)
 
     def evaluate(self) -> Figure:
-        """Re-evaluate and repaint the numbers."""
+        """Re-evaluate and repaint the numbers.
+
+        The exact path runs first.  If a construction's exact expression
+        is too big to be worth computing -- a figure with several circle
+        intersections, imported from GeoGebra, say -- the figure is
+        **drawn numerically** instead: it looks the same, it drags the
+        same, and its claims are refused rather than judged on numbers.
+        A slow answer is a worse experience than an honest one.
+        """
         figure = self.figure()
         evaluate_figure(figure, self.registry)
+        state = figure.runtime.get("exact") or {}
+        if state.get("status") == "too-big":
+            evaluate_numeric_direct(figure, self.registry)
         return figure
 
     def primitives(self) -> list[Primitive]:
@@ -214,6 +226,16 @@ class StudioController:
 
     def undefined(self) -> list[tuple[str, str]]:
         return undefined_nodes(self.figure())
+
+    def inexact(self) -> str:
+        """Why this figure cannot be judged, or "" when it can."""
+        state = self.figure().runtime.get("exact") or {}
+        if state.get("status") == "too-big":
+            return str(
+                state.get("reason")
+                or "这张图太大，精确求值超出预算"
+            )
+        return ""
 
     # -- editing -----------------------------------------------------------
 
@@ -592,6 +614,15 @@ class StudioController:
 
     def judge_figure(self, figure: Figure, scope: str = IDENTITY) -> list[Verdict]:
         """Judge every relation of a given figure."""
+        inexact = self.inexact()
+        if inexact:
+            # The figure was drawn numerically: there are no exact
+            # expressions to decide anything with, and deciding on
+            # numbers is what this project refuses to do (D18).
+            return [
+                Verdict(kind=relation.kind, verdict="undecided", scope=scope, evidence=inexact)
+                for relation in figure.relations
+            ]
         verdicts: list[Verdict] = []
         for relation in figure.relations:
             try:

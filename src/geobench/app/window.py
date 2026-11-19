@@ -1136,6 +1136,17 @@ class StudioWindow(QMainWindow):
         """Redraw the steps and the judgements."""
         self._refresh_steps()
         self._refresh_judgements()
+        inexact = self.controller.inexact()
+        if inexact:
+            # The figure is on screen and can be dragged -- it was drawn
+            # numerically -- but a claim about it cannot be judged: the
+            # exact expression is out of budget.  The reader has to know
+            # that, or the split between "drawn" and "judged" is a
+            # surprise at the wrong moment.
+            self.status.showMessage(
+                f"这张图画得出来，也可以拖；但它太大，精确求值超出预算，判定不回答（{inexact}）"
+            )
+            return
         if self._dragging:
             # The drag is over; the verdicts have been settled.
             self._dragging = False

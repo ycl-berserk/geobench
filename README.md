@@ -16,8 +16,10 @@
 >   （契约 9/9 · 真实题面 21–22/22，见 [`docs/ai-workflow.md`](docs/ai-workflow.md) §13.5）；
 > - **兼容**：**读 `.ggb`** —— 命令表翻译成 DSL，搬不过来的构造**逐条报告**。
 >
-> 未实现：`.ggb` 导出、颜色/线宽渲染、圆锥曲线与轨迹等 17 条低优先级命令、
-> **精确求值的预算**（对象很多的图会算很久 —— 已知，待做）。
+> 未实现：`.ggb` 导出、颜色/线宽渲染、圆锥曲线与轨迹等 17 条低优先级命令。
+>
+> 大图：精确求值有预算（按**运算数**算），算不动的图**用数值直接算** ——
+> 照样能画、能拖，判定则**拒绝回答**并说明原因（不拿小数当判定）。
 >
 > 实现的契约在 [`docs/spec.md`](docs/spec.md)，DSL 语法在 [`docs/dsl-spec.md`](docs/dsl-spec.md)，生产方式在 [`docs/ai-workflow.md`](docs/ai-workflow.md)，决策记录在 [`docs/decisions.md`](docs/decisions.md)。
 > **这个项目里想得比较巧的几个地方**：[`docs/ideas.md`](docs/ideas.md) ——
