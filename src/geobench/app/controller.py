@@ -34,7 +34,7 @@ from geobench.evaluate import (
 )
 from geobench.judges import IDENTITY, JudgeRegistry, Verdict, judge_relation
 from geobench.model import Figure, Node, Relation
-from geobench.numeric import intersection_near, parameter_on_line
+from geobench.numeric import Crossing, crossing_near, parameter_on_line
 from geobench.operators import register_builtins
 from geobench.primitives import Primitive, figure_primitives
 from geobench.registry import OperatorRegistry
@@ -415,9 +415,9 @@ class StudioController:
         """Where on a line or a segment a click landed, as the parameter."""
         return parameter_on_line(self.figure(), line_id, x, y)
 
-    def intersection_near(self, x: float, y: float, tolerance: float) -> tuple[str, str] | None:
-        """Two objects whose crossing is under the cursor, if any."""
-        return intersection_near(self.figure(), x, y, tolerance)
+    def crossing_near(self, x: float, y: float, tolerance: float) -> Crossing | None:
+        """The nearest crossing of two drawn objects, if any."""
+        return crossing_near(self.figure(), x, y, tolerance)
 
     def apply_witness(self, witness: dict[str, object]) -> bool:
         """Put the free points where a counterexample says they are.

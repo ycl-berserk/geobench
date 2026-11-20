@@ -43,6 +43,7 @@ from geobench.primitives import (
     PolygonPrimitive,
     RayPrimitive,
     SegmentPrimitive,
+    distance_to,
     hit_test,
 )
 from geobench.render import View, clip_ray, fit_view
@@ -60,6 +61,12 @@ DEFAULT_VIEW = View(-10.0, -10.0, 10.0, 10.0)
 
 #: How far a click may miss a point and still grab it, in pixels.
 GRAB_RADIUS_PX = 8.0
+
+#: How much closer a crossing has to be than the object it lies on, in
+#: pixels, before the click means "their intersection".  On the crossing
+#: itself both distances are zero; a click a few pixels along the line
+#: means the line.  This is that few pixels.
+CROSSING_MAGNET_PX = 4.0
 
 #: The colour of the paper the figure is drawn on.
 PAPER = "#ffffff"
@@ -937,25 +944,29 @@ class FigureCanvas(QWidget):
             fx, fy = viewport.to_figure(px, py)
             # Where two objects cross, the crossing itself: a point with
             # no freedom of its own, not a free point that happens to
-            # be in the same place.
+            # be in the same place.  A crossing wins over "on the
+            # circle" or "on the line" when the click is at it -- that
+            # is what pointing at a crossing means -- but a click along
+            # an object, away from the crossing, still attaches to the
+            # object.
             tolerance = GRAB_RADIUS_PX / viewport.scale
-            crossing = self.controller.intersection_near(fx, fy, tolerance)
-            if crossing is not None:
-                self.constructRequested.emit("point.intersect_lines", list(crossing))
+            crossing = self.controller.crossing_near(fx, fy, tolerance)
+            attach = self._nearest_attachable(px, py)
+            magnet = CROSSING_MAGNET_PX / viewport.scale
+            if crossing is not None and (
+                attach is None or crossing.distance <= attach[2] + magnet
+            ):
+                op, args = crossing.operation()
+                self.constructRequested.emit(op, args)
                 return
-            # Landing on a circle puts the point *on* it. A point that
-            # lives on an object is a construction, not a promise kept by
-            # dragging carefully -- and the judge can prove it.
-            circle = self._hit_object(px, py, ("circle",))
-            if circle is not None:
-                where = self.controller.parameter_on_circle(circle, fx, fy)
-                self.constructRequested.emit("point.on_circle", [circle, where])
-                return
-            # A line or a segment carries a point just as well.
-            line = self._hit_object(px, py, ("line", "segment"))
-            if line is not None:
-                where = self.controller.parameter_on_line(line, fx, fy)
-                self.constructRequested.emit("point.on_line", [line, where])
+            if attach is not None:
+                node_id, kind, _distance = attach
+                if kind == "circle":
+                    where = self.controller.parameter_on_circle(node_id, fx, fy)
+                    self.constructRequested.emit("point.on_circle", [node_id, where])
+                else:
+                    where = self.controller.parameter_on_line(node_id, fx, fy)
+                    self.constructRequested.emit("point.on_line", [node_id, where])
                 return
             self.controller.add_free_point(fx, fy)
             return
@@ -992,6 +1003,31 @@ class FigureCanvas(QWidget):
             and figure.nodes[primitive.id].kind in kinds
         ]
         return hit_test(candidates, x, y, tolerance)
+
+    def _nearest_attachable(
+        self, px: float, py: float
+    ) -> tuple[str, str, float] | None:
+        """The nearest line, segment or circle under the click.
+
+        One distance for all three: a click between a circle and a line
+        attaches to whichever it is actually nearer, instead of always
+        preferring the circle because circles are checked first.
+        """
+        viewport = self._viewport()
+        x, y = viewport.to_figure(px, py)
+        tolerance = GRAB_RADIUS_PX / viewport.scale
+        figure = self.controller.figure()
+        best: tuple[str, str, float] | None = None
+        for primitive in self.controller.primitives():
+            node = figure.nodes.get(getattr(primitive, "id", ""))
+            if node is None or node.kind not in ("line", "segment", "circle"):
+                continue
+            distance = distance_to(primitive, x, y)
+            if distance is None or distance > tolerance:
+                continue
+            if best is None or distance < best[2]:
+                best = (node.id, node.kind, distance)
+        return best
 
 
 #: The kinds the pointer can pick: anything that can be seen.

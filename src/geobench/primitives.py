@@ -244,7 +244,7 @@ def hit_test(
         identifier = getattr(primitive, "id", "")
         if not identifier or isinstance(primitive, LabelPrimitive):
             continue
-        distance = _distance(primitive, x, y)
+        distance = distance_to(primitive, x, y)
         if distance is None or distance > best_distance:
             continue
         # A point under the cursor wins over whatever it lies on: it is
@@ -256,7 +256,7 @@ def hit_test(
     return best
 
 
-def _distance(primitive: Primitive, x: float, y: float) -> float | None:
+def distance_to(primitive: Primitive, x: float, y: float) -> float | None:
     """How far the point is from this primitive, in figure units."""
     if isinstance(primitive, PointPrimitive):
         return math.hypot(primitive.x - x, primitive.y - y)

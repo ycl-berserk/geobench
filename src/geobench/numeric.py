@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from fractions import Fraction
 from typing import Any
 
@@ -315,39 +316,192 @@ def supporting_line(
     return (a, b, c)
 
 
-def intersection_near(
-    figure: Figure, x: float, y: float, tolerance: float
-) -> tuple[str, str] | None:
-    """Two objects whose crossing is under the cursor, if any.
+@dataclass(frozen=True)
+class Crossing:
+    """A crossing of two drawn objects, and which answer it is.
 
-    Clicking where two lines cross should give their intersection --
-    a point with no freedom of its own -- and not a free point that
-    happens to be in the same place.
+    ``kind`` says what met what; ``selector`` is the branch the kernel's
+    own operator numbers for this pair (``""`` when there is only one
+    answer).  The point is carried numerically because that is what the
+    click is compared against; the operator rebuilds it exactly.
     """
-    ids = [
-        node.id
-        for node in figure.nodes.values()
-        if node.kind in {"line", "segment"} and node.style.visible
-    ]
-    for index, first in enumerate(ids):
-        line1 = supporting_line(figure, first)
-        if line1 is None:
+
+    kind: str
+    first: str
+    second: str
+    x: float
+    y: float
+    selector: str = ""
+    distance: float = 0.0
+
+    def operation(self) -> tuple[str, list[str]]:
+        """The operator that builds this crossing, and its arguments."""
+        if self.kind == "lines":
+            return "point.intersect_lines", [self.first, self.second]
+        if self.kind == "line_circle":
+            return (
+                "point.intersect_line_circle",
+                [self.first, self.second, self.selector],
+            )
+        return "point.intersect_circles", [self.first, self.second, self.selector]
+
+
+def _circle_data(figure: Figure, node_id: str) -> tuple[float, float, float] | None:
+    """Centre and squared radius, when the numeric path has computed them."""
+    node = figure.node(node_id)
+    values = node.cache.get(CACHE_VALUES) or {}
+    circle = values.get("circle")
+    if not circle or len(circle) < 3:
+        return None
+    cx, cy, r2 = (float(value) for value in circle[:3])
+    if r2 <= 0:
+        return None
+    return cx, cy, r2
+
+
+def _on_drawn_part(
+    figure: Figure, node_id: str, x: float, y: float, pad: float
+) -> bool:
+    """Is this point on the part of the object that is actually drawn?
+
+    A segment is not its supporting line: the crossing of two segments
+    two screen-millimetres apart is not a crossing of anything visible.
+    """
+    node = figure.node(node_id)
+    if node.kind != "segment":
+        return True
+    values = node.cache.get(CACHE_VALUES) or {}
+    segment = values.get("segment")
+    if not segment or len(segment) < 4:
+        return False
+    x1, y1, x2, y2 = (float(value) for value in segment[:4])
+    dx, dy = x2 - x1, y2 - y1
+    length_sq = dx * dx + dy * dy
+    if length_sq == 0:
+        return False
+    t = ((x - x1) * dx + (y - y1) * dy) / length_sq
+    pad_t = pad / math.sqrt(length_sq)
+    return -pad_t <= t <= 1 + pad_t
+
+
+def crossing_near(
+    figure: Figure, x: float, y: float, tolerance: float
+) -> Crossing | None:
+    """The nearest crossing of two drawn objects, if one is under the cursor.
+
+    The nearest, not the first: several circles and lines can cross
+    within a few pixels of one another, and the teacher meant the one
+    they pointed at.  Only what is drawn counts -- a segment's
+    supporting line crossing outside the segment is not a crossing on
+    the paper.
+    """
+    lines: list[tuple[str, tuple[float, float, float]]] = []
+    circles: list[tuple[str, float, float, float]] = []
+    for node in figure.nodes.values():
+        if not node.style.visible:
             continue
-        for second in ids[index + 1 :]:
-            line2 = supporting_line(figure, second)
-            if line2 is None:
-                continue
-            a1, b1, c1 = line1
-            a2, b2, c2 = line2
+        if node.kind in {"line", "segment"}:
+            coefficients = supporting_line(figure, node.id)
+            if coefficients is not None:
+                lines.append((node.id, coefficients))
+        elif node.kind == "circle":
+            data = _circle_data(figure, node.id)
+            if data is not None:
+                circles.append((node.id, *data))
+
+    best: Crossing | None = None
+
+    def consider(
+        kind: str, first: str, second: str, px: float, py: float, selector: str
+    ) -> None:
+        nonlocal best
+        if not (
+            _on_drawn_part(figure, first, px, py, tolerance)
+            and _on_drawn_part(figure, second, px, py, tolerance)
+        ):
+            return
+        distance = math.hypot(px - x, py - y)
+        if distance > tolerance:
+            return
+        if best is not None and distance >= best.distance:
+            return
+        best = Crossing(kind, first, second, px, py, selector, distance)
+
+    # Line with line.
+    for index, (first, (a1, b1, c1)) in enumerate(lines):
+        for second, (a2, b2, c2) in lines[index + 1 :]:
             det = a1 * b2 - a2 * b1
             if abs(det) < 1e-12:
-                # Parallel or coincident: no single crossing.
                 continue
             px = (b1 * c2 - b2 * c1) / det
             py = (c1 * a2 - c2 * a1) / det
-            if math.hypot(px - x, py - y) <= tolerance:
-                return (first, second)
-    return None
+            consider("lines", first, second, px, py, "")
+
+    # Line with circle.  The parameterisation is the operator's own:
+    # P0 is the point of the line closest to the origin and D = (b, -a),
+    # so the branch numbers here are the branch numbers the kernel uses.
+    for line_id, (a, b, c) in lines:
+        norm_sq = a * a + b * b
+        if norm_sq == 0:
+            continue
+        p0x, p0y = -a * c / norm_sq, -b * c / norm_sq
+        dx, dy = b, -a
+        quad_a = dx * dx + dy * dy
+        for circle_id, cx, cy, r2 in circles:
+            fx, fy = p0x - cx, p0y - cy
+            quad_b = 2 * (fx * dx + fy * dy)
+            quad_c = fx * fx + fy * fy - r2
+            disc = quad_b * quad_b - 4 * quad_a * quad_c
+            # Tangency gives one point, and the operator refuses to
+            # choose between two names for it; the click then falls
+            # back to "on the circle", which is true and drawable.
+            if disc <= 1e-12:
+                continue
+            root = math.sqrt(disc)
+            for selector, t in (
+                ("0", (-quad_b + root) / (2 * quad_a)),
+                ("1", (-quad_b - root) / (2 * quad_a)),
+            ):
+                consider(
+                    "line_circle",
+                    line_id,
+                    circle_id,
+                    p0x + t * dx,
+                    p0y + t * dy,
+                    selector,
+                )
+
+    # Circle with circle.  Selector 0 is the branch the operator builds
+    # first; both are computed so the nearest one can be chosen.
+    for index, (first, x1, y1, r1) in enumerate(circles):
+        for second, x2, y2, r2 in circles[index + 1 :]:
+            dx, dy = x2 - x1, y2 - y1
+            d2 = dx * dx + dy * dy
+            if d2 < 1e-24:
+                continue
+            k = r1 - r2 + d2
+            n = 4 * r1 * d2 - k * k
+            if n <= 1e-12:
+                # Apart, or tangent (a single point whose two names the
+                # operator treats as a degenerate pair).
+                continue
+            t = k / (2 * d2)
+            bx, by = x1 + dx * t, y1 + dy * t
+            s = math.sqrt(n) / (2 * d2)
+            consider("circles", first, second, bx - dy * s, by + dx * s, "0")
+            consider("circles", first, second, bx + dy * s, by - dx * s, "1")
+
+    return best
+
+
+def intersection_near(
+    figure: Figure, x: float, y: float, tolerance: float
+) -> tuple[str, str] | None:
+    """The old line-line answer, kept for callers that only need the pair."""
+    crossing = crossing_near(figure, x, y, tolerance)
+    if crossing is None:
+        return None
+    return (crossing.first, crossing.second)
 
 
 def placement_float(value: str) -> float | None:
