@@ -100,7 +100,7 @@ def test_the_judgement_pane_shows_the_verdict(app: QApplication, controller: Stu
     window.refresh()
     _wait_for_verdicts(window, app)
     assert window.judgements.rowCount() == 1
-    assert "proved" in window.judgements.item(0, 1).text()
+    assert "成立" in window.judgements.item(0, 1).text()
     window.close()
 
 

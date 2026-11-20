@@ -27,7 +27,7 @@ from PySide6.QtGui import (
     QPen,
     QPolygonF,
 )
-from PySide6.QtWidgets import QInputDialog, QMenu, QWidget
+from PySide6.QtWidgets import QApplication, QInputDialog, QMenu, QWidget
 
 from geobench.app.controller import StudioController
 from geobench.app.theme import PALETTE
@@ -66,6 +66,9 @@ PAPER = "#ffffff"
 
 #: The corner radius of the paper, in pixels.
 PAPER_RADIUS = 10.0
+
+#: How far one click of the zoom buttons goes.
+ZOOM_STEP = 1.2
 
 #: The thinnest a stroke may be on the screen. The paper's 0.4pt is
 #: right for print and too thin to work with.
@@ -107,9 +110,11 @@ class FigureCanvas(QWidget):
     deleteRequested = Signal(str)
     pointEditRequested = Signal(str)
     valueRequested = Signal(str)
-    #: The selected object changed. The empty string means "nothing is
-    #: selected any more".
-    selectionChanged = Signal(str)
+    #: The selected object changed. The list is in the order the objects
+    #: were picked, because a claim is about *these* objects in *this*
+    #: order ("a point, on this circle"), and an unordered set would
+    #: leave the window guessing.
+    selectionChanged = Signal(list)
 
     def __init__(self, controller: StudioController, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -134,7 +139,7 @@ class FigureCanvas(QWidget):
         self._tool: ToolSpec | None = None
         self._tool_args: list[str] = []
         self._awaiting_value = False
-        self._selected: str | None = None
+        self._selected: list[str] = []
         controller.on_change(self.update)
         controller.on_move(self._moved)
 
@@ -146,6 +151,21 @@ class FigureCanvas(QWidget):
         self._zoom = 1.0
         self._pan = (0.0, 0.0)
         self.update()
+
+    def zoom(self, factor: float) -> None:
+        """Zoom in or out, about the middle of the picture.
+
+        The wheel does this too; the buttons are for the people who do
+        not know that, and for a projector without one.
+        """
+        self._zoom = max(0.1, min(50.0, self._zoom * factor))
+        self.update()
+
+    def zoom_in(self) -> None:
+        self.zoom(ZOOM_STEP)
+
+    def zoom_out(self) -> None:
+        self.zoom(1 / ZOOM_STEP)
 
     def set_playback_limit(self, limit: int | None) -> None:
         """Show only the first steps of the construction.
@@ -259,11 +279,11 @@ class FigureCanvas(QWidget):
         colours, and it means the selection looks the same whatever the
         object is.
         """
-        if self._selected is None:
+        if not self._selected:
             return
         marked = replace(style, stroke=PALETTE.accent)
         for primitive in self.controller.primitives():
-            if getattr(primitive, "id", "") != self._selected:
+            if getattr(primitive, "id", "") not in self._selected:
                 continue
             # The accent colour wins over the object's own colour: a
             # red line that is selected has to look selected.
@@ -497,9 +517,16 @@ class FigureCanvas(QWidget):
         self._ask_for_next()
 
     def armed_hint(self) -> str:
-        """What the canvas is waiting for."""
+        """What the canvas is waiting for.
+
+        The point tool is armed from the start, and its hint teaches
+        the first action -- but once there is a figure, a hint that
+        covers the paper is noise, so it goes away.
+        """
         tool = self._tool
         if tool is None:
+            return ""
+        if tool.op == "point.free" and self.controller.figure().nodes:
             return ""
         arg = self._next_arg()
         if arg is None:
@@ -569,17 +596,47 @@ class FigureCanvas(QWidget):
         self.constructRequested.emit(tool.op, args)
         self.update()
 
-    def select(self, node_id: str | None) -> None:
-        """Select an object, or nothing."""
-        if node_id == self._selected:
-            return
-        self._selected = node_id
-        self.selectionChanged.emit(node_id or "")
+    def select(self, node_id: str | None, additive: bool = False) -> None:
+        """Select an object, add one to the selection, or clear it.
+
+        A claim is often about more than one object -- three points are
+        collinear, two lines are parallel -- so selection is a list, in
+        the order the teacher picked.  Shift-click adds (or removes);
+        a plain click starts again.
+        """
+        if node_id is None:
+            if not self._selected:
+                return
+            self._selected = []
+        elif additive:
+            if node_id in self._selected:
+                self._selected = [item for item in self._selected if item != node_id]
+            else:
+                self._selected = [*self._selected, node_id]
+        elif self._selected == [node_id]:
+            self._selected = []
+        else:
+            self._selected = [node_id]
+        self.selectionChanged.emit(list(self._selected))
         self.update()
 
-    def selected(self) -> str | None:
-        """The selected object, if any."""
-        return self._selected
+    def selected(self) -> list[str]:
+        """The selected objects, in the order they were picked."""
+        return list(self._selected)
+
+    def prune_selection(self) -> None:
+        """Forget selected objects that no longer exist.
+
+        Deleting a point deletes what depends on it; a selection that
+        still names the deleted objects would make the next question be
+        about something that is not on the paper.
+        """
+        figure = self.controller.figure()
+        keep = [node_id for node_id in self._selected if node_id in figure.nodes]
+        if keep != self._selected:
+            self._selected = keep
+            self.selectionChanged.emit(list(keep))
+            self.update()
 
     def _hit_point(self, px: float, py: float) -> str | None:
         viewport = self._viewport()
@@ -612,6 +669,17 @@ class FigureCanvas(QWidget):
             self._dragging = "__pan__"
             self._drag_offset = (px, py)
             return
+        additive = bool(
+            QApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier
+        )
+        if additive and (self._tool is None or self._tool.op == "select"):
+            # Shift-click builds a selection, even on a draggable point:
+            # picking three points to ask "are they collinear" must not
+            # require dragging them one by one.
+            picked = self._hit_object(px, py, SELECTABLE_KINDS)
+            if picked is not None:
+                self.select(picked, additive=True)
+                return
         node_id = self._hit_point(px, py)
         if (
             node_id is not None
@@ -836,8 +904,8 @@ class FigureCanvas(QWidget):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             self._finish_variable_tool()
             return
-        if event.key() == Qt.Key.Key_Delete and self._selected is not None:
-            self.deleteRequested.emit(self._selected)
+        if event.key() == Qt.Key.Key_Delete and len(self._selected) == 1:
+            self.deleteRequested.emit(self._selected[0])
             return
         super().keyPressEvent(event)
 
@@ -857,8 +925,13 @@ class FigureCanvas(QWidget):
         viewport = self._viewport()
         if tool.op == "select":
             # The pointer picks whatever is under the click, of any kind.
+            # Shift adds to the selection: a claim needs several objects.
             node_id = self._hit_object(px, py, SELECTABLE_KINDS)
-            self.select(node_id)
+            additive = bool(
+                QApplication.keyboardModifiers()
+                & Qt.KeyboardModifier.ShiftModifier
+            )
+            self.select(node_id, additive=additive)
             return
         if tool.op == "point.free":
             fx, fy = viewport.to_figure(px, py)

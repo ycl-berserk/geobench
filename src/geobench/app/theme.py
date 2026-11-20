@@ -143,6 +143,14 @@ class Palette:
         QLabel#panelNote {{
             color: {self.text_muted};
         }}
+        QWidget#emptyCanvas {{
+            background: {self.surface};
+        }}
+        QLabel#emptyTitle {{
+            color: {self.text};
+            font-size: 17pt;
+            font-weight: 600;
+        }}
         QLabel {{
             color: {self.text};
         }}

@@ -78,7 +78,7 @@ def test_the_pointer_picks_an_object(app: QApplication, controller: StudioContro
         window.canvas, Qt.MouseButton.LeftButton, pos=_screen_of(window.canvas, "C")
     )
     app.processEvents()
-    assert window.canvas.selected() == "C"
+    assert window.canvas.selected() == ["C"]
 
     # The steps pane points at it.
     assert window.steps.currentRow() >= 0
@@ -107,7 +107,7 @@ def test_the_pointer_picks_a_line(app: QApplication, controller: StudioControlle
         window.canvas, Qt.MouseButton.LeftButton, pos=QPoint(int(sx), int(sy))
     )
     app.processEvents()
-    assert window.canvas.selected() == "AB"
+    assert window.canvas.selected() == ["AB"]
     window.close()
 
 
@@ -127,7 +127,7 @@ def test_the_delete_key_removes_the_selected_object(
         window.canvas, Qt.MouseButton.LeftButton, pos=_screen_of(window.canvas, "B")
     )
     app.processEvents()
-    assert window.canvas.selected() == "B"
+    assert window.canvas.selected() == ["B"]
 
     QTest.keyClick(window.canvas, Qt.Key.Key_Delete)
     app.processEvents()
@@ -157,5 +157,5 @@ def test_the_verdicts_arrive_when_they_arrive(
         time.sleep(0.01)
     app.processEvents()
     assert window.judgements.rowCount() == 1
-    assert "proved" in window.judgements.item(0, 1).text()
+    assert "成立" in window.judgements.item(0, 1).text()
     window.close()

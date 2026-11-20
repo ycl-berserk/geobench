@@ -62,6 +62,15 @@ def _exact_text(text: str) -> str:
     return str(value)
 
 
+def _number_text(value: object) -> str:
+    """A witness coordinate as the exact rational the kernel wants."""
+    text = str(value)
+    try:
+        return _exact_text(text)
+    except GeobenchError:
+        return text
+
+
 def _exact(value: float) -> str:
     """A coordinate as an exact rational.
 
@@ -409,6 +418,37 @@ class StudioController:
     def intersection_near(self, x: float, y: float, tolerance: float) -> tuple[str, str] | None:
         """Two objects whose crossing is under the cursor, if any."""
         return intersection_near(self.figure(), x, y, tolerance)
+
+    def apply_witness(self, witness: dict[str, object]) -> bool:
+        """Put the free points where a counterexample says they are.
+
+        The witness is the judges' own record of a placement that makes
+        a claim fail.  Seeing it is the difference between "the program
+        says it is false" and "look -- put A there, and the three points
+        stop being collinear".  One undo step puts them back.
+        """
+        figure = self.figure()
+        placements: dict[str, tuple[str, str]] = {}
+        for name, value in witness.items():
+            node = figure.nodes.get(str(name))
+            if node is None or node.role != "free" or node.kind != "point":
+                continue
+            if not isinstance(value, (list, tuple)) or len(value) < 2:
+                continue
+            placements[str(name)] = (
+                _number_text(value[0]),
+                _number_text(value[1]),
+            )
+        if not placements:
+            return False
+        self.push_undo()
+        for name, placement in placements.items():
+            figure.nodes[name].placement = placement
+        # Only the picture moves: the exact expressions do not depend on
+        # where a free point is, so nothing has to be re-derived.
+        self._numeric_pass()
+        self._changed()
+        return True
 
     def set_point_position(self, node_id: str, x: str, y: str) -> None:
         """Put a free point exactly where the user says.

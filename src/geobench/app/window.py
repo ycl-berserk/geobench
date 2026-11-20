@@ -20,6 +20,7 @@ import re
 import threading
 from dataclasses import dataclass
 from fractions import Fraction
+from itertools import permutations
 from pathlib import Path
 
 from PySide6.QtCore import (
@@ -51,6 +52,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QMenu,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QSizePolicy,
@@ -84,8 +86,25 @@ from geobench.app.tools import (
 )
 from geobench.commands import COMMANDS, JUDGEMENT, by_id
 from geobench.errors import GeobenchError
+from geobench.ggb import import_ggb
 from geobench.judges import IDENTITY, INSTANCE, Verdict
 from geobench.model import Figure
+
+#: The figure the "打开一个示例" button opens: a triangle with its
+#: midpoint, circumcentre and circumcircle, and two claims that are
+#: proved rather than drawn.  It is the product in one screen -- a
+#: picture, and the reason to trust it.
+_EXAMPLE = """
+点 A(0,0) B(6,0) C(2,4)
+AB = 线段(A,B)
+BC = 线段(B,C)
+CA = 线段(C,A)
+M = 中点(A,B)
+O = 外心(A,B,C)
+w = 外接圆(A,B,C)
+断言 共线(A,M,B)
+断言 相等(A,M,M,B)
+"""
 
 
 @dataclass(frozen=True)
@@ -111,7 +130,7 @@ _KIND_CANDIDATES: dict[str, tuple[str, ...]] = {
     "point": ("point",),
     "line": ("line", "segment"),
     "circle": ("circle",),
-    "any": ("point", "line", "segment", "circle", "polygon"),
+    "any": ("line", "segment", "ray", "circle"),
 }
 
 _KIND_LABELS: dict[str, str] = {
@@ -179,11 +198,35 @@ def _relations() -> tuple[RelationSpec, ...]:
     return tuple(specs)
 
 
+def _fitting_order(spec: RelationSpec, kinds: list[str]) -> tuple[int, ...] | None:
+    """An order of the selected objects that fills this relation's slots.
 
-#: The two scopes a judgement can have.
+    ``None`` when no order fits: a relation about two lines is not
+    offered for three points.  Trying the orders (there are at most
+    four objects) keeps the teacher from having to click them in the
+    kernel's order -- the claim is the same either way.
+    """
+    if len(kinds) != spec.arg_count:
+        return None
+    if spec.arg_count > 4:
+        # Eight points have forty thousand orders; the teacher's click
+        # order is the only one worth trying for claims that large.
+        orders: list[tuple[int, ...]] = [tuple(range(len(kinds)))]
+    else:
+        orders = list(permutations(range(len(kinds))))
+    for order in orders:
+        if all(
+            kinds[index] in _KIND_CANDIDATES.get(slot, (slot,))
+            for index, slot in zip(order, spec.arg_kinds, strict=True)
+        ):
+            return order
+    return None
+
+
+#: The two scopes a judgement can have, in the words a classroom uses.
 SCOPE_LABELS = {
-    IDENTITY: "作用域：identity（对任意摆放成立）",
-    INSTANCE: "作用域：instance（只对当前这张图成立）",
+    IDENTITY: "证明：无论怎么拖动，这句话都成立（对任意图形）",
+    INSTANCE: "检验：只看你现在摆的这张图",
 }
 
 
@@ -366,6 +409,11 @@ class StudioWindow(QMainWindow):
         self.resize(1180, 720)
         self._scope = IDENTITY
         self._verdicts: list[Verdict] = []
+        #: The objects each verdict is about, aligned with _verdicts.  A
+        #: Verdict says what it found, not what it was asked about; the
+        #: table needs both to read as a sentence.
+        self._verdict_args: list[list[str]] = []
+        self._witness: dict[str, object] | None = None
         self._path: Path | None = None
 
         self.canvas = FigureCanvas(self.controller)
@@ -375,6 +423,20 @@ class StudioWindow(QMainWindow):
         self.canvas.valueRequested.connect(self._on_value_requested)
         self.canvas.selectionChanged.connect(self._on_selection)
 
+        # A blank canvas is a dead end.  The first thing a teacher sees
+        # is a way in -- an example, a sentence, or a file -- and it
+        # gets out of the way as soon as there is something on the
+        # paper.  It is an overlay, not a separate page: clicking the
+        # blank part of the canvas still places a point.
+        self._empty_state = self._build_empty_state()
+        overlay = QVBoxLayout(self.canvas)
+        overlay.setContentsMargins(24, 24, 24, 24)
+        overlay.addStretch(1)
+        overlay.addWidget(
+            self._empty_state, 0, Qt.AlignmentFlag.AlignHCenter
+        )
+        overlay.addStretch(1)
+
         self._playback_timer = QTimer(self)
         self._playback_timer.setInterval(450)
         self._playback_timer.timeout.connect(self._playback_tick)
@@ -383,6 +445,11 @@ class StudioWindow(QMainWindow):
         self.steps = QListWidget()
         self.steps.setToolTip("构造步骤：这张图是怎么一步步造出来的（右键删除）")
         self.steps.setItemDelegate(StepDelegate(self.steps))
+        # A selection on the canvas can name several objects; the steps
+        # pane should show the same selection, not just the last one.
+        self.steps.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection
+        )
         self.steps.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.steps.customContextMenuRequested.connect(self._steps_menu)
         # The delete key works on the selected step, which is what a
@@ -394,7 +461,7 @@ class StudioWindow(QMainWindow):
         self.steps.addAction(delete_key)
 
         self.judgements = QTableWidget(0, 3)
-        self.judgements.setHorizontalHeaderLabels(["关系", "结论", "证据"])
+        self.judgements.setHorizontalHeaderLabels(["说法", "结论", "为什么"])
         self.judgements.setItemDelegate(VerdictDelegate(self.judgements))
         self.judgements.verticalHeader().setVisible(False)
         self.judgements.setShowGrid(False)
@@ -417,17 +484,10 @@ class StudioWindow(QMainWindow):
             QAbstractItemView.SelectionMode.SingleSelection
         )
 
-        # The table gives the verdict at a glance; the pane below gives
-        # the proof (or the counterexample) in full. A verdict without its
+        # The table gives the verdict at a glance; the pane built by
+        # _judgement_panel below says why, in a sentence, with the
+        # symbolic derivation folded away. A verdict without its
         # evidence is a claim, and this product exists to avoid those.
-        self.evidence = QPlainTextEdit()
-        self.evidence.setReadOnly(True)
-        # The evidence is read symbol by symbol; a proportional font
-        # makes the minus sign and the hyphen the same width.
-        self.evidence.setFont(mono_font())
-        self.evidence.setMinimumHeight(110)
-        self.evidence.setPlaceholderText("选中一行，这里显示它的证据")
-        self.judgements.itemSelectionChanged.connect(self._show_evidence)
 
         self.status = self.statusBar()
 
@@ -437,6 +497,10 @@ class StudioWindow(QMainWindow):
         steps_layout.setContentsMargins(0, 0, 0, 0)
         steps_layout.setSpacing(6)
         steps_layout.addWidget(self._playback_buttons())
+        self._steps_hint = QLabel("作图的每一步会列在这里")
+        self._steps_hint.setObjectName("panelNote")
+        self._steps_hint.setContentsMargins(8, 4, 8, 4)
+        steps_layout.addWidget(self._steps_hint)
         steps_layout.addWidget(self.steps)
         splitter.addWidget(
             self._panel(
@@ -445,9 +509,12 @@ class StudioWindow(QMainWindow):
                 "\u8fd9\u5f20\u56fe\u662f\u600e\u4e48\u9020\u51fa\u6765\u7684",
             )
         )
-        splitter.addWidget(self._panel("画板", self.canvas, "拖动自由点"))
+        splitter.addWidget(
+            self._panel("画板", self.canvas, "拖动自由点")
+        )
         splitter.addWidget(self._panel("判定", self._judgement_panel(), "哪些说法成立"))
-        splitter.setSizes([280, 560, 420])
+        splitter.setSizes([260, 760, 400])
+        splitter.setStretchFactor(1, 1)
         # A wide, quiet handle: the panes are separated by a gap, not by
         # a bar that reads as a hole in the window.
         splitter.setHandleWidth(12)
@@ -458,8 +525,8 @@ class StudioWindow(QMainWindow):
         layout.addWidget(splitter)
         self.setCentralWidget(central)
 
-        self._build_toolbar()
         self._build_menu()
+        self._build_toolbar()
         self.controller.on_change(self.refresh)
         self.controller.on_move(self._point_moved)
         self._dragging = False
@@ -540,7 +607,39 @@ class StudioWindow(QMainWindow):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        chips = QGridLayout()
+        # What a teacher asks is almost never "show me all seventeen
+        # relations": it is "these three points -- are they collinear?".
+        # The panel follows the selection, and the full list stays one
+        # click away for the times when there is no selection yet.
+        self._context_hint = QLabel(
+            "在图上点选对象（按住 Shift 可多选），这里会出现能问的问题。"
+        )
+        self._context_hint.setObjectName("panelNote")
+        self._context_hint.setWordWrap(True)
+        layout.addWidget(self._context_hint)
+
+        self._context_box = QWidget()
+        self._context_layout = QGridLayout(self._context_box)
+        self._context_layout.setContentsMargins(0, 0, 0, 0)
+        self._context_layout.setHorizontalSpacing(6)
+        self._context_layout.setVerticalSpacing(6)
+        layout.addWidget(self._context_box)
+
+        self._all_toggle = QToolButton()
+        self._all_toggle.setText("全部关系")
+        self._all_toggle.setCheckable(True)
+        self._all_toggle.setChecked(False)
+        self._all_toggle.setArrowType(Qt.ArrowType.RightArrow)
+        self._all_toggle.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+        )
+        self._all_toggle.setToolTip("没有选中对象时，也可以直接挑一种关系")
+        self._all_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._all_toggle.toggled.connect(self._toggle_all_relations)
+        layout.addWidget(self._all_toggle)
+
+        self._all_relations = QWidget()
+        chips = QGridLayout(self._all_relations)
         chips.setContentsMargins(0, 0, 0, 0)
         chips.setHorizontalSpacing(6)
         chips.setVerticalSpacing(6)
@@ -552,20 +651,23 @@ class StudioWindow(QMainWindow):
                 lambda _checked=False, relation=spec: self._add_relation(relation)
             )
             chips.addWidget(button, index // 4, index % 4)
-        layout.addLayout(chips)
+        self._all_relations.setVisible(False)
+        layout.addWidget(self._all_relations)
 
         scope_row = QWidget()
         scope_layout = QHBoxLayout(scope_row)
         scope_layout.setContentsMargins(0, 0, 0, 0)
         scope_layout.setSpacing(6)
-        scope_layout.addWidget(QLabel("作用域"))
+        scope_layout.addWidget(QLabel("问法"))
         # Two buttons, one of them down: the scope is a choice between
         # two things, and a button that says "toggle" does not say which
-        # one is in force.
+        # one is in force.  The words are the teacher's, not the
+        # kernel's: "证明" is what "identity" means in a classroom, and
+        # "检验" is what "instance" means.
         self.scope_group = QButtonGroup(self)
         self.scope_group.setExclusive(True)
         self.scope_buttons: dict[str, QPushButton] = {}
-        for scope, label in ((IDENTITY, "恒等"), (INSTANCE, "实例")):
+        for scope, label in ((IDENTITY, "证明"), (INSTANCE, "检验")):
             button = QPushButton(label)
             button.setCheckable(True)
             button.setToolTip(SCOPE_LABELS[scope])
@@ -581,8 +683,138 @@ class StudioWindow(QMainWindow):
         layout.addWidget(scope_row)
 
         layout.addWidget(self.judgements)
-        layout.addWidget(self.evidence, 1)
+
+        # The human sentence first: what the claim says and why it is
+        # true or false.  The symbolic derivation is there for the
+        # teacher who wants it, behind a fold, because the expression is
+        # evidence for the kernel and clutter for the classroom.
+        self.evidence_summary = QLabel(
+            "选中一行，这里用一句话说明它为什么成立（或不成立）。"
+        )
+        self.evidence_summary.setWordWrap(True)
+        self.evidence_summary.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        self.evidence_summary.setMinimumHeight(64)
+        self.evidence_summary.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
+        )
+
+        self.witness_button = QPushButton("在图上看看这个反例")
+        self.witness_button.setToolTip(
+            "把自由点摆成反例的位置；看一眼再 Ctrl+Z 回来"
+        )
+        self.witness_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.witness_button.setVisible(False)
+        self.witness_button.clicked.connect(self._preview_witness)
+
+        self.derivation_toggle = QToolButton()
+        self.derivation_toggle.setText("推导")
+        self.derivation_toggle.setCheckable(True)
+        self.derivation_toggle.setArrowType(Qt.ArrowType.RightArrow)
+        self.derivation_toggle.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+        )
+        self.derivation_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.derivation_toggle.toggled.connect(self._toggle_derivation)
+
+        self.evidence = QPlainTextEdit()
+        self.evidence.setReadOnly(True)
+        # The evidence is read symbol by symbol; a proportional font
+        # makes the minus sign and the hyphen the same width.
+        self.evidence.setFont(mono_font())
+        self.evidence.setMinimumHeight(90)
+        self.evidence.setPlaceholderText("推导会显示在这里")
+        self.evidence.setVisible(False)
+
+        detail = QWidget()
+        detail_layout = QVBoxLayout(detail)
+        detail_layout.setContentsMargins(0, 0, 0, 0)
+        detail_layout.setSpacing(6)
+        detail_layout.addWidget(self.evidence_summary)
+        detail_layout.addWidget(self.witness_button)
+        detail_layout.addWidget(self.derivation_toggle)
+        detail_layout.addWidget(self.evidence)
+        layout.addWidget(detail, 1)
+        self.judgements.itemSelectionChanged.connect(self._show_evidence)
         return panel
+
+    def _toggle_all_relations(self, open_: bool) -> None:
+        self._all_relations.setVisible(open_)
+        self._all_toggle.setArrowType(
+            Qt.ArrowType.DownArrow if open_ else Qt.ArrowType.RightArrow
+        )
+
+    def _toggle_derivation(self, open_: bool) -> None:
+        self.evidence.setVisible(open_)
+        self.derivation_toggle.setArrowType(
+            Qt.ArrowType.DownArrow if open_ else Qt.ArrowType.RightArrow
+        )
+
+    def _refresh_relation_choices(self, node_ids: list[str]) -> None:
+        """Offer the relations that fit what is selected, and nothing else.
+
+        The selection is an order: "a point, on this circle" is not the
+        same claim as "this circle, on a point".  A relation is offered
+        when the selected kinds match its slots in some order, and the
+        order that matched is the one the claim is built with.
+        """
+        while self._context_layout.count():
+            item = self._context_layout.takeAt(0)
+            if item is None:
+                continue
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        if not node_ids:
+            self._context_hint.setText(
+                "在图上点选对象（按住 Shift 可多选），这里会出现能问的问题。"
+            )
+            return
+
+        figure = self.controller.figure()
+        kinds = [
+            figure.nodes[node_id].kind
+            for node_id in node_ids
+            if node_id in figure.nodes
+        ]
+        chosen = "、".join(node_ids)
+        self._context_hint.setText(f"选中了 {chosen}，可以问：")
+
+        matches: list[tuple[RelationSpec, list[str]]] = []
+        for spec in _relations():
+            order = _fitting_order(spec, kinds)
+            if order is None:
+                continue
+            matches.append((spec, [node_ids[index] for index in order]))
+
+        if not matches:
+            self._context_hint.setText(
+                f"选中了 {chosen}：这几个对象之间没有能直接问的问题。"
+                "换几个对象，或者展开下面的“全部关系”。"
+            )
+            return
+
+        for index, (spec, args) in enumerate(matches[:9]):
+            button = QPushButton(spec.label)
+            button.setToolTip(spec.hint)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.clicked.connect(
+                lambda _checked=False, relation=spec, chosen_args=args: (
+                    self._ask_about(relation, chosen_args)
+                )
+            )
+            self._context_layout.addWidget(button, index // 3, index % 3)
+
+    def _ask_about(self, spec: RelationSpec, args: list[str]) -> None:
+        """Add the claim about the objects the teacher selected."""
+        try:
+            self.controller.add_relation(spec.kind, args)
+        except GeobenchError as exc:
+            self.status.showMessage(f"加不了这个关系：{exc}")
+            return
+        self.status.showMessage(f"要检查：{_claim_text(spec.kind, args)}")
 
     def _build_menu(self) -> None:
         """The file menu.
@@ -598,6 +830,9 @@ class StudioWindow(QMainWindow):
         open_action.setShortcut(QKeySequence.StandardKey.Open)
         open_action.triggered.connect(self._open_file)
         file_menu.addAction(open_action)
+        example_action = QAction("打开示例", self)
+        example_action.triggered.connect(self._open_example)
+        file_menu.addAction(example_action)
         save_action = QAction("保存", self)
         save_action.setShortcut(QKeySequence.StandardKey.Save)
         save_action.triggered.connect(self._save_file)
@@ -632,14 +867,16 @@ class StudioWindow(QMainWindow):
         settings_menu.addAction(service_action)
 
         edit_menu = menu.addMenu("编辑")
-        undo_action = QAction("撤销", self)
-        undo_action.setShortcut(QKeySequence.StandardKey.Undo)
-        undo_action.triggered.connect(self._undo)
-        edit_menu.addAction(undo_action)
-        redo_action = QAction("重做", self)
-        redo_action.setShortcut(QKeySequence.StandardKey.Redo)
-        redo_action.triggered.connect(self._redo)
-        edit_menu.addAction(redo_action)
+        self._undo_action = QAction("撤销", self)
+        self._undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        self._undo_action.setToolTip("撤销一步（Ctrl+Z）")
+        self._undo_action.triggered.connect(self._undo)
+        edit_menu.addAction(self._undo_action)
+        self._redo_action = QAction("重做", self)
+        self._redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+        self._redo_action.setToolTip("重做一步（Ctrl+Y）")
+        self._redo_action.triggered.connect(self._redo)
+        edit_menu.addAction(self._redo_action)
 
     def _export_svg(self) -> None:
         """Write the figure to a file, as a vector picture.
@@ -820,13 +1057,19 @@ class StudioWindow(QMainWindow):
 
     def _open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "打开图形", "", "Geobench 图形 (*.geobench);;所有文件 (*)"
+            self,
+            "打开图形",
+            "",
+            "Geobench 图形 (*.geobench);;GeoGebra 文件 (*.ggb);;所有文件 (*)",
         )
         if not path:
             return
         self._load_path(Path(path))
 
     def _load_path(self, path: Path) -> None:
+        if path.suffix.lower() == ".ggb":
+            self._load_ggb(path)
+            return
         try:
             source = path.read_text(encoding="utf-8")
         except OSError as exc:
@@ -839,7 +1082,107 @@ class StudioWindow(QMainWindow):
             return
         self._path = path
         self._update_title()
+        # A file opens fitted: the teacher wants to see the figure, not
+        # a corner of it at the default zoom.
+        self.canvas.fit()
+        self.refresh()
         self.status.showMessage(f"打开了 {path.name}")
+
+    def _load_ggb(self, path: Path) -> None:
+        """Open a GeoGebra file: translated to the DSL, then opened.
+
+        The translation reports what it could not carry (a tangent that
+        became one line, a subscript that had to be renamed).  Saying so
+        is the difference between an import and a guess.
+        """
+        try:
+            result = import_ggb(path)
+        except GeobenchError as exc:
+            self.status.showMessage(f"读不了这个 .ggb：{exc}")
+            return
+        if not result.ok:
+            self.status.showMessage("这个 .ggb 里没有能搬过来的构造")
+            return
+        try:
+            self.controller.load_text(result.dsl)
+        except GeobenchError as exc:
+            self.status.showMessage(f"搬过来以后读不了：{exc}")
+            return
+        # A .ggb stays a GeoGebra file: saving writes our own format,
+        # and the teacher keeps the original untouched.
+        self._path = None
+        self._update_title()
+        self.canvas.fit()
+        self.refresh()
+        notes = [*result.warnings, *result.skipped]
+        if notes:
+            QMessageBox.information(
+                self,
+                "从 GeoGebra 读入",
+                f"读入了 {path.name}。\n\n有 {len(notes)} 处需要你看一眼：\n\n"
+                + "\n".join(f"· {note}" for note in notes[:12]),
+            )
+        self.status.showMessage(
+            f"读入了 {path.name}" + (f"（{len(notes)} 处调整）" if notes else "")
+        )
+
+    def _build_empty_state(self) -> QWidget:
+        """The first screen: three ways into a figure, and a quiet hint.
+
+        A teacher opening the program has a problem in mind, not a
+        command name.  So the blank page offers the three things that
+        actually start a lesson: an example that works, a sentence, and
+        a file from GeoGebra.
+        """
+        card = QFrame()
+        card.setObjectName("card")
+        card.setFixedWidth(420)
+        # A click on the card is a click on the card, not a point behind it.
+        card.setAttribute(Qt.WidgetAttribute.WA_NoMousePropagation, True)
+        inner = QVBoxLayout(card)
+        inner.setContentsMargins(28, 26, 28, 26)
+        inner.setSpacing(10)
+        inner.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)
+
+        title = QLabel("从哪儿开始？")
+        title.setObjectName("emptyTitle")
+        inner.addWidget(title)
+
+        note = QLabel(
+            "打开一个做好的例子，用一句话描述图形，"
+            "或者打开 GeoGebra 文件。也可以直接点一下画布，放一个点。"
+        )
+        note.setObjectName("panelNote")
+        note.setWordWrap(True)
+        note.setMinimumHeight(72)
+        inner.addWidget(note)
+
+        starters = (
+            ("打开一个示例", self._open_example),
+            ("用一句话作图", self._open_ai_panel),
+            ("打开文件…", self._open_file),
+        )
+        for text, slot in starters:
+            button = QPushButton(text)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.clicked.connect(slot)
+            inner.addWidget(button)
+        return card
+
+    def _open_example(self) -> None:
+        """A figure that shows the product: a proof, not a drawing."""
+        try:
+            self.controller.load_text(_EXAMPLE)
+        except GeobenchError as exc:
+            self.status.showMessage(f"示例打不开：{exc}")
+            return
+        self._path = None
+        self._update_title()
+        self.canvas.fit()
+        self.refresh()
+        self.status.showMessage(
+            "示例：三角形、中点、外心、外接圆；右侧两条断言会说为什么成立"
+        )
 
     def _save_file(self) -> None:
         if self._path is None:
@@ -899,6 +1242,13 @@ class StudioWindow(QMainWindow):
         self._pointer_button = pointer
         toolbar.addSeparator()
 
+        # Undo and redo are the two buttons a drawing program is judged
+        # by when something goes wrong, so they are on the toolbar, not
+        # only behind Ctrl+Z.
+        toolbar.addAction(self._undo_action)
+        toolbar.addAction(self._redo_action)
+        toolbar.addSeparator()
+
         self._tool_buttons = {}
         self._group_labels: dict[str, str] = {}
         self._group_first: dict[str, str] = {}
@@ -937,6 +1287,20 @@ class StudioWindow(QMainWindow):
         fit_action.triggered.connect(self.canvas.fit)
         toolbar.addAction(fit_action)
 
+        for text, slot, hint in (
+            ("\u2212", self.canvas.zoom_out, "缩小"),
+            ("+", self.canvas.zoom_in, "放大"),
+        ):
+            zoom_button = QToolButton()
+            zoom_button.setText(text)
+            zoom_button.setToolTip(hint)
+            zoom_button.setCursor(Qt.CursorShape.PointingHandCursor)
+            zoom_button.setFixedWidth(30)
+            zoom_button.clicked.connect(
+                lambda _checked=False, step=slot: step()
+            )
+            toolbar.addWidget(zoom_button)
+
         ai_action = QAction("AI 作图", self)
         ai_action.setToolTip("用一句话说你要什么图")
         ai_action.triggered.connect(self._open_ai_panel)
@@ -962,15 +1326,36 @@ class StudioWindow(QMainWindow):
                 button.setToolTip(f"{label}：{self._group_first.get(key, '')}")
         self.status.showMessage(f"{tool.label}：{tool.hint}")
 
-    def _on_selection(self, node_id: str) -> None:
-        """An object was picked: say which one, and show it in the steps."""
-        if not node_id:
+    def _on_selection(self, node_ids: list[str]) -> None:
+        """An object was picked: say which, and offer what can be asked.
+
+        Selection is the teacher's way of pointing at a claim.  The
+        panel follows it, so the next click is on the claim itself, not
+        on a relation button followed by a dialog.
+        """
+        if not node_ids:
             self.status.showMessage("没有选中任何对象")
+            self._refresh_relation_choices([])
             return
-        self.status.showMessage(f"选中了 {node_id}（Delete 键删掉它）")
-        row = self._step_rows.get(node_id)
+        names = "、".join(node_ids)
+        if len(node_ids) == 1:
+            self.status.showMessage(
+                f"选中了 {names}；按住 Shift 再点可以多选，右侧会出现能问的问题"
+            )
+        else:
+            self.status.showMessage(f"选中了 {names}；右侧是能问的问题")
+        row = self._step_rows.get(node_ids[-1])
         if row is not None:
             self.steps.setCurrentRow(row)
+        # setCurrentRow clears the others; add them back, so the steps
+        # pane shows the same three objects the canvas does.
+        for node_id in node_ids[:-1]:
+            other = self._step_rows.get(node_id)
+            if other is not None:
+                item = self.steps.item(other)
+                if item is not None:
+                    item.setSelected(True)
+        self._refresh_relation_choices(node_ids)
 
     def _on_value_requested(self, kind: str) -> None:
         """The tool needs a number, or a choice of intersection."""
@@ -1149,6 +1534,10 @@ class StudioWindow(QMainWindow):
         arrives.
         """
         self._refresh_steps()
+        self.canvas.prune_selection()
+        self._refresh_relation_choices(self.canvas.selected())
+        empty = not self.controller.figure().nodes
+        self._empty_state.setVisible(empty)
         self._refresh_exact()
         if self._dragging:
             # The drag is over; the verdicts have been settled.
@@ -1247,6 +1636,7 @@ class StudioWindow(QMainWindow):
         self.steps.clear()
         self._step_rows: dict[str, int] = {}
         figure = self.controller.figure()
+        self._steps_hint.setVisible(not figure.nodes)
         undefined = dict(self.controller.undefined())
         for node_id, node in figure.nodes.items():
             name = node.label or node_id
@@ -1270,8 +1660,8 @@ class StudioWindow(QMainWindow):
             self.steps.addItem(item)
         for relation in figure.relations:
             head = "断言 "
-            tail = f"{_relation_name(relation.kind)}({', '.join(relation.args)})"
-            item = QListWidgetItem(f"{head} {tail}")
+            tail = _claim_text(relation.kind, relation.args)
+            item = QListWidgetItem(f"{head}{tail}")
             item.setData(Qt.ItemDataRole.UserRole, ("relation", relation.id))
             item.setData(HEAD_ROLE, head)
             item.setData(TAIL_ROLE, tail)
@@ -1327,12 +1717,27 @@ class StudioWindow(QMainWindow):
         self._set_judgement_note("哪些说法成立")
         verdicts = list(verdicts)
         self._verdicts = verdicts
+        # The verdicts are in the order of the figure's relations; the
+        # arguments are not in the verdict, so they are read off the
+        # figure the same sequence.
+        self._verdict_args = [
+            list(relation.args) for relation in self.controller.figure().relations
+        ]
         self.judgements.blockSignals(True)
         self.judgements.setRowCount(len(verdicts))
         for row, verdict in enumerate(verdicts):
-            self.judgements.setItem(row, 0, QTableWidgetItem(_relation_name(verdict.kind)))
-            self.judgements.setItem(row, 1, QTableWidgetItem(_verdict_text(verdict.verdict)))
-            self.judgements.setItem(row, 2, QTableWidgetItem(_evidence_text(verdict.evidence)[:120]))
+            args = (
+                self._verdict_args[row] if row < len(self._verdict_args) else []
+            )
+            self.judgements.setItem(
+                row, 0, QTableWidgetItem(_claim_text(verdict.kind, args))
+            )
+            self.judgements.setItem(
+                row, 1, QTableWidgetItem(_verdict_text(verdict.verdict))
+            )
+            self.judgements.setItem(
+                row, 2, QTableWidgetItem(_evidence_summary(verdict))
+            )
             # A verdict is coloured by what it says: green for proved,
             # red for refuted, quiet for "we do not know". A teacher
             # reads the table before reading the words.
@@ -1349,6 +1754,11 @@ class StudioWindow(QMainWindow):
             self.judgements.selectRow(0)
         else:
             self.evidence.clear()
+            self.evidence_summary.setText(
+                "选中一行，这里用一句话说明它为什么成立（或不成立）。"
+            )
+            self.witness_button.setVisible(False)
+            self._witness = None
 
     def _delete_node(self, node_id: str) -> None:
         """Delete one object, with everything that depends on it."""
@@ -1399,23 +1809,57 @@ class StudioWindow(QMainWindow):
         self.status.showMessage(f"删掉了 {identifier}")
 
     def _show_evidence(self) -> None:
-        """Show the full evidence of the selected relation."""
+        """Say, in a sentence, why the selected claim holds or does not.
+
+        The kernel's evidence is a symbolic reduction: it is the proof,
+        and it is also unreadable in a classroom.  The sentence comes
+        first; the derivation is one click away for the teacher who
+        wants to see the algebra.
+        """
+        self._witness = None
+        self.witness_button.setVisible(False)
         rows = self.judgements.selectionModel().selectedRows()
         if not rows:
+            self.evidence_summary.setText(
+                "选中一行，这里用一句话说明它为什么成立（或不成立）。"
+            )
+            self.evidence.clear()
             return
         index = rows[0].row()
         if index < 0 or index >= len(self._verdicts):
             return
         verdict = self._verdicts[index]
-        text = (
-            f"{_relation_name(verdict.kind)} —— {_verdict_text(verdict.verdict)}"
-            f"\n\n{_evidence_text(verdict.evidence)}"
-        )
-        if verdict.witness:
-            text += "\n\n反例（一个不满足的摆放）：\n" + "\n".join(
-                f"  {key}: {value}" for key, value in sorted(verdict.witness.items())
+        args = self._verdict_args[index] if index < len(self._verdict_args) else []
+        lines = [_claim_text(verdict.kind, args), _verdict_text(verdict.verdict)]
+        if verdict.verdict == "proved":
+            lines.append(
+                "对所有摆放都成立：这是图形的性质，不是这一张图的巧合。"
+                if verdict.scope == IDENTITY
+                else "只在你现在摆的这张图里成立。"
             )
-        self.evidence.setPlainText(text)
+        elif verdict.verdict == "refuted":
+            lines.append("这句话不是恒等式：有一个合法的摆放让它不成立。")
+            if verdict.witness:
+                self._witness = dict(verdict.witness)
+                self.witness_button.setVisible(True)
+                lines.append("反例：" + _witness_text(verdict.witness))
+        elif verdict.verdict == "supported":
+            lines.append("找不到反例，但也还没能证明；换个问法或换个范围再试。")
+        else:
+            lines.append(_evidence_text(verdict.evidence))
+        self.evidence_summary.setText("\n".join(lines))
+        self.evidence.setPlainText(_evidence_text(verdict.evidence))
+
+    def _preview_witness(self) -> None:
+        """Put the figure at the counterexample's placement, so it can be seen."""
+        if self._witness is None:
+            return
+        if not self.controller.apply_witness(self._witness):
+            self.status.showMessage("这个反例里有拖不动的点，摆不出来")
+            return
+        self.status.showMessage(
+            "已经把图摆到反例的位置；按 Ctrl+Z 回到原来的样子"
+        )
 
     def set_scope(self, scope: str) -> None:
         """Choose the scope the judgements are made in."""
@@ -1548,11 +1992,79 @@ def _evidence_text(evidence: str) -> str:
 
 def _verdict_text(verdict: str) -> str:
     return {
-        "proved": "成立（proved）",
-        "refuted": "不成立（refuted）",
-        "supported": "未证（supported）",
-        "undecided": "无法判定（undecided）",
+        "proved": "成立",
+        "refuted": "不成立",
+        "supported": "未证明",
+        "undecided": "不能判定",
     }.get(verdict, verdict)
+
+
+def _claim_text(kind: str, args: list[str]) -> str:
+    """The claim as a sentence in the language of a geometry paper.
+
+    "AB = CD" is what the teacher said; "相等" with four object names
+    is what the kernel takes.  The table shows the first, the DSL the
+    second.
+    """
+    if kind == "collinear":
+        return f"{'、'.join(args)} 共线"
+    if kind == "concyclic" and len(args) >= 3:
+        return f"{'、'.join(args)} 共圆"
+    if kind == "parallel" and len(args) == 2:
+        return f"{args[0]} ∥ {args[1]}"
+    if kind == "perpendicular" and len(args) == 2:
+        return f"{args[0]} ⊥ {args[1]}"
+    if kind == "equal_length" and len(args) == 4:
+        return f"{args[0]}{args[1]} = {args[2]}{args[3]}"
+    if kind == "point_in" and len(args) == 2:
+        return f"{args[0]} 在 {args[1]} 上"
+    if kind == "midpoint_of" and len(args) == 3:
+        return f"{args[0]} 是 {args[1]}{args[2]} 的中点"
+    if kind == "centroid_of" and len(args) == 4:
+        return f"{args[0]} 是 △{args[1]}{args[2]}{args[3]} 的重心"
+    if kind == "tangent_to" and len(args) == 2:
+        return f"{args[0]} 与 {args[1]} 相切"
+    if kind == "concurrency" and len(args) == 3:
+        return f"{'、'.join(args)} 三线共点"
+    if kind == "angle_equal" and len(args) == 6:
+        return (
+            f"∠{args[0]}{args[1]}{args[2]} = ∠{args[3]}{args[4]}{args[5]}"
+        )
+    return f"{_relation_name(kind)}（{'、'.join(args)}）"
+
+
+def _witness_text(witness: dict[str, object]) -> str:
+    """The counterexample written the way a teacher would write it."""
+    parts: list[str] = []
+    for name, value in sorted(witness.items()):
+        if isinstance(value, (list, tuple)) and len(value) >= 2:
+            parts.append(
+                f"{name}（{_short(str(value[0]))}, {_short(str(value[1]))}）"
+            )
+        else:
+            parts.append(f"{name} = {value}")
+    return "、".join(parts)
+
+
+def _evidence_summary(verdict: Verdict) -> str:
+    """One short phrase for the table's third column.
+
+    The full sentence lives in the pane below.  A table cell is a
+    glance, not a proof.
+    """
+    if verdict.verdict == "proved":
+        return (
+            "对任意图形都成立"
+            if verdict.scope == IDENTITY
+            else "只在这张图上成立"
+        )
+    if verdict.verdict == "refuted":
+        return "有一个反例，选中可以看"
+    text = _evidence_text(verdict.evidence)
+    for stop in ("：", "。"):
+        if stop in text:
+            text = text.split(stop, 1)[0]
+    return text[:48] or "不能判定"
 
 
 __all__ = [

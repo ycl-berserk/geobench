@@ -17,10 +17,12 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+from fractions import Fraction
 from typing import Any
 
+from geobench.errors import StateError
 from geobench.evaluate import numeric_circle, numeric_coords
-from geobench.model import Figure
+from geobench.model import Figure, Node
 from geobench.primitives import (
     ArcPrimitive,
     CirclePrimitive,
@@ -69,6 +71,26 @@ class View:
         return self.y_max - self.y_min
 
 
+def _point_xy(figure: Figure, node: Node) -> tuple[float, float] | None:
+    """Where a point is, from whatever the evaluator has computed.
+
+    A figure can be drawn (numeric payload) before it is exact (symbolic
+    coords); fitting the view must work in both states, and a point with
+    neither is simply not part of the bounding box.
+    """
+    try:
+        return numeric_coords(figure, node.id)
+    except (StateError, TypeError, ValueError, ZeroDivisionError):
+        pass
+    placement = getattr(node, "placement", None)
+    if placement is None:
+        return None
+    try:
+        return float(Fraction(placement[0])), float(Fraction(placement[1]))
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
 def fit_view(figure: Figure, padding: float = 0.6) -> View:
     """The bounding box of the figure, with padding.
 
@@ -82,11 +104,19 @@ def fit_view(figure: Figure, padding: float = 0.6) -> View:
         if not node.style.visible:
             continue
         if node.kind == "point":
-            x, y = numeric_coords(figure, node.id)
-            xs.append(x)
-            ys.append(y)
+            position = _point_xy(figure, node)
+            if position is None:
+                continue
+            xs.append(position[0])
+            ys.append(position[1])
         elif node.kind == "circle":
-            cx, cy, r2 = numeric_circle(figure, node.id)
+            try:
+                cx, cy, r2 = numeric_circle(figure, node.id)
+            except (StateError, TypeError, ValueError, ZeroDivisionError):
+                values = (node.cache.get("numeric") or {}).get("circle")
+                if not values or len(values) < 3:
+                    continue
+                cx, cy, r2 = float(values[0]), float(values[1]), float(values[2])
             if r2 <= 0:
                 continue
             radius = math.sqrt(r2)
