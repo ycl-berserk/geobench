@@ -479,6 +479,36 @@ class StudioController:
         node.style = replace(node.style, label=label.strip() or None)
         self._changed()
 
+    def set_color(self, node_id: str, color: str | None) -> None:
+        """Set, or clear, the colour this object is drawn in.
+
+        ``None`` is not "black": it is "the figure's colour", which is
+        what the object had before anyone said otherwise.
+        """
+        self._set_style(node_id, color=color or "#000000")
+
+    def set_line_width(self, node_id: str, width: float | None) -> None:
+        """Set, or clear, this object's stroke width (in points)."""
+        self._set_style(node_id, line_width=width)
+
+    def set_point_size(self, node_id: str, size: float | None) -> None:
+        """Set, or clear, this point's radius (in pixels)."""
+        self._set_style(node_id, point_size=size)
+
+    def set_label_pos(self, node_id: str, position: str | None) -> None:
+        """Set, or clear, where this object's label sits."""
+        self._set_style(node_id, label_pos=position)
+
+    def _set_style(self, node_id: str, **fields: Any) -> None:
+        """Change one drawing attribute, as one undoable step."""
+        figure = self.figure()
+        node = figure.nodes.get(node_id)
+        if node is None:
+            raise GeobenchError(f"unknown node id {node_id!r}")
+        self.push_undo()
+        node.style = replace(node.style, **fields)
+        self._changed()
+
     def draggable(self, node_id: str) -> bool:
         """Can this node be dragged? Free points and points on an object."""
         node = self.figure().nodes.get(node_id)

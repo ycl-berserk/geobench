@@ -72,6 +72,13 @@ from geobench.operators import OpContext
 from geobench.operators import register_builtins as _register_builtins
 from geobench.registry import OperatorRegistry, OpSpec
 from geobench.solve import Condition, solve
+from geobench.style import (
+    DEFAULT,
+    LABEL_DIRECTIONS,
+    LINE_WIDTHS,
+    POINT_SIZES,
+    resolve_color,
+)
 
 # -- object table ----------------------------------------------------------
 
@@ -225,6 +232,18 @@ class Parser:
             return
         if head.text in {"\u8f85\u52a9", "Auxiliary"}:
             self._parse_attribute(tokens, hidden=False)
+            return
+        if head.text in {"\u989c\u8272", "Color"}:
+            self._parse_appearance(tokens, "color")
+            return
+        if head.text in {"\u7ebf\u5bbd", "LineWidth"}:
+            self._parse_appearance(tokens, "width")
+            return
+        if head.is_keyword("\u70b9\u5927\u5c0f") or head.text == "PointSize":
+            self._parse_appearance(tokens, "size")
+            return
+        if head.text in {"\u6807\u7b7e\u4f4d\u7f6e", "LabelPosition"}:
+            self._parse_appearance(tokens, "label_pos")
             return
         if head.is_symbol("△"):
             self._parse_triangle(tokens)
@@ -499,6 +518,63 @@ class Parser:
             node.style = replace(node.style, visible=False)
         else:
             node.style = replace(node.style, line_style="dashed")
+
+    def _parse_appearance(self, tokens: list[Token], field: str) -> None:
+        """颜色 / 线宽 / 点大小 / 标签位置 -- how one object is drawn.
+
+        Appearance never changes geometry: a red segment is the same
+        segment.  So this is the one family of statements that may come
+        anywhere after the object exists, and that the kernel never has
+        to re-evaluate.
+        """
+        if len(tokens) != 3:
+            raise self._fail(tokens[0].span, "这一行应该是：属性 对象 值")
+        name = tokens[1].text
+        node = self.figure.nodes.get(name)
+        if node is None:
+            raise self._fail(tokens[1].span, f"没有叫 {name!r} 的对象")
+        value = tokens[2]
+        text = value.text
+        if field == "color":
+            if text == DEFAULT:
+                node.style = replace(node.style, color="#000000")
+                return
+            color = resolve_color(text)
+            if color is None:
+                raise self._fail(
+                    value.span,
+                    f"没有这个颜色：{text!r}（可用：黑/红/蓝/绿/橙/紫/灰/棕）",
+                )
+            node.style = replace(node.style, color=color)
+            return
+        if field == "label_pos":
+            if text in {DEFAULT, "自动"}:
+                node.style = replace(node.style, label_pos=None)
+                return
+            if text not in LABEL_DIRECTIONS:
+                raise self._fail(
+                    value.span,
+                    f"没有这个方位：{text!r}"
+                    "（可用：右上/左上/右下/左下/上/下/左/右/自动）",
+                )
+            node.style = replace(node.style, label_pos=text)
+            return
+        table = LINE_WIDTHS if field == "width" else POINT_SIZES
+        if text in table:
+            number = table[text]
+        elif value.kind is TokenKind.NUMBER:
+            number = float(text)
+        else:
+            words = "/".join(table)
+            raise self._fail(
+                value.span, f"这里应该是数字或 {words}，实际是 {text!r}"
+            )
+        if number <= 0:
+            raise self._fail(value.span, "大小必须是正数")
+        if field == "width":
+            node.style = replace(node.style, line_width=number)
+        else:
+            node.style = replace(node.style, point_size=number)
 
     def _parse_assertion(self, tokens: list[Token]) -> None:
         if len(tokens) < 2:

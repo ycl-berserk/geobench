@@ -32,9 +32,11 @@ from PySide6.QtWidgets import QInputDialog, QMenu, QWidget
 from geobench.app.controller import StudioController
 from geobench.app.theme import PALETTE
 from geobench.app.tools import ToolArg, ToolSpec
+from geobench.model import Node
 from geobench.primitives import (
     ArcPrimitive,
     CirclePrimitive,
+    Ink,
     LabelPrimitive,
     LinePrimitive,
     PointPrimitive,
@@ -44,7 +46,13 @@ from geobench.primitives import (
     hit_test,
 )
 from geobench.render import View, clip_ray, fit_view
-from geobench.style import FigureStyle
+from geobench.style import (
+    COLOR_CHOICES,
+    LABEL_DIRECTIONS,
+    LINE_WIDTHS,
+    POINT_SIZES,
+    FigureStyle,
+)
 
 #: The view the canvas starts with: a square of ten units, which is
 #: about the size of a competition figure before anything is drawn.
@@ -257,6 +265,11 @@ class FigureCanvas(QWidget):
         for primitive in self.controller.primitives():
             if getattr(primitive, "id", "") != self._selected:
                 continue
+            # The accent colour wins over the object's own colour: a
+            # red line that is selected has to look selected.
+            primitive = replace(
+                primitive, ink=replace(primitive.ink, color=PALETTE.accent)
+            )
             if isinstance(primitive, LinePrimitive):
                 self._draw_line(painter, viewport, primitive, marked)
             elif isinstance(primitive, SegmentPrimitive):
@@ -300,7 +313,9 @@ class FigureCanvas(QWidget):
             hint,
         )
 
-    def _pen(self, auxiliary: bool, style: FigureStyle) -> QPen:
+    def _pen(
+        self, auxiliary: bool, style: FigureStyle, ink: Ink | None = None
+    ) -> QPen:
         """The pen of a stroke on the screen.
 
         The paper draws a competition figure in 0.4pt, because that is
@@ -308,10 +323,16 @@ class FigureCanvas(QWidget):
         hairline that thin is almost invisible while you are working,
         so the screen draws a little heavier and the export stays true
         to the paper.
+
+        An object's own colour and width win over the figure's, when it
+        has them (T050).
         """
         width = style.auxiliary_stroke_width if auxiliary else style.stroke_width
+        if ink is not None and ink.width is not None:
+            width = ink.width
         width = max(width, SCREEN_MIN_STROKE if not auxiliary else SCREEN_MIN_AUX_STROKE)
-        pen = QPen(QColor(style.stroke), width)
+        color = ink.color if ink is not None and ink.color else style.stroke
+        pen = QPen(QColor(color), width)
         if auxiliary:
             pen.setStyle(Qt.PenStyle.DashLine)
             pen.setDashPattern([3, 2])
@@ -325,7 +346,7 @@ class FigureCanvas(QWidget):
             return
         x1, y1 = viewport.to_screen(clipped[0], clipped[1])
         x2, y2 = viewport.to_screen(clipped[2], clipped[3])
-        painter.setPen(self._pen(primitive.auxiliary, style))
+        painter.setPen(self._pen(primitive.auxiliary, style, primitive.ink))
         painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
     def _draw_segment(
@@ -333,7 +354,7 @@ class FigureCanvas(QWidget):
     ) -> None:
         x1, y1 = viewport.to_screen(primitive.x1, primitive.y1)
         x2, y2 = viewport.to_screen(primitive.x2, primitive.y2)
-        painter.setPen(self._pen(primitive.auxiliary, style))
+        painter.setPen(self._pen(primitive.auxiliary, style, primitive.ink))
         painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
     def _draw_polygon(
@@ -349,7 +370,7 @@ class FigureCanvas(QWidget):
         ]
         if len(points) < 2:
             return
-        painter.setPen(self._pen(primitive.auxiliary, style))
+        painter.setPen(self._pen(primitive.auxiliary, style, primitive.ink))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         if primitive.closed:
             painter.drawPolygon(QPolygonF(points))
@@ -366,7 +387,7 @@ class FigureCanvas(QWidget):
             return
         x1, y1 = viewport.to_screen(clipped[0], clipped[1])
         x2, y2 = viewport.to_screen(clipped[2], clipped[3])
-        painter.setPen(self._pen(primitive.auxiliary, style))
+        painter.setPen(self._pen(primitive.auxiliary, style, primitive.ink))
         painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
     def _draw_circle(
@@ -374,7 +395,7 @@ class FigureCanvas(QWidget):
     ) -> None:
         cx, cy = viewport.to_screen(primitive.cx, primitive.cy)
         radius = primitive.radius * viewport.scale
-        painter.setPen(self._pen(primitive.auxiliary, style))
+        painter.setPen(self._pen(primitive.auxiliary, style, primitive.ink))
         painter.drawEllipse(QPointF(cx, cy), radius, radius)
 
     def _draw_arc(
@@ -391,7 +412,7 @@ class FigureCanvas(QWidget):
         rect = QRectF(cx - radius, cy - radius, 2 * radius, 2 * radius)
         start = round(-primitive.start_angle * 16)
         span = round(-primitive.span_angle * 16)
-        painter.setPen(self._pen(primitive.auxiliary, style))
+        painter.setPen(self._pen(primitive.auxiliary, style, primitive.ink))
         if primitive.filled:
             painter.setBrush(QBrush(QColor(style.sector_fill)))
             painter.drawPie(rect, start, span)
@@ -405,16 +426,21 @@ class FigureCanvas(QWidget):
         if not (math.isfinite(primitive.x) and math.isfinite(primitive.y)):
             return
         x, y = viewport.to_screen(primitive.x, primitive.y)
-        radius = style.point_radius if primitive.free else style.derived_point_radius
+        ink = primitive.ink
+        radius = (
+            ink.point_size
+            if ink.point_size is not None
+            else (style.point_radius if primitive.free else style.derived_point_radius)
+        )
+        color = QColor(ink.color or style.stroke)
         if primitive.undefined:
             # An object with no value at this placement: hollow, so the
             # user can see that something is missing (GeoGebra's "undefined").
-            pen = QPen(QColor(style.stroke), 0.6)
-            painter.setPen(pen)
+            painter.setPen(QPen(color, 0.6))
             painter.setBrush(Qt.BrushStyle.NoBrush)
         else:
-            painter.setPen(QPen(QColor(style.stroke), 0.4))
-            painter.setBrush(QColor(style.stroke))
+            painter.setPen(QPen(color, 0.4))
+            painter.setBrush(color)
         painter.drawEllipse(QPointF(x, y), radius, radius)
 
     def _draw_label(
@@ -426,7 +452,7 @@ class FigureCanvas(QWidget):
         font.setItalic(True)
         font.setPointSizeF(style.font_size)
         painter.setFont(font)
-        painter.setPen(QColor(style.stroke))
+        painter.setPen(QColor(primitive.ink.color or style.stroke))
         painter.drawText(
             QPointF(x + primitive.offset_x * offset, y - primitive.offset_y * offset),
             primitive.text,
@@ -695,6 +721,8 @@ class FigureCanvas(QWidget):
         line_action = menu.addAction("\u5b9e\u7ebf" if dashed else "\u865a\u7ebf")
         label_action = menu.addAction("\u6539\u6807\u7b7e\u2026")
         menu.addSeparator()
+        self._appearance_menu(menu, node_id, node)
+        menu.addSeparator()
         delete_action = menu.addAction("\u5220\u9664")
         show_action.triggered.connect(
             lambda: self.controller.set_hidden(node_id, hidden)
@@ -707,6 +735,85 @@ class FigureCanvas(QWidget):
         label_action.triggered.connect(lambda: self._edit_label(node_id))
         delete_action.triggered.connect(lambda: self.deleteRequested.emit(node_id))
         return menu
+
+    def _appearance_menu(self, menu: QMenu, node_id: str, node: Node) -> None:
+        """How the object looks: colour, width, and (for a point) size and label.
+
+        These are appearance, not construction: the menu changes what is
+        drawn and nothing about what is true.  Every action goes through
+        the controller, so it is one undo step like any other edit.
+        """
+        color_menu = menu.addMenu("\u989c\u8272")
+        for name, code in COLOR_CHOICES:
+            action = color_menu.addAction(name)
+            action.setCheckable(True)
+            action.setChecked(node.style.color == code)
+            action.triggered.connect(
+                lambda _checked=False, code=code: self.controller.set_color(
+                    node_id, code
+                )
+            )
+        color_menu.addSeparator()
+        default_color = color_menu.addAction("\u9ed8\u8ba4")
+        default_color.setCheckable(True)
+        default_color.setChecked(node.style.color in ("", "#000000"))
+        default_color.triggered.connect(
+            lambda: self.controller.set_color(node_id, None)
+        )
+
+        width_menu = menu.addMenu("\u7ebf\u5bbd")
+        for name, width in LINE_WIDTHS.items():
+            action = width_menu.addAction(name)
+            action.setCheckable(True)
+            action.setChecked(node.style.line_width == width)
+            action.triggered.connect(
+                lambda _checked=False, width=width: self.controller.set_line_width(
+                    node_id, width
+                )
+            )
+        width_menu.addSeparator()
+        default_width = width_menu.addAction("\u9ed8\u8ba4")
+        default_width.setCheckable(True)
+        default_width.setChecked(node.style.line_width is None)
+        default_width.triggered.connect(
+            lambda: self.controller.set_line_width(node_id, None)
+        )
+
+        if node.kind != "point":
+            return
+
+        size_menu = menu.addMenu("\u70b9\u5927\u5c0f")
+        for name, size in POINT_SIZES.items():
+            action = size_menu.addAction(name)
+            action.setCheckable(True)
+            action.setChecked(node.style.point_size == size)
+            action.triggered.connect(
+                lambda _checked=False, size=size: self.controller.set_point_size(
+                    node_id, size
+                )
+            )
+        size_menu.addSeparator()
+        default_size = size_menu.addAction("\u9ed8\u8ba4")
+        default_size.setCheckable(True)
+        default_size.setChecked(node.style.point_size is None)
+        default_size.triggered.connect(
+            lambda: self.controller.set_point_size(node_id, None)
+        )
+
+        position_menu = menu.addMenu("\u6807\u7b7e\u4f4d\u7f6e")
+        auto = position_menu.addAction("\u81ea\u52a8")
+        auto.setCheckable(True)
+        auto.setChecked(node.style.label_pos is None)
+        auto.triggered.connect(lambda: self.controller.set_label_pos(node_id, None))
+        for direction in LABEL_DIRECTIONS:
+            action = position_menu.addAction(direction)
+            action.setCheckable(True)
+            action.setChecked(node.style.label_pos == direction)
+            action.triggered.connect(
+                lambda _checked=False, direction=direction: self.controller.set_label_pos(
+                    node_id, direction
+                )
+            )
 
     def _edit_label(self, node_id: str) -> None:
         """Ask for the label this object should show, and set it."""

@@ -24,7 +24,7 @@ from dataclasses import dataclass
 
 from geobench.errors import StateError
 from geobench.model import Figure, Node
-from geobench.style import FigureStyle
+from geobench.style import LABEL_DIRECTIONS, FigureStyle
 
 
 def _numeric_payload(
@@ -61,6 +61,35 @@ def _payload(
 
 
 @dataclass(frozen=True)
+class Ink:
+    """How one object is drawn, when it differs from the figure's style.
+
+    ``None`` means "ask the figure's style".  The units are the style's:
+    a stroke width in points, a point radius in pixels, a label position
+    as a direction in figure coordinates (so the backend can multiply it
+    by its own offset and the label keeps its distance at any zoom).
+    """
+
+    color: str | None = None
+    width: float | None = None
+    point_size: float | None = None
+    label_pos: str | None = None
+
+    @classmethod
+    def of(cls, node: Node) -> Ink:
+        style = node.style
+        return cls(
+            # The default black is "no override": it is what the figure
+            # already draws, so keeping it out of the primitive keeps the
+            # picture identical to one that never had a style at all.
+            color=None if style.color in ("", "#000000") else style.color,
+            width=style.line_width,
+            point_size=style.point_size,
+            label_pos=style.label_pos,
+        )
+
+
+@dataclass(frozen=True)
 class PointPrimitive:
     """A point, with the label that belongs to it."""
 
@@ -70,6 +99,7 @@ class PointPrimitive:
     free: bool
     undefined: bool = False
     id: str = ""
+    ink: Ink = Ink()
 
 
 @dataclass(frozen=True)
@@ -82,6 +112,7 @@ class SegmentPrimitive:
     y2: float
     auxiliary: bool = False
     id: str = ""
+    ink: Ink = Ink()
 
 
 @dataclass(frozen=True)
@@ -98,6 +129,7 @@ class RayPrimitive:
     y1: float
     auxiliary: bool = False
     id: str = ""
+    ink: Ink = Ink()
 
 
 @dataclass(frozen=True)
@@ -109,6 +141,7 @@ class LinePrimitive:
     c: float
     auxiliary: bool = False
     id: str = ""
+    ink: Ink = Ink()
 
 
 @dataclass(frozen=True)
@@ -120,6 +153,7 @@ class CirclePrimitive:
     radius: float
     auxiliary: bool = False
     id: str = ""
+    ink: Ink = Ink()
 
 
 @dataclass(frozen=True)
@@ -144,6 +178,7 @@ class ArcPrimitive:
     auxiliary: bool = False
     filled: bool = False
     id: str = ""
+    ink: Ink = Ink()
 
 
 @dataclass(frozen=True)
@@ -159,6 +194,7 @@ class PolygonPrimitive:
     closed: bool = True
     auxiliary: bool = False
     id: str = ""
+    ink: Ink = Ink()
 
 
 @dataclass(frozen=True)
@@ -171,6 +207,7 @@ class LabelPrimitive:
     offset_x: float = 0.0
     offset_y: float = 0.0
     id: str = ""
+    ink: Ink = Ink()
 
 
 Primitive = (
@@ -329,6 +366,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
     for node_id, node in figure.nodes.items():
         if not node.style.visible:
             continue
+        ink = Ink.of(node)
         aux = is_auxiliary(node_id, style) or node.style.line_style == "dashed"
         if node.kind == "line":
             payload = _payload(figure, node_id, "line", 3)
@@ -338,13 +376,13 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                 # is not drawn, and the rest of the picture is.
                 continue
             a, b, c = payload[0], payload[1], payload[2]
-            primitive: Primitive = LinePrimitive(a, b, c, aux, node_id)
+            primitive: Primitive = LinePrimitive(a, b, c, aux, node_id, ink)
         elif node.kind == "segment":
             payload = _payload(figure, node_id, "segment", 4)
             if payload is None:
                 continue
             x1, y1, x2, y2 = payload[0], payload[1], payload[2], payload[3]
-            primitive = SegmentPrimitive(x1, y1, x2, y2, aux, node_id)
+            primitive = SegmentPrimitive(x1, y1, x2, y2, aux, node_id, ink)
         elif node.kind == "circle":
             payload = _payload(figure, node_id, "circle", 3)
             if payload is None:
@@ -352,7 +390,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
             cx, cy, r2 = payload[0], payload[1], payload[2]
             if r2 <= 0:
                 continue
-            primitive = CirclePrimitive(cx, cy, math.sqrt(r2), aux, node_id)
+            primitive = CirclePrimitive(cx, cy, math.sqrt(r2), aux, node_id, ink)
         elif node.kind == "point":
             payload = _payload(figure, node_id, "coords", 2)
             if payload is None:
@@ -369,6 +407,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                     node.role == "free",
                     undefined,
                     node_id,
+                    ink,
                 )
             )
             continue
@@ -403,7 +442,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
             payload = _numeric_payload(figure, node_id, "ray")
             if payload is None or len(payload) != 4:
                 continue
-            primitive = RayPrimitive(*payload[:4], aux, node_id)
+            primitive = RayPrimitive(*payload[:4], aux, node_id, ink)
         elif node.kind in {"polygon", "polyline"}:
             # One shape, not a bag of segments: a polygon is clickable
             # from inside, and the export draws one path.
@@ -411,7 +450,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
             if vertices is None or len(vertices) < 6:
                 continue
             primitive = PolygonPrimitive(
-                tuple(vertices), node.kind == "polygon", aux, node_id
+                tuple(vertices), node.kind == "polygon", aux, node_id, ink
             )
         elif node.kind == "arc":
             payload = _numeric_payload(figure, node_id, "arc")
@@ -429,7 +468,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                 payload[6],
                 (payload[7], payload[8]),
             )
-            primitive = ArcPrimitive(ox, oy, math.sqrt(r2), start, span, aux, False, node_id)
+            primitive = ArcPrimitive(ox, oy, math.sqrt(r2), start, span, aux, False, node_id, ink)
         elif node.kind == "sector":
             payload = _numeric_payload(figure, node_id, "sector")
             if payload is None or len(payload) != 7:
@@ -446,7 +485,7 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                 payload[6],
                 None,
             )
-            primitive = ArcPrimitive(ox, oy, math.sqrt(r2), start, span, aux, True, node_id)
+            primitive = ArcPrimitive(ox, oy, math.sqrt(r2), start, span, aux, True, node_id, ink)
         else:
             continue
         (auxiliary if aux else main).append(primitive)
@@ -454,8 +493,18 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
     for point in points:
         if not point.label:
             continue
-        dx, dy = _label_offset(centre, point.x, point.y)
-        labels.append(LabelPrimitive(point.x, point.y, point.label, dx, dy))
+        dx, dy = _label_offset(centre, point.x, point.y, point.ink.label_pos)
+        labels.append(
+            LabelPrimitive(
+                point.x,
+                point.y,
+                point.label,
+                dx,
+                dy,
+                "",
+                Ink(color=point.ink.color),
+            )
+        )
 
     return [*auxiliary, *main, *points, *labels]
 
@@ -608,9 +657,19 @@ def _figure_centre(figure: Figure) -> tuple[float, float] | None:
 
 
 def _label_offset(
-    centre: tuple[float, float] | None, x: float, y: float
+    centre: tuple[float, float] | None,
+    x: float,
+    y: float,
+    direction: str | None = None,
 ) -> tuple[float, float]:
-    """Place a label away from the figure's centre, so it does not sit on a stroke."""
+    """Place a label away from the figure's centre, so it does not sit on a stroke.
+
+    A label position the author chose wins over the automatic one: "B's
+    label goes to the right" is a statement about the picture, not a
+    guess the layout should make again on every repaint.
+    """
+    if direction is not None and direction in LABEL_DIRECTIONS:
+        return LABEL_DIRECTIONS[direction]
     if centre is None:
         return 0.0, 0.0
     cx, cy = centre

@@ -81,3 +81,83 @@ def get_style(name: str) -> FigureStyle:
     if name == "plain":
         return PLAIN
     raise ValueError(f"unknown style preset {name!r}")
+
+
+# -- per-object appearance --------------------------------------------------
+#
+# A figure is drawn in one style, but one object is not the figure: the
+# key point is red, the auxiliary circle is thin, the label of B sits to
+# the right.  These are the values an object may override, and they are
+# **named** rather than written as codes, because the DSL cannot spell a
+# hex colour: `#` starts a comment.
+
+#: The colours a teacher can pick, by name (Chinese and English).
+COLORS: dict[str, str] = {
+    "黑": "#000000",
+    "红": "#c0392b",
+    "蓝": "#1f4e9e",
+    "绿": "#1e7b4a",
+    "橙": "#d35400",
+    "紫": "#7d3c98",
+    "灰": "#6b7280",
+    "棕": "#8b5a2b",
+    "black": "#000000",
+    "red": "#c0392b",
+    "blue": "#1f4e9e",
+    "green": "#1e7b4a",
+    "orange": "#d35400",
+    "purple": "#7d3c98",
+    "grey": "#6b7280",
+    "gray": "#6b7280",
+    "brown": "#8b5a2b",
+}
+
+#: "no override": draw it the way the figure's style says.
+DEFAULT = "默认"
+
+#: The pickable colours, in menu order (Chinese name, hex).
+COLOR_CHOICES: tuple[tuple[str, str], ...] = (
+    ("黑", "#000000"),
+    ("红", "#c0392b"),
+    ("蓝", "#1f4e9e"),
+    ("绿", "#1e7b4a"),
+    ("橙", "#d35400"),
+    ("紫", "#7d3c98"),
+    ("灰", "#6b7280"),
+    ("棕", "#8b5a2b"),
+)
+
+#: Stroke widths in points, the same unit as :class:`FigureStyle`.
+LINE_WIDTHS: dict[str, float] = {"细": 0.25, "中": 0.4, "粗": 0.7}
+
+#: Point radii in pixels.  The competition style draws a 3 px dot.
+POINT_SIZES: dict[str, float] = {"小": 2.0, "中": 3.0, "大": 4.5}
+
+#: The direction a point's label sits in, as a unit vector in **figure**
+#: coordinates (y points up).  The backend multiplies it by its own
+#: label offset, so the label keeps its distance when the zoom changes.
+_SQRT_HALF = 0.7071067811865476
+LABEL_DIRECTIONS: dict[str, tuple[float, float]] = {
+    "右上": (_SQRT_HALF, _SQRT_HALF),
+    "左上": (-_SQRT_HALF, _SQRT_HALF),
+    "右下": (_SQRT_HALF, -_SQRT_HALF),
+    "左下": (-_SQRT_HALF, -_SQRT_HALF),
+    "上": (0.0, 1.0),
+    "下": (0.0, -1.0),
+    "左": (-1.0, 0.0),
+    "右": (1.0, 0.0),
+}
+
+
+def resolve_color(value: str) -> str | None:
+    """A colour name as a hex string, or None if the name is not one."""
+    return COLORS.get(value.strip())
+
+
+def describe_color(hex_value: str) -> str:
+    """The name a colour is written as, for the DSL and the menu."""
+    for name, code in COLORS.items():
+        if code == hex_value:
+            return name
+    return hex_value
+

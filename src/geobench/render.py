@@ -24,6 +24,7 @@ from geobench.model import Figure
 from geobench.primitives import (
     ArcPrimitive,
     CirclePrimitive,
+    Ink,
     LabelPrimitive,
     LinePrimitive,
     PointPrimitive,
@@ -258,6 +259,16 @@ def render_svg(
         )
 
     primitives = figure_primitives(figure, style)
+    # An object's stroke width is in points, like the style's; the
+    # picture is in pixels.  Scale the overrides the same way the style
+    # itself was scaled, or "thick" would mean one thing on paper and
+    # another on screen.
+    primitives = [
+        replace(primitive, ink=replace(primitive.ink, width=primitive.ink.width * px_per_point))
+        if primitive.ink.width is not None
+        else primitive
+        for primitive in primitives
+    ]
 
     for primitive in primitives:
         if isinstance(primitive, LinePrimitive):
@@ -265,7 +276,11 @@ def render_svg(
             if clipped is None:
                 continue
             x1, y1, x2, y2 = clipped
-            parts.append(_svg_line(tx, ty, x1, y1, x2, y2, primitive.auxiliary, style))
+            parts.append(
+                _svg_line(
+                    tx, ty, x1, y1, x2, y2, primitive.auxiliary, style, primitive.ink
+                )
+            )
         elif isinstance(primitive, SegmentPrimitive):
             parts.append(
                 _svg_line(
@@ -277,6 +292,7 @@ def render_svg(
                     primitive.y2,
                     primitive.auxiliary,
                     style,
+                    primitive.ink,
                 )
             )
         elif isinstance(primitive, RayPrimitive):
@@ -286,13 +302,17 @@ def render_svg(
             if clipped is None:
                 continue
             x1, y1, x2, y2 = clipped
-            parts.append(_svg_line(tx, ty, x1, y1, x2, y2, primitive.auxiliary, style))
+            parts.append(
+                _svg_line(
+                    tx, ty, x1, y1, x2, y2, primitive.auxiliary, style, primitive.ink
+                )
+            )
         elif isinstance(primitive, CirclePrimitive):
             parts.append(
                 f'<circle cx="{_fmt(tx(primitive.cx))}" cy="{_fmt(ty(primitive.cy))}" '
                 f'r="{_fmt(primitive.radius * scale)}" fill="none" '
-                f'stroke="{style.stroke}" '
-                f'stroke-width="{_stroke_width(primitive.auxiliary, style)}"'
+                f'stroke="{_stroke_color(style, primitive.ink)}" '
+                f'stroke-width="{_stroke_width(primitive.auxiliary, style, primitive.ink)}"'
                 f'{_dash(primitive.auxiliary)}/>'
             )
         elif isinstance(primitive, ArcPrimitive):
@@ -304,8 +324,9 @@ def render_svg(
             )
             tag = "polygon" if primitive.closed else "polyline"
             parts.append(
-                f'<{tag} points="{points}" fill="none" stroke="{style.stroke}" '
-                f'stroke-width="{_stroke_width(primitive.auxiliary, style)}"'
+                f'<{tag} points="{points}" fill="none" '
+                f'stroke="{_stroke_color(style, primitive.ink)}" '
+                f'stroke-width="{_stroke_width(primitive.auxiliary, style, primitive.ink)}"'
                 f"{_dash(primitive.auxiliary)}/>"
             )
         elif isinstance(primitive, PointPrimitive):
@@ -315,16 +336,21 @@ def render_svg(
                 # into NaN with it.
                 continue
             radius = (
-                style.point_radius if primitive.free else style.derived_point_radius
+                primitive.ink.point_size
+                if primitive.ink.point_size is not None
+                else (
+                    style.point_radius
+                    if primitive.free
+                    else style.derived_point_radius
+                )
             )
+            color = _stroke_color(style, primitive.ink)
             fill = (
-                style.stroke
-                if (primitive.free or style.derived_point_filled)
-                else "none"
+                color if (primitive.free or style.derived_point_filled) else "none"
             )
             parts.append(
                 f'<circle cx="{_fmt(tx(primitive.x))}" cy="{_fmt(ty(primitive.y))}" '
-                f'r="{_fmt(radius)}" fill="{fill}" stroke="{style.stroke}" '
+                f'r="{_fmt(radius)}" fill="{fill}" stroke="{color}" '
                 f'stroke-width="0.4"/>'
             )
 
@@ -337,7 +363,8 @@ def render_svg(
             f'<text x="{_fmt(tx(primitive.x) + primitive.offset_x * offset)}" '
             f'y="{_fmt(ty(primitive.y) - primitive.offset_y * offset)}" '
             f'text-anchor="middle" dominant-baseline="central" '
-            f'font-style="italic" fill="{style.stroke}">{primitive.text}</text>'
+            f'font-style="italic" fill="{_stroke_color(style, primitive.ink)}">'
+            f"{primitive.text}</text>"
         )
 
     parts.append("</svg>")
@@ -382,14 +409,21 @@ def _svg_arc(
         )
         fill = "none"
     return (
-        f'<path d="{path}" fill="{fill}" stroke="{style.stroke}" '
-        f'stroke-width="{_stroke_width(primitive.auxiliary, style)}"'
+        f'<path d="{path}" fill="{fill}" '
+        f'stroke="{_stroke_color(style, primitive.ink)}" '
+        f'stroke-width="{_stroke_width(primitive.auxiliary, style, primitive.ink)}"'
         f"{_dash(primitive.auxiliary)}/>"
     )
 
 
-def _stroke_width(auxiliary: bool, style: FigureStyle) -> float:
+def _stroke_width(auxiliary: bool, style: FigureStyle, ink: Ink | None = None) -> float:
+    if ink is not None and ink.width is not None:
+        return ink.width
     return style.auxiliary_stroke_width if auxiliary else style.stroke_width
+
+
+def _stroke_color(style: FigureStyle, ink: Ink | None = None) -> str:
+    return ink.color if ink is not None and ink.color else style.stroke
 
 
 def _dash(auxiliary: bool) -> str:
@@ -405,10 +439,12 @@ def _svg_line(
     y2: float,
     auxiliary: bool,
     style: FigureStyle,
+    ink: Ink | None = None,
 ) -> str:
     return (
         f'<line x1="{_fmt(tx(x1))}" y1="{_fmt(ty(y1))}" '
         f'x2="{_fmt(tx(x2))}" y2="{_fmt(ty(y2))}" '
-        f'stroke="{style.stroke}" stroke-width="{_stroke_width(auxiliary, style)}"'
+        f'stroke="{_stroke_color(style, ink)}" '
+        f'stroke-width="{_stroke_width(auxiliary, style, ink)}"'
         f"{_dash(auxiliary)}/>"
     )

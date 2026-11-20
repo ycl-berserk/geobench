@@ -16,6 +16,7 @@ from typing import NoReturn
 from geobench.commands import JUDGEMENT, by_id
 from geobench.dsl.parser import parse
 from geobench.model import Figure
+from geobench.style import describe_color
 
 __all__ = ["apply_dsl", "parse", "parse_dsl", "to_dsl"]
 
@@ -71,6 +72,14 @@ def to_dsl(figure: Figure) -> str:
             lines.append(f"\u9690\u85cf {node.id}")
         if node.style.line_style == "dashed":
             lines.append(f"\u8f85\u52a9 {node.id}")
+        if node.style.color not in ("", "#000000"):
+            lines.append(f"\u989c\u8272 {node.id} {describe_color(node.style.color)}")
+        if node.style.line_width is not None:
+            lines.append(f"\u7ebf\u5bbd {node.id} {node.style.line_width:g}")
+        if node.style.point_size is not None:
+            lines.append(f"\u70b9\u5927\u5c0f {node.id} {node.style.point_size:g}")
+        if node.style.label_pos:
+            lines.append(f"\u6807\u7b7e\u4f4d\u7f6e {node.id} {node.style.label_pos}")
 
     for relation in figure.relations:
         lines.append(_assertion(relation.kind, relation.args))

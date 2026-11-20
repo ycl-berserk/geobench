@@ -38,6 +38,7 @@ from geobench.primitives import (
     LinePrimitive,
     PointPrimitive,
     PolygonPrimitive,
+    Primitive,
     SegmentPrimitive,
     figure_primitives,
 )
@@ -432,7 +433,7 @@ def _centre(figure: Figure) -> tuple[float, float]:
 
 
 def _body(
-    by_id: Mapping[str, object],
+    by_id: Mapping[str, Primitive],
     view: View,
     scale: float,
     height: int,
@@ -457,26 +458,37 @@ def _body(
     points: list[str] = []
     labels: list[str] = []
     for primitive in by_id.values():
+        ink = primitive.ink
+        color = ink.color or style.stroke
+        width = ink.width if ink.width is not None else style.stroke_width
         if isinstance(primitive, PointPrimitive):
             if not (math.isfinite(primitive.x) and math.isfinite(primitive.y)):
                 continue
-            radius = style.point_radius if primitive.free else style.derived_point_radius
+            radius = (
+                ink.point_size
+                if ink.point_size is not None
+                else (
+                    style.point_radius
+                    if primitive.free
+                    else style.derived_point_radius
+                )
+            )
             points.append(
                 f'<circle id="o-{primitive.id}" cx="{fmt(tx(primitive.x))}" '
                 f'cy="{fmt(ty(primitive.y))}" r="{fmt(radius)}" '
-                f'fill="{style.stroke}"/>'
+                f'fill="{color}"/>'
             )
             labels.append(
                 f'<text id="t-{primitive.id}" x="{fmt(tx(primitive.x))}" '
-                f'y="{fmt(ty(primitive.y))}" dy=".35em" text-anchor="middle">'
-                f"{html.escape(primitive.label)}</text>"
+                f'y="{fmt(ty(primitive.y))}" dy=".35em" text-anchor="middle" '
+                f'fill="{color}">{html.escape(primitive.label)}</text>'
             )
         elif isinstance(primitive, SegmentPrimitive):
             parts.append(
                 f'<line id="o-{primitive.id}" x1="{fmt(tx(primitive.x1))}" '
                 f'y1="{fmt(ty(primitive.y1))}" x2="{fmt(tx(primitive.x2))}" '
-                f'y2="{fmt(ty(primitive.y2))}" stroke="{style.stroke}" '
-                f'stroke-width="{style.stroke_width * 1.6}"'
+                f'y2="{fmt(ty(primitive.y2))}" stroke="{color}" '
+                f'stroke-width="{width * 1.6}"'
                 f'{_dash(primitive.auxiliary)}/>'
             )
         elif isinstance(primitive, LinePrimitive):
@@ -486,16 +498,16 @@ def _body(
             parts.append(
                 f'<line id="o-{primitive.id}" x1="{fmt(tx(span[0]))}" '
                 f'y1="{fmt(ty(span[1]))}" x2="{fmt(tx(span[2]))}" '
-                f'y2="{fmt(ty(span[3]))}" stroke="{style.stroke}" '
-                f'stroke-width="{style.stroke_width * 1.6}"'
+                f'y2="{fmt(ty(span[3]))}" stroke="{color}" '
+                f'stroke-width="{width * 1.6}"'
                 f'{_dash(primitive.auxiliary)}/>'
             )
         elif isinstance(primitive, CirclePrimitive):
             parts.append(
                 f'<circle id="o-{primitive.id}" cx="{fmt(tx(primitive.cx))}" '
                 f'cy="{fmt(ty(primitive.cy))}" r="{fmt(primitive.radius * scale)}" '
-                f'fill="none" stroke="{style.stroke}" '
-                f'stroke-width="{style.stroke_width * 1.6}"'
+                f'fill="none" stroke="{color}" '
+                f'stroke-width="{width * 1.6}"'
                 f'{_dash(primitive.auxiliary)}/>'
             )
         elif isinstance(primitive, PolygonPrimitive):
@@ -506,14 +518,14 @@ def _body(
             tag = "polygon" if getattr(primitive, "closed", True) else "polyline"
             parts.append(
                 f'<{tag} id="o-{primitive.id}" points="{pairs}" fill="none" '
-                f'stroke="{style.stroke}" stroke-width="{style.stroke_width * 1.6}"'
+                f'stroke="{color}" stroke-width="{width * 1.6}"'
                 f"{_dash(primitive.auxiliary)}/>"
             )
         elif isinstance(primitive, LabelPrimitive):
             labels.append(
                 f'<text id="t-{primitive.id}" x="{fmt(tx(primitive.x))}" '
-                f'y="{fmt(ty(primitive.y))}" dy=".35em" text-anchor="middle">'
-                f"{html.escape(primitive.text)}</text>"
+                f'y="{fmt(ty(primitive.y))}" dy=".35em" text-anchor="middle" '
+                f'fill="{color}">{html.escape(primitive.text)}</text>'
             )
     parts.extend(points)
     parts.extend(labels)

@@ -53,7 +53,11 @@ class Token:
 
 
 #: The statement heads. Everything else is a name.
-KEYWORDS = frozenset({"点", "断言", "约束"})
+#:
+#: ``点大小`` is here whole rather than being lexed as ``点`` + ``大小``:
+#: it is an attribute statement (T050), and without this the tokenizer
+#: would read it as a point declaration.
+KEYWORDS = frozenset({"点", "断言", "约束", "点大小"})
 
 #: The names the command table knows.
 #:

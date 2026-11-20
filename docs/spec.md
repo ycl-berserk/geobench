@@ -121,6 +121,8 @@
 
 样式不影响几何，只影响渲染：`visible`、`color`、`line_width`、`line_style`（`solid`/`dashed`/`dotted`）、`point_size`、`fill`、`label`、`label_pos`。竞赛规范预设见 §10.2。
 
+这些字段是**逐对象**的覆盖：值为空表示"跟全局样式走"。三个后端（屏幕 / SVG / 可拖动 HTML）读同一份 `Ink`，所以同一个对象在屏幕、导出和网页里是同一个样子（D20）；PNG 由 SVG 光栅化，不另画一遍。DSL 的写法见 `docs/dsl-spec.md` §2.5（颜色是名字，不是 `#rrggbb` —— `#` 在那里是注释）。
+
 ---
 
 ## 4. 精确算术
