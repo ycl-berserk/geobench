@@ -45,11 +45,40 @@ MONO_CANDIDATES: tuple[str, ...] = (
     "Courier New",
 )
 
-#: The point size of the interface font.
-FONT_POINT_SIZE = 9.5
+#: The point size of the interface font: the normal choice.
+FONT_POINT_SIZE = 10.5
+
+#: The three sizes a teacher can pick.  A projector and a pair of tired
+#: eyes want the larger one; a small laptop wants the compact one.
+UI_SIZES: dict[str, float] = {
+    "紧凑": 9.5,
+    "标准": 10.5,
+    "大": 12.0,
+}
+DEFAULT_UI_SIZE = "标准"
+
+#: The size in force.  Set before the window is built, and changed from
+#: the settings menu; ``apply_theme`` reads it.
+_ui_point_size: float = FONT_POINT_SIZE
 
 #: The point size of the evidence pane.
 MONO_POINT_SIZE = 9.0
+
+
+def set_ui_size(name: str) -> None:
+    """Choose one of the three interface sizes."""
+    global _ui_point_size
+    if name not in UI_SIZES:
+        raise ValueError(f"unknown interface size {name!r}")
+    _ui_point_size = UI_SIZES[name]
+
+
+def current_ui_size() -> str:
+    """The name of the size in force."""
+    for name, size in UI_SIZES.items():
+        if size == _ui_point_size:
+            return name
+    return DEFAULT_UI_SIZE
 
 
 #: The spacing scale. Every margin, padding and gap in the studio is one
@@ -105,12 +134,16 @@ class Palette:
     grid: str = "#f0f3f7"
     grid_axis: str = "#dfe4ea"
 
-    def stylesheet(self) -> str:
+    def stylesheet(self, scale: float = 1.0) -> str:
         """The whole studio, as one stylesheet.
 
         Widgets are named rather than restyled one by one: a panel
-        heading is a heading everywhere, and says so here.
+        heading is a heading everywhere, and says so here.  ``scale``
+        follows the interface size; the spacing does not scale with it,
+        because a big font in a big frame wastes the screen.
         """
+        title_size = round(10 * scale)
+        empty_size = round(17 * scale)
         return f"""
         QMainWindow, QDialog {{
             background: {self.window};
@@ -138,7 +171,7 @@ class Palette:
         QLabel#panelTitle {{
             color: {self.text};
             font-weight: 600;
-            font-size: 10pt;
+            font-size: {title_size}pt;
         }}
         QLabel#panelNote {{
             color: {self.text_muted};
@@ -148,7 +181,7 @@ class Palette:
         }}
         QLabel#emptyTitle {{
             color: {self.text};
-            font-size: 17pt;
+            font-size: {empty_size}pt;
             font-weight: 600;
         }}
         QLabel {{
@@ -392,7 +425,7 @@ def pick_font(candidates: tuple[str, ...] = FONT_CANDIDATES, size: float = FONT_
 
 def ui_font() -> QFont:
     """The font of the interface."""
-    return pick_font()
+    return pick_font(size=_ui_point_size)
 
 
 def mono_font() -> QFont:
@@ -402,7 +435,7 @@ def mono_font() -> QFont:
     substitution -- and in a proportional font the minus sign and the
     hyphen are the same width and the reader stops trusting the layout.
     """
-    return pick_font(MONO_CANDIDATES, MONO_POINT_SIZE)
+    return pick_font(MONO_CANDIDATES, max(8.0, _ui_point_size - 0.5))
 
 
 def palette() -> QPalette:
@@ -432,7 +465,7 @@ def apply_theme(app: QApplication) -> None:
     """Give the application its font and its colours."""
     app.setFont(ui_font())
     app.setPalette(palette())
-    app.setStyleSheet(PALETTE.stylesheet())
+    app.setStyleSheet(PALETTE.stylesheet(_ui_point_size / FONT_POINT_SIZE))
 
 
 #: The words on a dialog's buttons, in the studio's language.

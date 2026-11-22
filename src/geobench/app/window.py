@@ -27,6 +27,7 @@ from PySide6.QtCore import (
     QModelIndex,
     QPersistentModelIndex,
     QPoint,
+    QSettings,
     QSize,
     Qt,
     QTimer,
@@ -35,6 +36,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QButtonGroup,
     QComboBox,
     QDialog,
@@ -68,6 +70,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from geobench import __version__
 from geobench.ai_settings import resolve_provider
 from geobench.app.ai_panel import AIPanel
 from geobench.app.canvas import FigureCanvas
@@ -76,7 +79,15 @@ from geobench.app.export import copy_image, copy_svg_source, write_png, write_sv
 from geobench.app.export_html import write_html
 from geobench.app.icons import group_icon, tool_icon
 from geobench.app.settings_dialog import SettingsDialog
-from geobench.app.theme import PALETTE, button_words, mono_font
+from geobench.app.theme import (
+    PALETTE,
+    UI_SIZES,
+    apply_theme,
+    button_words,
+    current_ui_size,
+    mono_font,
+    set_ui_size,
+)
 from geobench.app.tools import (
     POINT_TOOL,
     SELECT_TOOL,
@@ -896,6 +907,31 @@ class StudioWindow(QMainWindow):
         service_action.triggered.connect(self._open_settings)
         settings_menu.addAction(service_action)
 
+        size_menu = settings_menu.addMenu("界面字号")
+        self._size_actions: dict[str, QAction] = {}
+        for name in UI_SIZES:
+            action = QAction(name, self)
+            action.setCheckable(True)
+            action.setChecked(name == current_ui_size())
+            action.triggered.connect(
+                lambda _checked=False, chosen=name: self._set_ui_size(chosen)
+            )
+            size_menu.addAction(action)
+            self._size_actions[name] = action
+
+        help_menu = menu.addMenu("帮助")
+        shortcuts_action = QAction("快捷键…", self)
+        shortcuts_action.triggered.connect(self._show_shortcuts)
+        help_menu.addAction(shortcuts_action)
+        guide_action = QAction("30 秒上手", self)
+        guide_action.setToolTip("打开一个示例，看一次“选中对象 → 提问 → 反例”")
+        guide_action.triggered.connect(self._quick_start)
+        help_menu.addAction(guide_action)
+        help_menu.addSeparator()
+        about_action = QAction("关于 geobench", self)
+        about_action.triggered.connect(self._show_about)
+        help_menu.addAction(about_action)
+
     def _export_svg(self) -> None:
         """Write the figure to a file, as a vector picture.
 
@@ -1077,6 +1113,31 @@ class StudioWindow(QMainWindow):
         """Show or hide the axes; the export never draws them."""
         self.canvas.set_show_axes(shown)
         self.status.showMessage("坐标轴：" + ("显示" if shown else "隐藏"))
+
+    def _set_ui_size(self, name: str) -> None:
+        """Change the interface size, now and next time."""
+        set_ui_size(name)
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            apply_theme(app)
+        # The evidence pane has its own font, chosen when it was built.
+        self.evidence.setFont(mono_font())
+        QSettings("geobench", "studio").setValue("ui/size", name)
+        for key, action in self._size_actions.items():
+            action.setChecked(key == name)
+        self.status.showMessage(f"界面字号：{name}（已记住）")
+
+    def _show_shortcuts(self) -> None:
+        QMessageBox.information(self, "快捷键", _shortcuts_text())
+
+    def _quick_start(self) -> None:
+        self._open_example()
+        self.status.showMessage(
+            "示例已打开：拖动 A 试试；右侧两条断言会说为什么成立"
+        )
+
+    def _show_about(self) -> None:
+        QMessageBox.about(self, "关于 geobench", _about_text())
 
     def _open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -2011,6 +2072,29 @@ def _evidence_text(evidence: str) -> str:
         if evidence.startswith(english):
             return chinese + evidence[len(english) :].strip()
     return evidence
+
+
+def _shortcuts_text() -> str:
+    """The keyboard, in the order a lesson uses it."""
+    return (
+        "Ctrl+Z / Ctrl+Y    撤销 / 重做\n"
+        "Delete             删除选中的对象\n"
+        "Shift + 点击        多选（右侧面板会列出能问的问题）\n"
+        "中键拖动            平移画布\n"
+        "滚轮                缩放\n"
+        "双击一个点          输入精确坐标（1/2 和 0.5 是同一个数）\n"
+        "Ctrl+O / Ctrl+S     打开 / 保存\n"
+        "Ctrl+Shift+S        另存为"
+    )
+
+
+def _about_text() -> str:
+    return (
+        f"geobench {__version__}\n\n"
+        "面向竞赛级平面几何命题的确定性几何内核与工作台。\n"
+        "判定回答的是“对任意摆放是否成立”，不是“这张图看起来对不对”。\n\n"
+        "MIT License"
+    )
 
 
 def _verdict_text(verdict: str) -> str:

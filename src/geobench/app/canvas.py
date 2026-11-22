@@ -310,7 +310,9 @@ class FigureCanvas(QWidget):
             return
         step = _tick_step(scale)
         font = QFont()
-        font.setPointSizeF(7.5)
+        # The ticks belong to the interface, not to the figure: they
+        # follow the chosen interface size.
+        font.setPointSizeF(max(6.0, QApplication.font().pointSizeF() * 0.72))
         painter.setFont(font)
         axis_pen = QPen(QColor(PALETTE.grid_axis), 1.0)
         label_colour = QColor(PALETTE.text_muted)
