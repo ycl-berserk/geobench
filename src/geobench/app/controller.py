@@ -527,6 +527,40 @@ class StudioController:
         """
         self._set_style(node_id, color=color or "#000000")
 
+    def set_appearance(
+        self,
+        node_id: str,
+        *,
+        color: str | None = None,
+        line_width: float | None = None,
+        point_size: float | None = None,
+        label_pos: str | None = None,
+        label: str | None = None,
+    ) -> None:
+        """Change every appearance attribute at once, as one undo step.
+
+        "Make this the key point -- red, bigger, label on the right" is
+        one intention; it should not cost three entries on the undo
+        stack.  Only appearance is touched.
+        """
+        figure = self.figure()
+        node = figure.nodes.get(node_id)
+        if node is None:
+            raise GeobenchError(f"unknown node id {node_id!r}")
+        updated = replace(
+            node.style,
+            color=color or "#000000",
+            line_width=line_width,
+            point_size=point_size,
+            label_pos=label_pos,
+            label=(label.strip() or None) if label is not None else node.style.label,
+        )
+        if updated == node.style:
+            return
+        self.push_undo()
+        node.style = updated
+        self._changed()
+
     def set_line_width(self, node_id: str, width: float | None) -> None:
         """Set, or clear, this object's stroke width (in points)."""
         self._set_style(node_id, line_width=width)

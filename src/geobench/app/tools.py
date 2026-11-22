@@ -183,6 +183,18 @@ def _tool_from(command: CommandSpec, specs: tuple[ArgSpec, ...]) -> ToolSpec:
     )
 
 
+#: The constructions almost every problem opens with, in the order a
+#: teacher reaches for them.  Kept short on purpose: a "common" group
+#: that holds everything is not a shortcut.
+COMMON_OPS: tuple[str, ...] = (
+    "point.midpoint",
+    "point.intersect_lines",
+    "line.perpendicular_through",
+    "line.parallel_through",
+    "circle.through",
+)
+
+
 def _distinct(tools: list[ToolSpec]) -> tuple[ToolSpec, ...]:
     """Give tools that share a name a suffix that says how they differ.
 
@@ -251,4 +263,12 @@ def build_toolbar(registry: OperatorRegistry) -> tuple[ToolGroup, ...]:
     ) if groups and groups[0].key == "点" else groups[0]
     if groups:
         groups[0] = point_group
+
+    # A shortcut in front of the families: the five constructions that a
+    # lesson uses over and over.  They stay in their own groups too --
+    # this is a second door, not a move.
+    by_op = {tool.op: tool for group in groups for tool in group.tools}
+    common = tuple(by_op[op] for op in COMMON_OPS if op in by_op)
+    if common:
+        groups.insert(0, ToolGroup(key="common", label="常用", tools=common))
     return tuple(groups)

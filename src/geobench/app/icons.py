@@ -424,6 +424,23 @@ def _g_select(painter: QPainter, colour: str) -> None:
     )
 
 
+def _g_star(painter: QPainter, colour: str) -> None:
+    """A star: the constructions a lesson keeps reaching for."""
+    _pen(painter, colour, 1.2)
+    painter.setBrush(QBrush(QColor(colour)))
+    points = []
+    for index in range(10):
+        radius = R * (1.0 if index % 2 == 0 else 0.42)
+        angle = -math.pi / 2 + index * math.pi / 5
+        points.append(
+            QPointF(
+                MID + radius * math.cos(angle),
+                MID + radius * math.sin(angle),
+            )
+        )
+    painter.drawPolygon(points)
+
+
 def _g_fit(painter: QPainter, colour: str) -> None:
     """Four corners: the frame that fits the figure."""
     _pen(painter, colour, 1.5)
@@ -494,6 +511,7 @@ GLYPHS: dict[str, str] = {
 _DRAWERS = {
     "fit": _g_fit,
     "select": _g_select,
+    "star": _g_star,
     "point": _g_point,
     "midpoint": _g_midpoint,
     "centroid": _g_centroid,
@@ -543,6 +561,7 @@ FAMILY_GLYPHS: dict[str, str] = {
     "圆": "circle",
     "变换": "arrow",
     "测量": "distance",
+    "常用": "star",
 }
 
 

@@ -35,7 +35,12 @@ def app() -> QApplication:
 def _all_tools() -> list:
     registry = OperatorRegistry()
     register_builtins(registry)
-    return [tool for group in build_toolbar(registry) for tool in group.tools]
+    # The common group repeats five tools; testing each one once is enough.
+    tools: dict[str, object] = {}
+    for group in build_toolbar(registry):
+        for tool in group.tools:
+            tools.setdefault(tool.op, tool)
+    return list(tools.values())
 
 
 def _arm(window: StudioWindow, tool) -> None:

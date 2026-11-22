@@ -59,7 +59,7 @@ def test_every_icon_is_actually_drawn(app: QApplication) -> None:
         icon = tool_icon(tool.op)
         assert not icon.isNull(), tool.op
         assert not icon.pixmap(22, 22).isNull(), tool.op
-    for family in ("点", "线", "多边形", "圆", "变换", "测量"):
+    for family in ("点", "线", "多边形", "圆", "变换", "测量", "常用"):
         assert not group_icon(family).isNull(), family
 
 

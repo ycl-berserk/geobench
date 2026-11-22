@@ -27,11 +27,20 @@ from PySide6.QtGui import (
     QPen,
     QPolygonF,
 )
-from PySide6.QtWidgets import QApplication, QInputDialog, QMenu, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QInputDialog,
+    QMenu,
+    QMessageBox,
+    QWidget,
+)
 
+from geobench.app.appearance_dialog import AppearanceDialog
 from geobench.app.controller import StudioController
 from geobench.app.theme import PALETTE
 from geobench.app.tools import ToolArg, ToolSpec
+from geobench.errors import GeobenchError
 from geobench.model import Node
 from geobench.primitives import (
     ArcPrimitive,
@@ -139,6 +148,9 @@ class FigureCanvas(QWidget):
         self._view: View = DEFAULT_VIEW
         self._zoom = 1.0
         self._pan = (0.0, 0.0)
+        #: Coordinates on the paper.  Screen only: the export is the
+        #: figure, not the worksheet.
+        self.show_axes = True
         self._dragging: str | None = None
         self._drag_moved = False
         self._drag_offset = (0.0, 0.0)
@@ -173,6 +185,11 @@ class FigureCanvas(QWidget):
 
     def zoom_out(self) -> None:
         self.zoom(1 / ZOOM_STEP)
+
+    def set_show_axes(self, shown: bool) -> None:
+        """Show or hide the axes and their numbers."""
+        self.show_axes = shown
+        self.update()
 
     def set_playback_limit(self, limit: int | None) -> None:
         """Show only the first steps of the construction.
@@ -259,23 +276,80 @@ class FigureCanvas(QWidget):
         """
         step = 1.0
         pixels = step * viewport.scale
-        if pixels < 14.0:
-            # Too close together to be a guide: it would be a grey wash.
-            return
         view = viewport.view
-        first_x = math.floor(view.x_min / step) * step
-        first_y = math.floor(view.y_min / step) * step
-        painter.setPen(QPen(QColor(PALETTE.grid), 1.0))
-        x = first_x
-        while x <= view.x_max:
-            sx, _ = viewport.to_screen(x, 0)
-            painter.drawLine(QPointF(sx, 0), QPointF(sx, self.height()))
-            x += step
-        y = first_y
-        while y <= view.y_max:
-            _, sy = viewport.to_screen(0, y)
+        if pixels >= 14.0:
+            # Too close together and it is a grey wash; the axes keep
+            # their numbers even when the grid gives up.
+            first_x = math.floor(view.x_min / step) * step
+            first_y = math.floor(view.y_min / step) * step
+            painter.setPen(QPen(QColor(PALETTE.grid), 1.0))
+            x = first_x
+            while x <= view.x_max:
+                sx, _ = viewport.to_screen(x, 0)
+                painter.drawLine(QPointF(sx, 0), QPointF(sx, self.height()))
+                x += step
+            y = first_y
+            while y <= view.y_max:
+                _, sy = viewport.to_screen(0, y)
+                painter.drawLine(QPointF(0, sy), QPointF(self.width(), sy))
+                y += step
+        if self.show_axes:
+            self._draw_axes(painter, viewport)
+
+    def _draw_axes(self, painter: QPainter, viewport: Viewport) -> None:
+        """The axes and their numbers, so a coordinate can be read.
+
+        Screen only: a competition paper does not print its coordinate
+        grid, and neither does the export.  The axes are drawn only when
+        they are inside the view; a figure far from the origin is not
+        crossed by a line it never reaches.
+        """
+        view = viewport.view
+        scale = viewport.scale
+        if scale <= 0:
+            return
+        step = _tick_step(scale)
+        font = QFont()
+        font.setPointSizeF(7.5)
+        painter.setFont(font)
+        axis_pen = QPen(QColor(PALETTE.grid_axis), 1.0)
+        label_colour = QColor(PALETTE.text_muted)
+
+        if view.y_min <= 0 <= view.y_max:
+            _, sy = viewport.to_screen(0.0, 0.0)
+            painter.setPen(axis_pen)
             painter.drawLine(QPointF(0, sy), QPointF(self.width(), sy))
-            y += step
+            painter.setPen(label_colour)
+            value = math.ceil(view.x_min / step) * step
+            while value <= view.x_max:
+                if abs(value) > 1e-9:
+                    sx, _ = viewport.to_screen(value, 0.0)
+                    painter.drawLine(QPointF(sx, sy - 3), QPointF(sx, sy + 3))
+                    painter.drawText(
+                        QPointF(sx + 3, min(sy + 14, self.height() - 2)),
+                        _tick_text(value),
+                    )
+                value += step
+
+        if view.x_min <= 0 <= view.x_max:
+            sx, _ = viewport.to_screen(0.0, 0.0)
+            painter.setPen(axis_pen)
+            painter.drawLine(QPointF(sx, 0), QPointF(sx, self.height()))
+            painter.setPen(label_colour)
+            value = math.ceil(view.y_min / step) * step
+            while value <= view.y_max:
+                if abs(value) > 1e-9:
+                    _, sy = viewport.to_screen(0.0, value)
+                    painter.drawLine(QPointF(sx - 3, sy), QPointF(sx + 3, sy))
+                    painter.drawText(
+                        QPointF(max(2.0, sx - 32), sy - 3), _tick_text(value)
+                    )
+                value += step
+
+        if view.x_min <= 0 <= view.x_max and view.y_min <= 0 <= view.y_max:
+            sx, sy = viewport.to_screen(0.0, 0.0)
+            painter.setPen(label_colour)
+            painter.drawText(QPointF(sx + 4, sy + 14), "0")
 
     def _draw_selection(
         self, painter: QPainter, viewport: Viewport, style: FigureStyle
@@ -791,6 +865,9 @@ class FigureCanvas(QWidget):
         if node is None:
             return menu
         hidden = not node.style.visible
+        appearance_action = menu.addAction("\u5c5e\u6027\u2026")
+        appearance_action.triggered.connect(lambda: self._edit_appearance(node_id))
+        menu.addSeparator()
         show_action = menu.addAction("\u663e\u793a" if hidden else "\u9690\u85cf")
         dashed = node.style.line_style == "dashed"
         line_action = menu.addAction("\u5b9e\u7ebf" if dashed else "\u865a\u7ebf")
@@ -889,6 +966,19 @@ class FigureCanvas(QWidget):
                     node_id, direction
                 )
             )
+
+    def _edit_appearance(self, node_id: str) -> None:
+        """One dialog for colour, width, size, label and label position."""
+        node = self.controller.figure().nodes.get(node_id)
+        if node is None:
+            return
+        dialog = AppearanceDialog(self, node)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self.controller.set_appearance(node_id, **dialog.values())
+        except GeobenchError as exc:
+            QMessageBox.warning(self, "改不了", str(exc))
 
     def _edit_label(self, node_id: str) -> None:
         """Ask for the label this object should show, and set it."""
@@ -1043,6 +1133,33 @@ _KIND_KINDS: dict[str, tuple[str, ...]] = {
     "circle": ("circle",),
     "polygon": ("polygon",),
 }
+
+
+def _tick_step(scale: float) -> float:
+    """A round number of figure units that is at least 64 pixels apart.
+
+    Integers when the figure is fitted (the usual case), halves and
+    fifths only when zoomed in far enough that an integer would be a
+    long way apart.  A dozen labels across the canvas is a ruler; fifty
+    is a grey wash.
+    """
+    target = 64.0
+    if scale <= 0:
+        return 1.0
+    exponent = math.floor(math.log10(max(1e-12, target / scale)))
+    base = 10.0 ** exponent
+    for factor in (1.0, 2.0, 5.0, 10.0):
+        step = base * factor
+        if step * scale >= target:
+            return step
+    return base * 10.0
+
+
+def _tick_text(value: float) -> str:
+    """A tick number as short as it can be: 2, 0.5, -1.25."""
+    if abs(value - round(value)) < 1e-9:
+        return str(round(value))
+    return f"{value:.2f}".rstrip("0").rstrip(".")
 
 
 def _clip_line(

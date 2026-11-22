@@ -860,12 +860,6 @@ class StudioWindow(QMainWindow):
         copy_svg_action.triggered.connect(self._copy_svg)
         export_menu.addAction(copy_svg_action)
 
-        settings_menu = menu.addMenu("设置")
-        service_action = QAction("模型服务…", self)
-        service_action.setToolTip("选择模型服务，并告诉它钥匙在哪")
-        service_action.triggered.connect(self._open_settings)
-        settings_menu.addAction(service_action)
-
         edit_menu = menu.addMenu("编辑")
         self._undo_action = QAction("撤销", self)
         self._undo_action.setShortcut(QKeySequence.StandardKey.Undo)
@@ -877,6 +871,30 @@ class StudioWindow(QMainWindow):
         self._redo_action.setToolTip("重做一步（Ctrl+Y）")
         self._redo_action.triggered.connect(self._redo)
         edit_menu.addAction(self._redo_action)
+
+        view_menu = menu.addMenu("视图")
+        self._axes_action = QAction("坐标轴", self)
+        self._axes_action.setCheckable(True)
+        self._axes_action.setChecked(self.canvas.show_axes)
+        self._axes_action.setToolTip("在画布上显示坐标轴与刻度（导出时不画）")
+        self._axes_action.toggled.connect(self._set_axes)
+        view_menu.addAction(self._axes_action)
+        view_menu.addSeparator()
+        view_fit = QAction("适应窗口", self)
+        view_fit.triggered.connect(self.canvas.fit)
+        view_menu.addAction(view_fit)
+        view_zoom_in = QAction("放大", self)
+        view_zoom_in.triggered.connect(self.canvas.zoom_in)
+        view_menu.addAction(view_zoom_in)
+        view_zoom_out = QAction("缩小", self)
+        view_zoom_out.triggered.connect(self.canvas.zoom_out)
+        view_menu.addAction(view_zoom_out)
+
+        settings_menu = menu.addMenu("设置")
+        service_action = QAction("模型服务…", self)
+        service_action.setToolTip("选择模型服务，并告诉它钥匙在哪")
+        service_action.triggered.connect(self._open_settings)
+        settings_menu.addAction(service_action)
 
     def _export_svg(self) -> None:
         """Write the figure to a file, as a vector picture.
@@ -1054,6 +1072,11 @@ class StudioWindow(QMainWindow):
             self.status.showMessage("重做了一步")
         else:
             self.status.showMessage("没有可重做的了")
+
+    def _set_axes(self, shown: bool) -> None:
+        """Show or hide the axes; the export never draws them."""
+        self.canvas.set_show_axes(shown)
+        self.status.showMessage("坐标轴：" + ("显示" if shown else "隐藏"))
 
     def _open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
