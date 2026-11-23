@@ -27,6 +27,7 @@ from PySide6.QtCore import (
     QModelIndex,
     QPersistentModelIndex,
     QPoint,
+    QRect,
     QSettings,
     QSize,
     Qt,
@@ -320,6 +321,10 @@ TAIL_ROLE = int(Qt.ItemDataRole.UserRole) + 2
 #: back from the model as a QVariant, and a QVariant in a delegate is
 #: a thing to be unpacked rather than guessed at.
 VERDICT_ROLE = int(Qt.ItemDataRole.UserRole) + 3
+#: The step's position in the construction: 1, 2, 3...
+NUMBER_ROLE = int(Qt.ItemDataRole.UserRole) + 4
+#: A colour for a claim in the steps pane, once its verdict is known.
+TINT_ROLE = int(Qt.ItemDataRole.UserRole) + 5
 
 
 class StepDelegate(QStyledItemDelegate):
@@ -352,10 +357,28 @@ class StepDelegate(QStyledItemDelegate):
 
         head = index.data(HEAD_ROLE) or ""
         tail = index.data(TAIL_ROLE) or ""
+        number = index.data(NUMBER_ROLE)
+        tint = index.data(TINT_ROLE)
         metrics = option.fontMetrics
-        text_rect = rect.adjusted(10, 0, -6, 0)
         painter.save()
         font = option.font
+        number_width = 0
+        if number is not None:
+            number_width = 24
+            font.setBold(False)
+            painter.setFont(font)
+            painter.setPen(QColor(PALETTE.text_muted))
+            painter.drawText(
+                QRect(
+                    rect.left() + 6,
+                    rect.top(),
+                    number_width,
+                    rect.height(),
+                ),
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                str(number),
+            )
+        text_rect = rect.adjusted(10 + number_width, 0, -6, 0)
         font.setBold(True)
         painter.setFont(font)
         painter.setPen(QColor(PALETTE.text))
@@ -366,7 +389,7 @@ class StepDelegate(QStyledItemDelegate):
             head_width = metrics.horizontalAdvance(head)
             font.setBold(False)
             painter.setFont(font)
-            painter.setPen(QColor(PALETTE.text_muted))
+            painter.setPen(QColor(tint) if tint else QColor(PALETTE.text_muted))
             painter.drawText(
                 text_rect.adjusted(head_width, 0, 0, 0),
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
@@ -430,6 +453,7 @@ class StudioWindow(QMainWindow):
         self.canvas = FigureCanvas(self.controller)
         self.canvas.constructRequested.connect(self._on_construct)
         self.canvas.deleteRequested.connect(self._delete_node)
+        self.canvas.deleteManyRequested.connect(self._delete_nodes)
         self.canvas.pointEditRequested.connect(self._edit_point)
         self.canvas.valueRequested.connect(self._on_value_requested)
         self.canvas.selectionChanged.connect(self._on_selection)
@@ -1703,7 +1727,9 @@ class StudioWindow(QMainWindow):
                     call = command.name_zh if command is not None else node.op
                     tail = f"= {call}({', '.join(node.args)})"
                 if tail:
-                    item.setText(f"{item.data(HEAD_ROLE)}{tail}")
+                    number = item.data(NUMBER_ROLE)
+                    prefix = f"{number}. " if number is not None else ""
+                    item.setText(f"{prefix}{item.data(HEAD_ROLE)}{tail}")
                     item.setData(TAIL_ROLE, tail)
         self.status.showMessage("拖动中——判定会在松手后更新")
 
@@ -1719,10 +1745,13 @@ class StudioWindow(QMainWindow):
                 keep = str(payload[1])
         self.steps.clear()
         self._step_rows: dict[str, int] = {}
+        self._relation_rows: dict[str, int] = {}
         figure = self.controller.figure()
         self._steps_hint.setVisible(not figure.nodes)
         undefined = dict(self.controller.undefined())
+        number = 0
         for node_id, node in figure.nodes.items():
+            number += 1
             name = node.label or node_id
             if node.role == "free":
                 placement = node.placement or ("?", "?")
@@ -1733,8 +1762,9 @@ class StudioWindow(QMainWindow):
                 call = command.name_zh if command is not None else (node.op or "?")
                 head = f"{name} "
                 tail = f"= {call}({', '.join(node.args)})"
-            item = QListWidgetItem(f"{head} {tail}".strip())
+            item = QListWidgetItem(f"{number}. {head} {tail}".strip())
             item.setData(Qt.ItemDataRole.UserRole, ("node", node_id))
+            item.setData(NUMBER_ROLE, number)
             item.setData(HEAD_ROLE, head)
             item.setData(TAIL_ROLE, tail)
             self._step_rows[node_id] = self.steps.count()
@@ -1743,12 +1773,15 @@ class StudioWindow(QMainWindow):
                 item.setData(TAIL_ROLE, f"{tail}  （这个摆放下没有值）")
             self.steps.addItem(item)
         for relation in figure.relations:
+            number += 1
             head = "断言 "
             tail = _claim_text(relation.kind, relation.args)
-            item = QListWidgetItem(f"{head}{tail}")
+            item = QListWidgetItem(f"{number}. {head}{tail}")
             item.setData(Qt.ItemDataRole.UserRole, ("relation", relation.id))
+            item.setData(NUMBER_ROLE, number)
             item.setData(HEAD_ROLE, head)
             item.setData(TAIL_ROLE, tail)
+            self._relation_rows[relation.id] = self.steps.count()
             self.steps.addItem(item)
         if keep is not None:
             row = self._step_rows.get(keep)
@@ -1834,6 +1867,7 @@ class StudioWindow(QMainWindow):
                 cell.setData(VERDICT_ROLE, colour)
                 cell.setForeground(QColor(colour))
         self.judgements.blockSignals(False)
+        self._tint_step_verdicts()
         if verdicts:
             self.judgements.selectRow(0)
         else:
@@ -1844,6 +1878,30 @@ class StudioWindow(QMainWindow):
             self.witness_button.setVisible(False)
             self._witness = None
 
+    def _tint_step_verdicts(self) -> None:
+        """Colour each claim in the steps pane by what was decided."""
+        for row in self._relation_rows.values():
+            item = self.steps.item(row)
+            if item is not None:
+                item.setData(TINT_ROLE, None)
+        relations = self.controller.figure().relations
+        for relation, verdict in zip(relations, self._verdicts, strict=False):
+            relation_row = self._relation_rows.get(relation.id)
+            if relation_row is None:
+                continue
+            item = self.steps.item(relation_row)
+            colour = {
+                "proved": PALETTE.ok,
+                "refuted": PALETTE.danger,
+            }.get(verdict.verdict, PALETTE.text_muted)
+            item.setData(TINT_ROLE, colour)
+            item.setToolTip(
+                f"{_claim_text(relation.kind, relation.args)}："
+                f"{_verdict_text(verdict.verdict)}\n"
+                f"{_evidence_summary(verdict)}"
+            )
+        self.steps.viewport().update()
+
     def _delete_node(self, node_id: str) -> None:
         """Delete one object, with everything that depends on it."""
         try:
@@ -1853,6 +1911,17 @@ class StudioWindow(QMainWindow):
             return
         self.canvas.reset_pending()
         self.status.showMessage(f"删掉了 {node_id}")
+
+    def _delete_nodes(self, node_ids: list[str]) -> None:
+        """Delete every selected object, in one undo step."""
+        try:
+            removed = self.controller.remove_nodes(node_ids)
+        except GeobenchError as exc:
+            self.status.showMessage(f"删不掉：{exc}")
+            return
+        self.canvas.select(None)
+        self.canvas.reset_pending()
+        self.status.showMessage(f"删掉了 {removed} 个对象（一次撤销可以全部找回）")
 
     def _steps_menu(self, position: QPoint) -> None:
         """Right-click on a step: delete it."""

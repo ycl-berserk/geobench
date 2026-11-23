@@ -25,7 +25,7 @@ except ImportError as exc:  # pragma: no cover - depends on the machine
 
 from geobench.app.controller import StudioController
 from geobench.app.tools import SELECT_TOOL
-from geobench.app.window import StudioWindow
+from geobench.app.window import HEAD_ROLE, StudioWindow
 
 
 @pytest.fixture(scope="module")
@@ -82,7 +82,7 @@ def test_the_pointer_picks_an_object(app: QApplication, controller: StudioContro
 
     # The steps pane points at it.
     assert window.steps.currentRow() >= 0
-    assert window.steps.currentItem().text().startswith("C")
+    assert (window.steps.currentItem().data(HEAD_ROLE) or "").startswith("C")
     window.close()
 
 

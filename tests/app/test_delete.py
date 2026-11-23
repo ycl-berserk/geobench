@@ -19,7 +19,7 @@ except ImportError as exc:  # pragma: no cover - depends on the machine
     pytest.skip(f"Qt is not usable on this machine: {exc}", allow_module_level=True)
 
 from geobench.app.controller import StudioController
-from geobench.app.window import StudioWindow
+from geobench.app.window import HEAD_ROLE, StudioWindow
 
 
 @pytest.fixture(scope="module")
@@ -80,7 +80,7 @@ def test_the_steps_pane_deletes_the_selected_object(
     rows = [
         row
         for row in range(window.steps.count())
-        if window.steps.item(row).text().startswith("C ")
+        if (window.steps.item(row).data(HEAD_ROLE) or "").startswith("C ")
     ]
     assert rows, [window.steps.item(row).text() for row in range(window.steps.count())]
     window.steps.setCurrentRow(rows[0])
@@ -104,7 +104,7 @@ def test_deleting_a_relation_keeps_the_objects(
     relation_rows = [
         row
         for row in range(window.steps.count())
-        if window.steps.item(row).text().startswith("断言")
+        if (window.steps.item(row).data(HEAD_ROLE) or "").startswith("断言")
     ]
     assert relation_rows
     window.steps.setCurrentRow(relation_rows[0])

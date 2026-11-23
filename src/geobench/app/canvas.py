@@ -124,6 +124,8 @@ class FigureCanvas(QWidget):
 
     constructRequested = Signal(str, list)
     deleteRequested = Signal(str)
+    #: Delete with several objects selected: one action, one undo step.
+    deleteManyRequested = Signal(list)
     pointEditRequested = Signal(str)
     valueRequested = Signal(str)
     #: The selected object changed. The list is in the order the objects
@@ -1003,8 +1005,11 @@ class FigureCanvas(QWidget):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             self._finish_variable_tool()
             return
-        if event.key() == Qt.Key.Key_Delete and len(self._selected) == 1:
-            self.deleteRequested.emit(self._selected[0])
+        if event.key() == Qt.Key.Key_Delete and self._selected:
+            if len(self._selected) == 1:
+                self.deleteRequested.emit(self._selected[0])
+            else:
+                self.deleteManyRequested.emit(list(self._selected))
             return
         super().keyPressEvent(event)
 

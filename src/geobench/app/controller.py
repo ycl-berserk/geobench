@@ -689,9 +689,23 @@ class StudioController:
         relation pointing at nothing -- and that is right: the refusal
         belongs in the model, the cascade belongs here.
         """
-        self.push_undo()
+        self.remove_nodes([node_id])
+
+    def remove_nodes(self, node_ids: list[str]) -> int:
+        """Remove several objects and their dependents, as **one** undo step.
+
+        Selecting three construction lines and pressing Delete is one
+        action; three entries in the undo stack would make it three.
+        """
         figure = self.figure()
-        gone = self._with_dependents(figure, node_id)
+        gone: set[str] = set()
+        for node_id in node_ids:
+            if node_id in figure.nodes:
+                gone |= self._with_dependents(figure, node_id)
+        if not gone:
+            return 0
+        removed = len(gone)
+        self.push_undo()
         # The claims first: the model will not leave a relation pointing
         # at nothing, and it is right not to.
         figure.relations = [
@@ -717,6 +731,7 @@ class StudioController:
                 gone.discard(candidate)
         self.evaluate()
         self._changed()
+        return removed
 
     @staticmethod
     def _with_dependents(figure: Figure, node_id: str) -> set[str]:
