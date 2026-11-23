@@ -78,7 +78,7 @@ ang = 角度(A, B, C)
 def test_the_radius_of_a_circle(registry: OperatorRegistry) -> None:
     source = """
 点 A(0,0) B(3,4)
-圆 = 圆(A, 25)
+圆 = 圆(A, 5)
 r = 半径(圆)
 """
     assert _value(registry, source) == pytest.approx(5.0)

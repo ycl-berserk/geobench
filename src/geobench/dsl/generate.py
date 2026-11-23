@@ -49,6 +49,14 @@ def apply_dsl(source: str, figure: Figure | None = None) -> Figure:
 def to_dsl(figure: Figure) -> str:
     """Render a construction graph back into DSL text."""
     lines: list[str] = []
+    free_numbers = [
+        node
+        for node in figure.nodes.values()
+        if node.role == "free" and node.kind == "number" and node.op == "number.free"
+    ]
+    for node in free_numbers:
+        lines.append(f"数 {node.id} = {node.args[0]}")
+
     free_points = [
         node for node in figure.nodes.values() if node.role == "free" and node.kind == "point"
     ]

@@ -412,6 +412,10 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
             )
             continue
         elif node.kind == "number":
+            if node.op == "number.free":
+                # A free number lives in the parameter shelf, not on the
+                # paper: it is a knob, not a measurement.
+                continue
             # A measurement is a number written on the figure. Where it
             # goes depends on what was measured: the middle of the
             # segment, the vertex of the angle, the middle of the

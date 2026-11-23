@@ -61,6 +61,15 @@ DEFAULT_UI_SIZE = "标准"
 #: the settings menu; ``apply_theme`` reads it.
 _ui_point_size: float = FONT_POINT_SIZE
 
+#: The parameter slider: a comfortable drawing range, a fine tick, and
+#: the wider range the spin box accepts when ten is not enough.
+PARAMETER_MIN = -10.0
+PARAMETER_MAX = 10.0
+PARAMETER_SLIDER_STEP = 0.01
+PARAMETER_SPIN_STEP = 0.1
+PARAMETER_LIMIT = 1_000_000.0
+PARAMETER_ZERO = 0.0
+
 #: The point size of the evidence pane.
 MONO_POINT_SIZE = 9.0
 
@@ -305,15 +314,39 @@ class Palette:
             selection-color: {self.text};
         }}
 
-        QLineEdit, QComboBox, QSpinBox {{
+        QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
             padding: {SPACE_SM - 2}px {SPACE_SM}px;
             border: 1px solid {self.border};
             border-radius: {RADIUS}px;
             background: {self.surface};
             color: {self.text};
         }}
-        QLineEdit:focus, QComboBox:focus, QSpinBox:focus {{
+        QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
             border-color: {self.accent_border};
+        }}
+
+        /* -- the parameter sliders --------------------------------------- */
+        QSlider {{
+            min-height: 16px;
+        }}
+        QSlider::groove:horizontal {{
+            height: 4px;
+            background: {self.border};
+            border-radius: 2px;
+        }}
+        QSlider::sub-page:horizontal {{
+            background: {self.accent_border};
+            border-radius: 2px;
+        }}
+        QSlider::handle:horizontal {{
+            width: 14px;
+            height: 14px;
+            margin: -5px 0;
+            background: {self.accent};
+            border-radius: 7px;
+        }}
+        QSlider::handle:horizontal:hover {{
+            background: {self.accent_hover};
         }}
 
         /* -- the chrome around it ---------------------------------------- */

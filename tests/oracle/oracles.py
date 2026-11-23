@@ -125,9 +125,9 @@ def oracle_circle_through(ctx: OpContext, args: list[str]) -> tuple[Any, Any, An
 
 def oracle_circle_free(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any]:
     center = _point(ctx, args[0])
-    r2 = sp.sympify(args[1])
-    circle = sp.Circle(center, sp.sqrt(r2))
-    return circle.center.x, circle.center.y, r2
+    radius = sp.sympify(args[1])
+    circle = sp.Circle(center, radius)
+    return circle.center.x, circle.center.y, radius * radius
 
 
 def oracle_segment_free(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any, Any]:

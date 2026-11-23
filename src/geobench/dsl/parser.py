@@ -221,6 +221,9 @@ class Parser:
         if head.is_keyword("点") or head.text == "Point":
             self._parse_points(tokens, line)
             return
+        if head.text in {"数", "Number"}:
+            self._parse_number(tokens)
+            return
         if head.is_keyword("断言"):
             self._parse_assertion(tokens)
             return
@@ -437,6 +440,41 @@ class Parser:
             raise self._fail(command_token.span, "这里应该是一个命令名")
         args = self._parse_call(command_token, rest)
         self._build(command_token.text, args, name, command_token.span)
+
+    # -- 数 a = 2.5 ---------------------------------------------------------
+
+    def _parse_number(self, tokens: list[Token]) -> None:
+        """A constant the lesson can drag: ``数 a = 2.5``.
+
+        The value is kept exact (``5/2``); a decimal is only how it was
+        typed.  A construction that uses it gets the exact constant, so
+        a circle whose radius is ``a`` still has an exact radius.
+        """
+        if len(tokens) != 4:
+            raise self._fail(tokens[0].span, "这一行应该是：数 名字 = 数值")
+        name_token, equals, value = tokens[1], tokens[2], tokens[3]
+        if name_token.kind is not TokenKind.IDENT:
+            raise self._fail(name_token.span, "数的名字应该是一个标识符")
+        if not equals.is_punct("="):
+            raise self._fail(equals.span, "名字后面应该是 =")
+        if value.kind is not TokenKind.NUMBER:
+            raise self._fail(value.span, "= 后面应该是一个数（整数、小数或分数）")
+        try:
+            exact = str(sp.Rational(value.text))
+        except (TypeError, ValueError, ZeroDivisionError):
+            raise self._fail(value.span, f"{value.text!r} 不是一个数") from None
+        node = Node(
+            id=name_token.text,
+            kind=NUMBER,
+            role=FREE,
+            op="number.free",
+            args=[exact],
+            label=name_token.text,
+        )
+        self._install(node, value.span)
+        self.scope.objects[name_token.text] = Ref(
+            name=name_token.text, kind="number", node_id=name_token.text
+        )
 
     def _parse_call(self, command_token: Token, tokens: list[Token]) -> list[Arg]:
         args, _ = self._parse_call_at(command_token, tokens, 1)
@@ -995,7 +1033,9 @@ _KIND_BY_COMMAND: dict[str, str] = {
 def _operator_arg(arg: Arg) -> str:
     """The argument as an operator wants it: a node id, a number, a selector."""
     if arg.kind == "number":
-        return arg.value
+        # A number written as a literal is its text; a number named in
+        # the script is the node that holds it.
+        return arg.value or arg.node_id
     if arg.kind == "selector":
         return arg.value
     return arg.node_id

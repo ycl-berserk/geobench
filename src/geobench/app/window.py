@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -59,6 +60,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QSizePolicy,
+    QSlider,
     QSplitter,
     QStyle,
     QStyledItemDelegate,
@@ -82,6 +84,12 @@ from geobench.app.icons import group_icon, tool_icon
 from geobench.app.settings_dialog import SettingsDialog
 from geobench.app.theme import (
     PALETTE,
+    PARAMETER_LIMIT,
+    PARAMETER_MAX,
+    PARAMETER_MIN,
+    PARAMETER_SLIDER_STEP,
+    PARAMETER_SPIN_STEP,
+    PARAMETER_ZERO,
     UI_SIZES,
     apply_theme,
     button_words,
@@ -100,7 +108,7 @@ from geobench.commands import COMMANDS, JUDGEMENT, by_id
 from geobench.errors import GeobenchError
 from geobench.ggb import import_ggb
 from geobench.judges import IDENTITY, INSTANCE, Verdict
-from geobench.model import Figure
+from geobench.model import Figure, Node
 
 #: The figure the "打开一个示例" button opens: a triangle with its
 #: midpoint, circumcentre and circumcircle, and two claims that are
@@ -434,7 +442,7 @@ class StudioWindow(QMainWindow):
     verdictsReady = Signal(int, list)
     #: The exact evaluation finished: the request, the figure it ran on,
     #: and what it found out about itself.
-    exactReady = Signal(int, object, dict)
+    exactReady = Signal(int, object, dict, int)
 
     def __init__(self, controller: StudioController | None = None) -> None:
         super().__init__()
@@ -531,6 +539,20 @@ class StudioWindow(QMainWindow):
         steps_layout = QVBoxLayout(steps_box)
         steps_layout.setContentsMargins(0, 0, 0, 0)
         steps_layout.setSpacing(6)
+        # The free numbers are knobs: they belong above the steps, where
+        # a hand can reach them while watching the figure.
+        self._parameters = QWidget()
+        self._parameter_layout = QVBoxLayout(self._parameters)
+        self._parameter_layout.setContentsMargins(0, 0, 0, 0)
+        self._parameter_layout.setSpacing(4)
+        self._parameter_rows: dict[str, tuple[QSlider, QDoubleSpinBox]] = {}
+        self._parameter_ids: tuple[str, ...] = ()
+        self._parameter_dragging: str | None = None
+        self._number_timer = QTimer(self)
+        self._number_timer.setSingleShot(True)
+        self._number_timer.setInterval(300)
+        self._number_timer.timeout.connect(self._settle_number)
+        steps_layout.addWidget(self._parameters)
         steps_layout.addWidget(self._playback_buttons())
         self._steps_hint = QLabel("作图的每一步会列在这里")
         self._steps_hint.setObjectName("panelNote")
@@ -1642,6 +1664,7 @@ class StudioWindow(QMainWindow):
         arrives.
         """
         self._refresh_steps()
+        self._refresh_parameters()
         self.canvas.prune_selection()
         self._refresh_relation_choices(self.canvas.selected())
         empty = not self.controller.figure().nodes
@@ -1667,6 +1690,7 @@ class StudioWindow(QMainWindow):
         if self._exact_running:
             return
         self._exact_running = True
+        version = self.controller.exact_version()
         figure = self.controller.snapshot_figure()
 
         def work() -> None:
@@ -1675,11 +1699,13 @@ class StudioWindow(QMainWindow):
                 state = self.controller.evaluate_exact_figure(figure)
             except GeobenchError as exc:  # pragma: no cover - worker safety
                 state = {"status": "failed", "reason": str(exc)}
-            self.exactReady.emit(request, figure, state)
+            self.exactReady.emit(request, figure, state, version)
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _on_exact(self, request: int, figure: object, state: dict[str, str]) -> None:
+    def _on_exact(
+        self, request: int, figure: object, state: dict[str, str], version: int
+    ) -> None:
         """The exact evaluation arrived: absorb it and judge if we can."""
         self._exact_running = False
         if request != self._exact_request:
@@ -1687,6 +1713,10 @@ class StudioWindow(QMainWindow):
             # answer is about a figure that no longer exists.  Ask again,
             # about the one that does.
             self._refresh_exact()
+            return
+        if version != self.controller.exact_version():
+            # The construction changed while the worker was thinking --
+            # a slider moved.  Its answer is about a different figure.
             return
         if not isinstance(figure, Figure):  # pragma: no cover - defensive
             return
@@ -1719,7 +1749,9 @@ class StudioWindow(QMainWindow):
             node = self.controller.figure().nodes.get(node_id)
             if item is not None and node is not None:
                 tail = ""
-                if node.role == "free":
+                if node.kind == "number":
+                    tail = f"= {_short(node.args[0])}"
+                elif node.role == "free":
                     placement = node.placement or ("?", "?")
                     tail = f"({_short(placement[0])}, {_short(placement[1])})"
                 elif node.role == "attached" and node.op:
@@ -1754,15 +1786,19 @@ class StudioWindow(QMainWindow):
             number += 1
             name = node.label or node_id
             if node.role == "free":
-                placement = node.placement or ("?", "?")
-                head = f"{name} "
-                tail = f"({_short(placement[0])}, {_short(placement[1])})"
+                if node.kind == "number":
+                    head = f"{name} "
+                    tail = f"= {_short(node.args[0])}"
+                else:
+                    placement = node.placement or ("?", "?")
+                    head = f"{name} "
+                    tail = f"({_short(placement[0])}, {_short(placement[1])})"
             else:
                 command = by_id(node.op) if node.op else None
                 call = command.name_zh if command is not None else (node.op or "?")
                 head = f"{name} "
                 tail = f"= {call}({', '.join(node.args)})"
-            item = QListWidgetItem(f"{number}. {head} {tail}".strip())
+            item = QListWidgetItem(f"{number}. {head}{tail}")
             item.setData(Qt.ItemDataRole.UserRole, ("node", node_id))
             item.setData(NUMBER_ROLE, number)
             item.setData(HEAD_ROLE, head)
@@ -1787,6 +1823,142 @@ class StudioWindow(QMainWindow):
             row = self._step_rows.get(keep)
             if row is not None:
                 self.steps.setCurrentRow(row)
+
+    def _free_numbers(self) -> list[Node]:
+        return [
+            node
+            for node in self.controller.figure().nodes.values()
+            if node.kind == "number" and node.op == "number.free"
+        ]
+
+    @staticmethod
+    def _number_value(node: Node) -> float:
+        try:
+            return float(Fraction(node.args[0]))
+        except (TypeError, ValueError, ZeroDivisionError):
+            return PARAMETER_ZERO
+
+    def _refresh_parameters(self) -> None:
+        """Show a slider for every free number in the figure."""
+        numbers = self._free_numbers()
+        ids = tuple(node.id for node in numbers)
+        if ids != self._parameter_ids:
+            self._build_parameter_rows(numbers)
+        self._parameters.setVisible(bool(numbers))
+        if ids == self._parameter_ids:
+            for node in numbers:
+                self._set_row_value(node.id, self._number_value(node))
+
+    def _build_parameter_rows(self, numbers: list[Node]) -> None:
+        while self._parameter_layout.count():
+            item = self._parameter_layout.takeAt(0)
+            if item is None:
+                continue
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self._parameter_rows.clear()
+        self._parameter_ids = tuple(node.id for node in numbers)
+        for node in numbers:
+            self._parameter_layout.addWidget(self._parameter_row(node))
+
+    def _parameter_row(self, node: Node) -> QWidget:
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(4, 0, 4, 0)
+        layout.setSpacing(6)
+        name = QLabel(node.id)
+        name.setToolTip("自由数：拖动滑块，整张图跟着变")
+        name.setMinimumWidth(20)
+        slider = QSlider(Qt.Orientation.Horizontal)
+        slider.setRange(-1000, 1000)
+        slider.setValue(
+            round(
+                max(PARAMETER_MIN, min(PARAMETER_MAX, self._number_value(node)))
+                / PARAMETER_SLIDER_STEP
+            )
+        )
+        slider.setToolTip("范围 −10 到 10；更远的数在右边直接输入")
+        spin = QDoubleSpinBox()
+        spin.setRange(-PARAMETER_LIMIT, PARAMETER_LIMIT)
+        spin.setDecimals(3)
+        spin.setSingleStep(PARAMETER_SPIN_STEP)
+        spin.setValue(self._number_value(node))
+        spin.setFixedWidth(84)
+        layout.addWidget(name)
+        layout.addWidget(slider, 1)
+        layout.addWidget(spin)
+        node_id = node.id
+        slider.valueChanged.connect(
+            lambda raw, nid=node_id: self._slider_moved(nid, raw)
+        )
+        slider.sliderPressed.connect(
+            lambda nid=node_id: self._number_pressed(nid)
+        )
+        slider.sliderReleased.connect(self._number_released)
+        spin.valueChanged.connect(
+            lambda value, nid=node_id: self._spin_changed(nid, value)
+        )
+        self._parameter_rows[node_id] = (slider, spin)
+        return row
+
+    def _number_pressed(self, node_id: str) -> None:
+        self.controller.push_undo()
+        self._parameter_dragging = node_id
+        self._number_timer.stop()
+
+    def _slider_moved(self, node_id: str, raw: int) -> None:
+        value = raw * PARAMETER_SLIDER_STEP
+        row = self._parameter_rows.get(node_id)
+        if row is not None:
+            _slider, spin = row
+            spin.blockSignals(True)
+            spin.setValue(value)
+            spin.blockSignals(False)
+        if self._parameter_dragging != node_id:
+            # Keyboard arrows arrive without a press: they are a drag too.
+            self.controller.push_undo()
+            self._parameter_dragging = node_id
+        self.controller.set_number(node_id, value, final=False, record=False)
+        self._number_timer.start()
+
+    def _spin_changed(self, node_id: str, value: float) -> None:
+        self._number_timer.stop()
+        self._parameter_dragging = None
+        self.controller.push_undo()
+        self.controller.set_number(node_id, value, final=True, record=False)
+        row = self._parameter_rows.get(node_id)
+        if row is not None:
+            slider, _spin = row
+            slider.blockSignals(True)
+            slider.setValue(
+                round(max(PARAMETER_MIN, min(PARAMETER_MAX, value)) / PARAMETER_SLIDER_STEP)
+            )
+            slider.blockSignals(False)
+
+    def _number_released(self) -> None:
+        self._settle_number()
+
+    def _settle_number(self) -> None:
+        self._number_timer.stop()
+        if self._parameter_dragging is None:
+            return
+        self._parameter_dragging = None
+        self.controller.finish_move()
+
+    def _set_row_value(self, node_id: str, value: float) -> None:
+        row = self._parameter_rows.get(node_id)
+        if row is None or self._parameter_dragging == node_id:
+            return
+        slider, spin = row
+        slider.blockSignals(True)
+        spin.blockSignals(True)
+        slider.setValue(
+                round(max(PARAMETER_MIN, min(PARAMETER_MAX, value)) / PARAMETER_SLIDER_STEP)
+            )
+        spin.setValue(value)
+        slider.blockSignals(False)
+        spin.blockSignals(False)
 
     def _refresh_judgements(self) -> None:
         """Ask for the verdicts, and carry on without them.

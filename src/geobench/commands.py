@@ -305,7 +305,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     _c("segment.free", "线段", "Segment", "线", CONSTRUCTION, 2, "线段", True),
     _c("polyline.free", "折线", "PolyLine", "线", CONSTRUCTION, 2, "折线", True),
     # -- 圆 ---------------------------------------------------------------
-    _c("circle.free", "圆", "Circle", "圆", CONSTRUCTION, 2, "以一点为圆心的圆", True),
+    _c("circle.free", "圆", "Circle", "圆", CONSTRUCTION, 2, "以一点为圆心、给定半径的圆", True),
     _c(
         "circle.center_point",
         "圆",

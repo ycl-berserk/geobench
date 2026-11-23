@@ -270,6 +270,15 @@ def evaluate_numeric_direct(
     ctx = NumericOpContext(figure)
     for node_id in dependency_order(figure):
         node = figure.nodes[node_id]
+        if node.kind == "number" and node.role == "free" and node.op == "number.free":
+            try:
+                value = float(Fraction(node.args[0]))
+            except (TypeError, ValueError, ZeroDivisionError):
+                _undefined_direct(node, "the number has no value")
+                continue
+            node.cache.pop(numeric.CACHE_UNDEFINED, None)
+            node.cache[numeric.CACHE_VALUES] = {"value": value}
+            continue
         if node.kind == "point" and node.role == "free" and node.op is None:
             coords = (
                 (
@@ -406,6 +415,16 @@ def evaluate_numeric(figure: Figure) -> Figure:
     values = numeric.free_values(figure)
     for node_id in dependency_order(figure):
         node = figure.nodes[node_id]
+        if node.kind == "number" and node.role == "free" and node.op == "number.free":
+            try:
+                value = float(Fraction(node.args[0]))
+            except (TypeError, ValueError, ZeroDivisionError):
+                node.cache[numeric.CACHE_UNDEFINED] = "the number has no value"
+                node.cache.pop(numeric.CACHE_VALUES, None)
+                continue
+            node.cache.pop(numeric.CACHE_UNDEFINED, None)
+            node.cache[numeric.CACHE_VALUES] = {"value": value}
+            continue
         if node.role in ("free", "attached") and node.op is None:
             if node.kind == "point" and node.placement is not None:
                 x = numeric.placement_float(node.placement[0])

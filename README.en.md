@@ -2,7 +2,7 @@
 
 **A deterministic plane-geometry kernel with an agent interface (MCP), for authoring competition-grade geometry problems.**
 
-> **Status: alpha.** The kernel decides, the studio draws, the AI channel is measured. Implemented: the construction graph, exact arithmetic, **44 operators** (every one cross-checked against an independent implementation), **16 judges**, the **Chinese geometry DSL**, constraint solving (exact solutions only -- it refuses rather than approximates), the **PySide6 studio** (drag, construct, ask about a selection, put a counterexample on the canvas, per-object colour / width / label position, SVG / PNG / draggable-HTML export), `.ggb` import from the file dialog, and the **MCP server** (`geo_state` / `geo_construct` / `geo_evaluate`).
+> **Status: alpha.** The kernel decides, the studio draws, the AI channel is measured. Implemented: the construction graph, exact arithmetic, **44 operators** (every one cross-checked against an independent implementation), **16 judges**, the **Chinese geometry DSL**, constraint solving (exact solutions only -- it refuses rather than approximates), the **PySide6 studio** (drag, construct, ask about a selection, put a counterexample on the canvas, free numbers with sliders, per-object colour / width / label position, SVG / PNG / draggable-HTML export), `.ggb` import from the file dialog, and the **MCP server** (`geo_state` / `geo_construct` / `geo_evaluate`).
 >
 > Not implemented yet: `.ggb` export, TikZ, loci and conic sections (17 low-priority commands), and MCP tools beyond the geometry three.
 >

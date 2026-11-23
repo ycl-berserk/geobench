@@ -53,7 +53,7 @@ P = 仿射比(A, B, 1, 2)
 def test_the_polar_of_a_point_on_the_circle_is_the_tangent(registry: OperatorRegistry) -> None:
     source = """
 点 O(0,0) A(5,0) B(0,5)
-圆 = 圆(O, 25)
+圆 = 圆(O, 5)
 极 = 极线(A, 圆)
 切 = 切线(A, 圆)
 """

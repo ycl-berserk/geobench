@@ -54,6 +54,24 @@ class OpContext:
             raise StateError(f"point {node_id!r} has no coordinates")
         return FIELD.coerce(node.coords[0]), FIELD.coerce(node.coords[1])
 
+    def scalar(self, argument: str) -> Expr:
+        """A number: a literal, or the exact value of a free number.
+
+        A free number is a teacher-chosen constant, so what the
+        construction gets is the exact rational, not a decimal.  A
+        measured length is a different thing -- it depends on where the
+        points are -- and is not accepted here yet.
+        """
+        node = self.figure.nodes.get(argument)
+        if node is not None and node.kind == "number":
+            if node.op == "number.free":
+                return FIELD.coerce(node.args[0])
+            raise StateError(
+                f"number {argument!r} is not a free number; only a free "
+                "number can be used as a parameter"
+            )
+        return FIELD.coerce(argument)
+
     def line(self, node_id: str) -> LineCoeffs:
         node = self.figure.node(node_id)
         if node.kind != "line":
@@ -234,7 +252,7 @@ def op_point_on_circle(ctx: OpContext, args: list[str]) -> dict[str, object]:
     cx, cy, r2 = ctx.circle(args[0])
     if r2 == 0:
         raise DegenerateError("the circle has no radius")
-    t = FIELD.coerce(args[1])
+    t = ctx.scalar(args[1])
     radius = sp.sqrt(r2)
     angle = 2 * sp.pi * t
     return {
@@ -258,7 +276,7 @@ def op_point_on_line(ctx: OpContext, args: list[str]) -> dict[str, object]:
     coordinates are an expression in the object's own symbols -- which
     is what lets a judge prove that the point is on the line.
     """
-    t = FIELD.coerce(args[1])
+    t = ctx.scalar(args[1])
     base, direction = _along_reference(ctx, args[0])
     bx, by = base
     dx, dy = direction
@@ -585,7 +603,7 @@ def op_transform_rotate(ctx: OpContext, args: list[str]) -> dict[str, object]:
     degrees is 1/2, not 0.5000000001.
     """
     (px, py) = ctx.point(args[0])
-    degrees = FIELD.coerce(args[1])
+    degrees = ctx.scalar(args[1])
     (cx, cy) = ctx.point(args[2])
     radians = degrees * sp.pi / 180
     cosine, sine = sp.cos(radians), sp.sin(radians)
@@ -602,7 +620,7 @@ def op_transform_rotate(ctx: OpContext, args: list[str]) -> dict[str, object]:
 def op_transform_dilate(ctx: OpContext, args: list[str]) -> dict[str, object]:
     """A homothety about a point (位似)."""
     (px, py) = ctx.point(args[0])
-    factor = FIELD.coerce(args[1])
+    factor = ctx.scalar(args[1])
     (cx, cy) = ctx.point(args[2])
     return {
         "kind": "point",
@@ -889,10 +907,10 @@ def op_circle_through(ctx: OpContext, args: list[str]) -> dict[str, object]:
 
 def op_circle_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
     cx, cy = ctx.point(args[0])
-    r2 = FIELD.coerce(args[1])
-    if r2 <= 0:
-        raise DegenerateError("a circle needs a positive squared radius")
-    return {"kind": "circle", "circle": (cx, cy, r2)}
+    radius = ctx.scalar(args[1])
+    if radius <= 0:
+        raise DegenerateError("a circle needs a positive radius")
+    return {"kind": "circle", "circle": (cx, cy, radius * radius)}
 
 
 def op_circle_center_point(ctx: OpContext, args: list[str]) -> dict[str, object]:

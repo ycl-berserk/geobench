@@ -123,6 +123,9 @@ class StudioController:
         self.style = style
         self.figure_id = figure_id
         self.judges = JudgeRegistry()
+        #: Bumped when the construction (not the placement) changes, so a
+        #: worker that finishes late can be told its answer is stale.
+        self._exact_version = 0
         self._listeners: list[Callable[[], None]] = []
         # A second, cheaper channel: "only a point moved". The full
         # change means the construction changed and everything that
@@ -228,6 +231,7 @@ class StudioController:
         """
         figure = self.figure()
         figure.runtime["exact"] = {"status": "pending", "reason": ""}
+        self._exact_version += 1
         evaluate_numeric_direct(figure, self.registry, strict=True)
         return figure
 
@@ -314,6 +318,9 @@ class StudioController:
         if status in ("too-big", "failed"):
             return str(state.get("reason") or "精确求值没有完成")
         return ""
+
+    def exact_version(self) -> int:
+        return self._exact_version
 
     def exact_pending(self) -> bool:
         """Is the exact evaluation still on its way?"""
@@ -449,6 +456,41 @@ class StudioController:
         self._numeric_pass()
         self._changed()
         return True
+
+    def set_number(
+        self,
+        node_id: str,
+        value: float,
+        final: bool = False,
+        record: bool = True,
+    ) -> None:
+        """Set a free number's value.
+
+        While a slider is being dragged, only the picture is recomputed:
+        the constant is fed to the same operators, numerically.  On
+        release (``final``) the exact expressions are rebuilt, because a
+        constant that changed changes what the construction *is*.
+        """
+        figure = self.figure()
+        node = figure.nodes.get(node_id)
+        if node is None or node.op != "number.free":
+            raise GeobenchError(f"node {node_id!r} is not a free number")
+        if record:
+            self.push_undo()
+        # ``replace_node`` bumps the version, so every construction that
+        # reads this number is re-derived rather than kept stale.
+        updated = replace(node, args=[_exact(value)])
+        figure.replace_node(updated)
+        # The constant is part of the construction: an exact answer about
+        # the old value is no longer an answer about this figure.
+        self._exact_version += 1
+        figure.runtime["exact"] = {"status": "pending", "reason": ""}
+        if final:
+            self.evaluate()
+            self._changed()
+        else:
+            evaluate_numeric_direct(figure, self.registry)
+            self._moved(node_id)
 
     def set_point_position(self, node_id: str, x: str, y: str) -> None:
         """Put a free point exactly where the user says.
