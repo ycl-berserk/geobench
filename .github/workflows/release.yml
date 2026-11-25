@@ -43,9 +43,12 @@ jobs:
         shell: pwsh
         run: |
           $env:QT_QPA_PLATFORM = "offscreen"
-          & .\dist\geobench\geobench.exe --smoke-test
-          if ($LASTEXITCODE -ne 0) {
-            throw "the packaged application failed its smoke test (exit $LASTEXITCODE)"
+          # A windowed executable does not set $LASTEXITCODE under `&`;
+          # Start-Process -Wait is what actually waits for it.
+          $process = Start-Process -FilePath ".\dist\geobench\geobench.exe" `
+            -ArgumentList "--smoke-test" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "the packaged application failed its smoke test (exit $($process.ExitCode))"
           }
 
       - name: Zip it
