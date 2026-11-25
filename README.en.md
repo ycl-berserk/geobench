@@ -4,6 +4,8 @@
 
 > **Status: alpha.** The kernel decides, the studio draws, the AI channel is measured. Implemented: the construction graph, exact arithmetic, **44 operators** (every one cross-checked against an independent implementation), **16 judges**, the **Chinese geometry DSL**, constraint solving (exact solutions only -- it refuses rather than approximates), the **PySide6 studio** (drag, construct, ask about a selection, put a counterexample on the canvas, free numbers with sliders, per-object colour / width / label position, SVG / PNG / draggable-HTML export), `.ggb` import from the file dialog, and the **MCP server** (`geo_state` / `geo_construct` / `geo_evaluate`).
 >
+> **Windows build:** download `geobench-win64.zip` from the [Releases](https://github.com/ycl-berserk/geobench/releases) page, unzip it and run `geobench.exe`. Python is not required; AI drawing is optional and needs a model service.
+>
 > Not implemented yet: `.ggb` export, TikZ, loci and conic sections (17 low-priority commands), and MCP tools beyond the geometry three.
 >
 > The contract is [`docs/spec.md`](docs/spec.md) (Chinese, canonical); the DSL grammar is [`docs/dsl-spec.md`](docs/dsl-spec.md) (Chinese); the process is [`docs/ai-workflow.md`](docs/ai-workflow.md) (Chinese).

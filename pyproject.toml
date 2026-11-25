@@ -44,6 +44,10 @@ preview = ["pymupdf>=1.24"]
 # studio has no use for.
 app = ["PySide6-Essentials>=6.6"]
 
+# Building the Windows release zip. See packaging/build.ps1 and
+# .github/workflows/release.yml.
+packaging = ["pyinstaller>=6.6"]
+
 [project.scripts]
 geobench-mcp = "geobench.server:main"
 geobench-app = "geobench.app.main:main"

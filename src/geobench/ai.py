@@ -25,6 +25,7 @@ that knows the answer.
 from __future__ import annotations
 
 import json
+import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -50,20 +51,32 @@ __all__ = [
     "propose",
 ]
 
+def _resource(name: str) -> Path:
+    """Where a text resource lives, in a checkout and in a frozen app.
+
+    PyInstaller unpacks data next to the executable (``_internal``) and
+    exposes it as ``sys._MEIPASS``; from a source checkout the files are
+    two directories above this module.  One function, so the two builds
+    read the same prompt files.
+    """
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    return base / name
+
+
 #: The prompt template. The command list is filled in from the command
 #: table, so the model can never be told about a command that does not
 #: exist, or miss one that does.
-PROMPT_PATH = Path(__file__).resolve().parents[2] / "prompts" / "nl-to-dsl.md"
+PROMPT_PATH = _resource("prompts/nl-to-dsl.md")
 
 #: The conventions a competition figure follows.  The model is told the
 #: rules; without them it draws a figure that is right but does not look
 #: like the one in the paper.
-STANDARDS_PATH = Path(__file__).resolve().parents[2] / "prompts" / "figure-standards.md"
+STANDARDS_PATH = _resource("prompts/figure-standards.md")
 
 #: Worked examples.  A rule that is demonstrated is obeyed; a rule that
 #: is only stated is forgotten -- and the difference between the two is
 #: the whole reliability of this channel.
-EXAMPLES_PATH = Path(__file__).resolve().parents[2] / "prompts" / "figure-examples.md"
+EXAMPLES_PATH = _resource("prompts/figure-examples.md")
 
 
 class Provider(Protocol):
