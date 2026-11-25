@@ -16,8 +16,12 @@ objects (decision D19).
 
 from __future__ import annotations
 
+import contextlib
+import json
+import os
 import re
 import threading
+import time
 from dataclasses import dataclass
 from fractions import Fraction
 from itertools import permutations
@@ -30,11 +34,20 @@ from PySide6.QtCore import (
     QRect,
     QSettings,
     QSize,
+    QStandardPaths,
     Qt,
     QTimer,
     Signal,
 )
-from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter
+from PySide6.QtGui import (
+    QAction,
+    QCloseEvent,
+    QColor,
+    QDragEnterEvent,
+    QDropEvent,
+    QKeySequence,
+    QPainter,
+)
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -107,6 +120,7 @@ from geobench.app.tools import (
 from geobench.commands import COMMANDS, JUDGEMENT, by_id
 from geobench.errors import GeobenchError
 from geobench.ggb import import_ggb
+from geobench.ggb_export import export_ggb
 from geobench.judges import IDENTITY, INSTANCE, Verdict
 from geobench.model import Figure, Node
 
@@ -434,6 +448,32 @@ class VerdictDelegate(QStyledItemDelegate):
         painter.restore()
 
 
+#: How long after the last change the figure is written to the recovery
+#: file.  Long enough not to write on every dragged pixel, short enough
+#: that a crash loses at most a few seconds of work.
+AUTOSAVE_MS = 4000
+
+
+def data_dir() -> Path:
+    """Where the program keeps its own files (recovery, log)."""
+    override = os.environ.get("GEOBENCH_DATA_DIR")
+    if override:
+        root = Path(override)
+    else:
+        base = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.AppDataLocation
+        )
+        root = Path(base) if base else Path.home() / ".geobench"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def recovery_paths() -> tuple[Path, Path]:
+    """The autosaved figure and the note saying which file it belongs to."""
+    root = data_dir()
+    return root / "recovery.geobench", root / "recovery.json"
+
+
 class StudioWindow(QMainWindow):
     """The main window of the studio."""
 
@@ -457,6 +497,14 @@ class StudioWindow(QMainWindow):
         self._verdict_args: list[list[str]] = []
         self._witness: dict[str, object] | None = None
         self._path: Path | None = None
+        #: Has the figure changed since it was last opened or saved?
+        self._dirty = False
+        self._recovery_text, self._recovery_note = recovery_paths()
+        self.setAcceptDrops(True)
+        self._autosave = QTimer(self)
+        self._autosave.setSingleShot(True)
+        self._autosave.setInterval(AUTOSAVE_MS)
+        self._autosave.timeout.connect(self._write_recovery)
 
         self.canvas = FigureCanvas(self.controller)
         self.canvas.constructRequested.connect(self._on_construct)
@@ -584,6 +632,7 @@ class StudioWindow(QMainWindow):
 
         self._build_menu()
         self._build_toolbar()
+        self.controller.on_change(self._figure_changed)
         self.controller.on_change(self.refresh)
         self.controller.on_move(self._point_moved)
         self._dragging = False
@@ -883,6 +932,11 @@ class StudioWindow(QMainWindow):
         """
         menu = self.menuBar()
         file_menu = menu.addMenu("文件")
+        new_action = QAction("新建", self)
+        new_action.setShortcut(QKeySequence.StandardKey.New)
+        new_action.setToolTip("新建一张空白图（Ctrl+N）")
+        new_action.triggered.connect(self._new_file)
+        file_menu.addAction(new_action)
         open_action = QAction("打开…", self)
         open_action.setShortcut(QKeySequence.StandardKey.Open)
         open_action.triggered.connect(self._open_file)
@@ -890,6 +944,8 @@ class StudioWindow(QMainWindow):
         example_action = QAction("打开示例", self)
         example_action.triggered.connect(self._open_example)
         file_menu.addAction(example_action)
+        self._recent_menu = file_menu.addMenu("最近打开")
+        self._fill_recent_menu()
         save_action = QAction("保存", self)
         save_action.setShortcut(QKeySequence.StandardKey.Save)
         save_action.triggered.connect(self._save_file)
@@ -909,6 +965,10 @@ class StudioWindow(QMainWindow):
         export_html_action = QAction("导出 HTML（可以拖动）…", self)
         export_html_action.triggered.connect(self._export_html)
         export_menu.addAction(export_html_action)
+        export_ggb_action = QAction("导出 GeoGebra 文件（.ggb）…", self)
+        export_ggb_action.setToolTip("写回 GeoGebra；不能写回的构造会列出来")
+        export_ggb_action.triggered.connect(self._export_ggb)
+        export_menu.addAction(export_ggb_action)
         export_menu.addSeparator()
         copy_picture_action = QAction("复制图形到剪贴板", self)
         copy_picture_action.triggered.connect(self._copy_picture)
@@ -1021,6 +1081,34 @@ class StudioWindow(QMainWindow):
             self.status.showMessage(f"导出失败：{exc}")
             return
         self.status.showMessage("已导出 HTML（在学生那边可以直接拖动）")
+
+    def _export_ggb(self) -> None:
+        """Write the figure back out as a GeoGebra file."""
+        path, _ = QFileDialog.getSaveFileName(
+            self, "导出 GeoGebra 文件", "图形.ggb", "GeoGebra 文件 (*.ggb)"
+        )
+        if not path:
+            return
+        target = Path(path)
+        if target.suffix.lower() != ".ggb":
+            target = target.with_suffix(".ggb")
+        try:
+            skipped = export_ggb(self.controller.figure(), target)
+        except GeobenchError as exc:
+            self.status.showMessage(f"导出失败：{exc}")
+            return
+        if skipped:
+            QMessageBox.information(
+                self,
+                "导出 GeoGebra 文件",
+                f"已导出 {target.name}，但有 {len(skipped)} 个对象写不回去：\n\n"
+                + "\n".join(f"· {item}" for item in skipped[:12])
+                + ("\n…" if len(skipped) > 12 else ""),
+            )
+        self.status.showMessage(
+            f"已导出 {target.name}"
+            + (f"（{len(skipped)} 处没有写回）" if skipped else "")
+        )
 
     def _export_png(self) -> None:
         """Write the figure to a file, as a picture."""
@@ -1185,6 +1273,60 @@ class StudioWindow(QMainWindow):
     def _show_about(self) -> None:
         QMessageBox.about(self, "关于 geobench", _about_text())
 
+    # -- recent files and drops ---------------------------------------------
+
+    def _recent_paths(self) -> list[Path]:
+        stored = QSettings("geobench", "studio").value("file/recent", [])
+        if isinstance(stored, str):
+            stored = [stored]
+        if not isinstance(stored, (list, tuple)):
+            stored = []
+        paths = [Path(item) for item in stored if isinstance(item, str)]
+        return [path for path in paths if path.exists()][:8]
+
+    def _remember_recent(self, path: Path) -> None:
+        paths = [path, *(item for item in self._recent_paths() if item != path)]
+        QSettings("geobench", "studio").setValue(
+            "file/recent", [str(item) for item in paths[:8]]
+        )
+        self._fill_recent_menu()
+
+    def _fill_recent_menu(self) -> None:
+        menu = getattr(self, "_recent_menu", None)
+        if menu is None:
+            return
+        menu.clear()
+        paths = self._recent_paths()
+        if not paths:
+            empty = menu.addAction("（还没有打开过文件）")
+            empty.setEnabled(False)
+            return
+        for path in paths:
+            action = menu.addAction(path.name)
+            action.setToolTip(str(path))
+            action.triggered.connect(
+                lambda _checked=False, target=path: self._load_path(target)
+            )
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        urls = event.mimeData().urls()
+        if any(
+            url.isLocalFile()
+            and Path(url.toLocalFile()).suffix.lower() in {".geobench", ".ggb"}
+            for url in urls
+        ):
+            event.acceptProposedAction()
+
+    def dropEvent(self, event: QDropEvent) -> None:
+        for url in event.mimeData().urls():
+            if not url.isLocalFile():
+                continue
+            path = Path(url.toLocalFile())
+            if path.suffix.lower() in {".geobench", ".ggb"}:
+                event.acceptProposedAction()
+                self._load_path(path)
+                return
+
     def _open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
@@ -1197,6 +1339,8 @@ class StudioWindow(QMainWindow):
         self._load_path(Path(path))
 
     def _load_path(self, path: Path) -> None:
+        if not self._confirm_discard():
+            return
         if path.suffix.lower() == ".ggb":
             self._load_ggb(path)
             return
@@ -1211,6 +1355,9 @@ class StudioWindow(QMainWindow):
             self.status.showMessage(f"这个文件读不了：{exc}")
             return
         self._path = path
+        self._dirty = False
+        self._clear_recovery()
+        self._remember_recent(path)
         self._update_title()
         # A file opens fitted: the teacher wants to see the figure, not
         # a corner of it at the default zoom.
@@ -1241,6 +1388,8 @@ class StudioWindow(QMainWindow):
         # A .ggb stays a GeoGebra file: saving writes our own format,
         # and the teacher keeps the original untouched.
         self._path = None
+        self._dirty = False
+        self._clear_recovery()
         self._update_title()
         self.canvas.fit()
         self.refresh()
@@ -1301,12 +1450,16 @@ class StudioWindow(QMainWindow):
 
     def _open_example(self) -> None:
         """A figure that shows the product: a proof, not a drawing."""
+        if not self._confirm_discard():
+            return
         try:
             self.controller.load_text(_EXAMPLE)
         except GeobenchError as exc:
             self.status.showMessage(f"示例打不开：{exc}")
             return
         self._path = None
+        self._dirty = False
+        self._clear_recovery()
         self._update_title()
         self.canvas.fit()
         self.refresh()
@@ -1338,12 +1491,135 @@ class StudioWindow(QMainWindow):
             self.status.showMessage(f"存不进去：{exc}")
             return
         self._path = path
+        self._dirty = False
+        self._clear_recovery()
+        self._remember_recent(path)
         self._update_title()
         self.status.showMessage(f"存好了 {path.name}")
 
     def _update_title(self) -> None:
         name = self._path.name if self._path is not None else "未命名"
-        self.setWindowTitle(f"geobench — 竞赛几何命题工作台（{name}）")
+        mark = "*" if self._dirty else ""
+        self.setWindowTitle(f"geobench — 竞赛几何命题工作台（{name}{mark}）")
+
+    # -- data safety --------------------------------------------------------
+
+    def _figure_changed(self) -> None:
+        """A change means the figure is no longer what the file holds."""
+        self._dirty = True
+        self._update_title()
+        self._autosave.start()
+
+    def _write_recovery(self) -> None:
+        """Write the figure where a crash cannot take it away."""
+        if not self._dirty:
+            return
+        text = self.controller.to_text()
+        if not text.strip():
+            return
+        note = {
+            "path": str(self._path) if self._path is not None else None,
+            "saved_at": time.time(),
+        }
+        try:
+            temporary = self._recovery_text.with_suffix(".tmp")
+            temporary.write_text(text, encoding="utf-8")
+            temporary.replace(self._recovery_text)
+            self._recovery_note.write_text(
+                json.dumps(note, ensure_ascii=False), encoding="utf-8"
+            )
+        except OSError:
+            # Autosave is a safety net, not a feature; a full disk should
+            # not interrupt the lesson.
+            pass
+
+    def has_recovery(self) -> bool:
+        try:
+            return bool(self._recovery_text.read_text(encoding="utf-8").strip())
+        except OSError:
+            return False
+
+    def restore_recovery(self) -> None:
+        """Open the autosaved figure after an unclean exit."""
+        try:
+            source = self._recovery_text.read_text(encoding="utf-8")
+        except OSError as exc:
+            self.status.showMessage(f"恢复文件读不了：{exc}")
+            return
+        try:
+            self.controller.load_text(source)
+        except GeobenchError as exc:
+            self.status.showMessage(f"自动保存的图损坏了：{exc}")
+            self.discard_recovery()
+            return
+        try:
+            note = json.loads(self._recovery_note.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            note = {}
+        original = note.get("path")
+        if isinstance(original, str) and original.endswith(".geobench"):
+            self._path = Path(original)
+        self._dirty = True
+        self._update_title()
+        self.canvas.fit()
+        self.refresh()
+        self.status.showMessage("已恢复上次自动保存的图形")
+
+    def discard_recovery(self) -> None:
+        self._clear_recovery()
+
+    def _clear_recovery(self) -> None:
+        self._autosave.stop()
+        for path in (self._recovery_text, self._recovery_note):
+            with contextlib.suppress(OSError):
+                path.unlink()
+
+    def _confirm_discard(self) -> bool:
+        """Ask before work is replaced.  True means it is safe to go on."""
+        if not self._dirty:
+            return True
+        name = self._path.name if self._path is not None else "未命名"
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("还有没保存的改动")
+        box.setText(f"「{name}」还没有保存。")
+        box.setInformativeText("要先保存吗？")
+        box.setStandardButtons(
+            QMessageBox.StandardButton.Save
+            | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel
+        )
+        box.setDefaultButton(QMessageBox.StandardButton.Save)
+        choice = box.exec()
+        if choice == QMessageBox.StandardButton.Save:
+            self._save_file()
+            return not self._dirty
+        return choice == QMessageBox.StandardButton.Discard
+
+    def _new_file(self) -> None:
+        if not self._confirm_discard():
+            return
+        self.controller.clear()
+        self._path = None
+        self._dirty = False
+        self._clear_recovery()
+        self._update_title()
+        self.canvas.fit()
+        self.refresh()
+        self.status.showMessage("新建了一张空白图")
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        # There is nobody to ask in a headless test run; a close there is
+        # a discard by definition.
+        if (
+            self._dirty
+            and QApplication.platformName() != "offscreen"
+            and not self._confirm_discard()
+        ):
+            event.ignore()
+            return
+        self._clear_recovery()
+        event.accept()
 
     def _build_toolbar(self) -> None:
         """One button per group, one menu under it -- the way GeoGebra
@@ -2039,6 +2315,18 @@ class StudioWindow(QMainWindow):
                 cell.setData(VERDICT_ROLE, colour)
                 cell.setForeground(QColor(colour))
         self.judgements.blockSignals(False)
+        # A proved equality or right angle belongs on the figure, not
+        # only in a table: that is how a geometry lesson points at it.
+        marks: list[tuple[str, tuple[str, ...]]] = []
+        for relation, verdict in zip(
+            self.controller.figure().relations, verdicts, strict=False
+        ):
+            if verdict.verdict == "proved" and relation.kind in {
+                "equal_length",
+                "perpendicular",
+            }:
+                marks.append((relation.kind, tuple(relation.args)))
+        self.canvas.set_proof_marks(marks)
         self._tint_step_verdicts()
         if verdicts:
             self.judgements.selectRow(0)
@@ -2324,8 +2612,10 @@ def _shortcuts_text() -> str:
         "中键拖动            平移画布\n"
         "滚轮                缩放\n"
         "双击一个点          输入精确坐标（1/2 和 0.5 是同一个数）\n"
-        "Ctrl+O / Ctrl+S     打开 / 保存\n"
-        "Ctrl+Shift+S        另存为"
+        "Ctrl+N              新建一张空白图\n"
+        "Ctrl+O / Ctrl+S     打开 / 保存（改动会自动留一份恢复文件）\n"
+        "Ctrl+Shift+S        另存为\n"
+        "把 .geobench 或 .ggb 文件拖进窗口即可打开"
     )
 
 

@@ -699,6 +699,15 @@ class StudioController:
         """
         return to_dsl(self.figure())
 
+    def clear(self) -> None:
+        """Start a new, empty figure (文件 → 新建)."""
+        self.push_undo()
+        figure = self.figure()
+        figure.nodes.clear()
+        figure.relations.clear()
+        self.evaluate()
+        self._changed()
+
     def load_text(self, source: str) -> None:
         self.push_undo()
         """Replace the figure with the one in the text.

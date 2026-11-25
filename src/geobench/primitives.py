@@ -458,20 +458,33 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
             )
         elif node.kind == "arc":
             payload = _numeric_payload(figure, node_id, "arc")
-            if payload is None or len(payload) != 9:
+            if payload is None or len(payload) not in {7, 9}:
                 continue
             ox, oy, r2 = payload[0], payload[1], payload[2]
             if r2 <= 0:
                 continue
-            start, span = _arc_angles(
-                ox,
-                oy,
-                payload[3],
-                payload[4],
-                payload[5],
-                payload[6],
-                (payload[7], payload[8]),
-            )
+            if len(payload) == 9:
+                start, span = _arc_angles(
+                    ox,
+                    oy,
+                    payload[3],
+                    payload[4],
+                    payload[5],
+                    payload[6],
+                    (payload[7], payload[8]),
+                )
+            else:
+                # Arc(centre, A, B): the counter-clockwise one, no third
+                # point needed to choose between the two.
+                start, span = _arc_angles(
+                    ox,
+                    oy,
+                    payload[3],
+                    payload[4],
+                    payload[5],
+                    payload[6],
+                    None,
+                )
             primitive = ArcPrimitive(ox, oy, math.sqrt(r2), start, span, aux, False, node_id, ink)
         elif node.kind == "sector":
             payload = _numeric_payload(figure, node_id, "sector")

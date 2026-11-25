@@ -78,6 +78,17 @@ class AIPanel(QDialog):
         note.setWordWrap(True)
         layout.addWidget(note)
 
+        # AI is an extra, not a dependency: the drawing, the judging and
+        # the export must all work without any service, and the teacher
+        # should know that before they go looking for a key.
+        self.privacy_label = QLabel(
+            "AI 是选用的：不连模型也能作图、判定、导出。"
+            "只有点「问模型」时，才会把这句话和当前图形发给你设置的服务。"
+        )
+        self.privacy_label.setObjectName("panelNote")
+        self.privacy_label.setWordWrap(True)
+        layout.addWidget(self.privacy_label)
+
         self.request_edit = QPlainTextEdit()
         self.request_edit.setPlaceholderText("例如：过 A 作 BC 的垂线")
         self.request_edit.setFixedHeight(70)
@@ -126,8 +137,8 @@ class AIPanel(QDialog):
         if provider is None:
             self.ask_button.setEnabled(False)
             self.status_label.setText(
-                "没有找到模型服务。可以点「设置模型服务…」——"
-                "它会先看你这台机器上已有的环境变量，再让你填。"
+                "还没有配置模型服务，所以「问模型」暂时不可用。"
+                "作图、判定、导出都不受影响；需要时点「设置模型服务…」。"
             )
             return
         self.ask_button.setEnabled(True)

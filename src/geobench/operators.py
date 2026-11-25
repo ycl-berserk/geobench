@@ -333,6 +333,23 @@ def op_foot(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {"kind": "point", "coords": (px - a * t, py - b * t)}
 
 
+def op_perpendicular_segment(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The segment from a point to its foot on a line (垂线段).
+
+    GeoGebra's ``PerpendicularSegment( <Point>, <Line> )`` keeps both
+    ends: the point and the foot.  Returning a segment, rather than only
+    the foot, is what lets the figure show the altitude itself.
+    """
+    px, py = ctx.point(args[0])
+    a, b, c = ctx.as_line(args[1])
+    denominator = a * a + b * b
+    if denominator == 0:
+        raise DegenerateError("cannot drop a perpendicular onto a degenerate line")
+    t = (a * px + b * py + c) / denominator
+    fx, fy = px - a * t, py - b * t
+    return {"kind": "segment", "segment": (px, py, fx, fy)}
+
+
 def op_intersect_lines(ctx: OpContext, args: list[str]) -> dict[str, object]:
     a1, b1, c1 = ctx.as_line(args[0])
     a2, b2, c2 = ctx.as_line(args[1])
@@ -512,6 +529,31 @@ def op_incenter(ctx: OpContext, args: list[str]) -> dict[str, object]:
     return {"kind": "point", "coords": (x, y)}
 
 
+def op_excenter(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The excenter opposite the first vertex (旁心).
+
+    The three excentres are the centres of the excircles.  GeoGebra's
+    ``Excenter(A,B,C)`` is the one opposite the first point, and the
+    barycentric formula with side lengths makes that choice explicit:
+    ``(-a*A + b*B + c*C) / (-a + b + c)``.
+    """
+    ax, ay = ctx.point(args[0])
+    bx, by = ctx.point(args[1])
+    cx, cy = ctx.point(args[2])
+    area2 = (bx - ax) * (cy - ay) - (cx - ax) * (by - ay)
+    if area2 == 0:
+        raise DegenerateError("the three points are collinear; no excenter")
+    a_len = sp.sqrt((bx - cx) ** 2 + (by - cy) ** 2)
+    b_len = sp.sqrt((cx - ax) ** 2 + (cy - ay) ** 2)
+    c_len = sp.sqrt((ax - bx) ** 2 + (ay - by) ** 2)
+    denominator = -a_len + b_len + c_len
+    if denominator == 0:
+        raise DegenerateError("degenerate triangle; no excenter")
+    x = (-a_len * ax + b_len * bx + c_len * cx) / denominator
+    y = (-a_len * ay + b_len * by + c_len * cy) / denominator
+    return {"kind": "point", "coords": (x, y)}
+
+
 def op_orthocenter(ctx: OpContext, args: list[str]) -> dict[str, object]:
     ax, ay = ctx.point(args[0])
     bx, by = ctx.point(args[1])
@@ -566,6 +608,17 @@ def op_nearest_on_object(ctx: OpContext, args: list[str]) -> dict[str, object]:
     t = ((px - x1) * dx + (py - y1) * dy) / length2
     clamped = sp.Min(sp.Max(t, 0), 1)
     return {"kind": "point", "coords": (x1 + clamped * dx, y1 + clamped * dy)}
+
+
+def op_transform_reflect_point(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The reflection of a point in another point (点对称).
+
+    A half-turn about the centre: the centre is the midpoint of the point
+    and its image, so the image is ``2*centre - point``.
+    """
+    px, py = ctx.point(args[0])
+    cx, cy = ctx.point(args[1])
+    return {"kind": "point", "coords": (2 * cx - px, 2 * cy - py)}
 
 
 def op_transform_mirror(ctx: OpContext, args: list[str]) -> dict[str, object]:
@@ -650,6 +703,25 @@ def op_polygon_free(ctx: OpContext, args: list[str]) -> dict[str, object]:
         if vertices[first] == vertices[second] and vertices[first + 1] == vertices[second + 1]:
             raise DegenerateError("two vertices of the polygon coincide")
     return {"kind": "polygon", "polygon": tuple(vertices)}
+
+
+def op_arc_center_points(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The counter-clockwise arc from the second point to the third (弧).
+
+    The first point is the centre; the radius is the distance to the
+    second.  GeoGebra's ``Arc(centre, A, B)`` runs counter-clockwise
+    from A to B, and so does this one -- the drawing pass turns the two
+    directions into a start angle and a span.
+    """
+    ox, oy = ctx.point(args[0])
+    ax, ay = ctx.point(args[1])
+    bx, by = ctx.point(args[2])
+    r2 = (ax - ox) ** 2 + (ay - oy) ** 2
+    if r2 == 0:
+        raise DegenerateError("the arc has no radius")
+    if bx == ox and by == oy:
+        raise DegenerateError("the end point is the centre, so the arc has no end")
+    return {"kind": "arc", "arc": (ox, oy, r2, ax, ay, bx, by)}
 
 
 def op_arc_through(ctx: OpContext, args: list[str]) -> dict[str, object]:
@@ -1281,6 +1353,17 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
     ),
     (
         OpSpec(
+            id="point.excenter",
+            kind="point",
+            args=(ArgSpec("a", "point"), ArgSpec("b", "point"), ArgSpec("c", "point")),
+            returns="point",
+            degenerate_when=("a, b, c collinear",),
+            oracle="closed form: excenter opposite a",
+        ),
+        op_excenter,
+    ),
+    (
+        OpSpec(
             id="point.orthocenter",
             kind="point",
             args=(ArgSpec("a", "point"), ArgSpec("b", "point"), ArgSpec("c", "point")),
@@ -1321,6 +1404,16 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="sympy.geometry:Triangle.incircle",
         ),
         op_circle_incicle,
+    ),
+    (
+        OpSpec(
+            id="transform.reflect_point",
+            kind="point",
+            args=(ArgSpec("p", "point"), ArgSpec("centre", "point")),
+            returns="point",
+            oracle="closed form: 2*centre - point",
+        ),
+        op_transform_reflect_point,
     ),
     (
         OpSpec(
@@ -1560,6 +1653,21 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
     ),
     (
         OpSpec(
+            id="arc.free",
+            kind="arc",
+            args=(
+                ArgSpec("o", "point"),
+                ArgSpec("a", "point"),
+                ArgSpec("b", "point"),
+            ),
+            returns="arc",
+            degenerate_when=("the radius is zero", "the end point is the centre"),
+            oracle="the arc lies on the circle of the given radius",
+        ),
+        op_arc_center_points,
+    ),
+    (
+        OpSpec(
             id="arc.three_points",
             kind="arc",
             args=(
@@ -1695,6 +1803,17 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="sympy.geometry:Segment",
         ),
         op_segment_free,
+    ),
+    (
+        OpSpec(
+            id="segment.perpendicular",
+            kind="segment",
+            args=(ArgSpec("point", "point"), ArgSpec("line", "line")),
+            returns="segment",
+            degenerate_when=("the line has no direction",),
+            oracle="sympy.geometry:Line.projection",
+        ),
+        op_perpendicular_segment,
     ),
     (
         OpSpec(

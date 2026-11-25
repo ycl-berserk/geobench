@@ -66,6 +66,17 @@ def test_the_panel_offers_a_way_to_set_the_service_up(
     panel.close()
 
 
+def test_the_panel_says_ai_is_optional_and_what_it_sends(
+    app: QApplication, registry
+) -> None:
+    """A teacher must know that drawing works without a key, and what leaves."""
+    panel = AIPanel(None, None, registry)
+    text = panel.privacy_label.text()
+    assert "不连模型也能作图" in text
+    assert "只有点「问模型」时" in text
+    panel.close()
+
+
 def test_the_settings_button_is_always_there(app: QApplication, registry) -> None:
     """Even when a service works, the user may want a different one."""
     resolution = Resolution(provider=FakeProvider())  # type: ignore[arg-type]

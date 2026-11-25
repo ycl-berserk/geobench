@@ -259,6 +259,7 @@ src/geobench/
 | `Barycenter` | 重心 | `point.centroid` | `[x]` |
 | `Circumcenter` | 外心 | `point.circumcenter` | `[x]` |
 | `Incenter` | 内心 | `point.incenter` | `[x]` |
+| `Excenter` | 旁心 | `point.excenter` | `[x]` |
 | `Orthocenter` | 垂心 | `point.orthocenter` | `[x]` |
 | `OrthogonalProjection` | 垂足 | `point.foot` | `[x]` |
 | `Intersect` | 交点 | `point.intersect_lines` | `[x]` |
@@ -282,6 +283,7 @@ src/geobench/
 | `Polar` | 极线 | `line.polar` | `[x]` |
 | `Ray` | 射线 | `ray.free` | `[x]` |
 | `Segment` | 线段 | `segment.free` | `[x]` |
+| `PerpendicularSegment` | 垂线段 | `segment.perpendicular` | `[x]` |
 | `PolyLine` | 折线 | `polyline.free` | `[x]` |
 
 ### 6.3 圆
@@ -292,9 +294,9 @@ src/geobench/
 | `Circle` | 圆 | `circle.center_point` | `[x]` |
 | `Circumcircle` | 外接圆 | `circle.through` | `[x]` |
 | `Incircle` | 内切圆 | `circle.incircle` | `[x]` |
-| `Arc` | 弧 | `arc.free` | `[ ]` |
+| `Arc` | 弧 | `arc.free` | `[x]` |
 | `CircularArc` | 圆弧 | `arc.three_points` | `[x]` |
-| `CircularSector` | 圆扇形 | `sector.circular` | `[ ]` |
+| `CircularSector` | 圆扇形 | `sector.circular` | `[x]` |
 | `Sector` | 扇形 | `sector.free` | `[ ]` |
 | `SectorThreePoints` | 三点扇形 | `sector.three_points` | `[x]` |
 | `OsculatingCircle` | 密切圆 | `circle.osculating` | `[ ]` |
@@ -315,6 +317,7 @@ src/geobench/
 | `Rotate` | 旋转 | `transform.rotate` | `[x]` |
 | `Dilate` | 位似 | `transform.dilate` | `[x]` |
 | `Mirror` | 镜像 | `transform.mirror` | `[x]` |
+| `PointReflection` | 点对称 | `transform.reflect_point` | `[x]` |
 | `Reflect` | 反射 | `transform.reflect` | `[x]` |
 
 ### 6.6 轨迹与曲线
@@ -505,6 +508,7 @@ T025 修的是"画板掉进精确路径"这件事 —— 详见
 
 | 日期 | 变更 |
 |---|---|
+| 2026-11-25 | **T061：交接前加固** —— ① **真实语料**：用户四个 `.ggb` 全部能导入、解析、求值。关键不是多认几个命令，而是**自定义工具按文件里的 `geogebra_macro.xml` 展开**（`旁心` 与内置同名但定义不同，按名字猜就会画错）；`Point(circle)` 反算参数、`Line(P,l)`/`Midpoint(segment)`/`PerpendicularSegment` 等写法各自翻译、`H'` 改名、齐次坐标 `x/z`、多输出逐个报告——**搬不过来的逐条说明，绝不静默丢**。② **数据安全**：新建、脏标记、关闭前保存/放弃/取消、`%APPDATA%\geobench` 自动恢复、异常日志、最近打开、拖放。③ **AI 口径**：不配模型也能作图/判定/导出，只有点「问模型」才发送图形。④ **P1**：自由弧 `弧(O,A,B)`、`圆扇形`、成立结论的等长短横线与直角方框、常用构造写回 `.ggb`（写不回的列出来）、高 DPI 图标。验收：四个语料 + `test_data_safety.py`(6) + `test_ggb_export.py`(2) + `test_proof_marks.py`(3) + 全套 1321 passed。 |
 | 2026-11-25 | **T060：Windows 免安装包 + GitHub Release** —— 用户要「适配 Windows、GitHub 上有 Release 安装包即可」。做法：**PyInstaller one-folder**（启动快、杀毒软件不敏感），包内自带 Python 运行时、PySide6-Essentials、SymPy、`prompts/`（AI skill 运行时读）和窗口图标；`scripts/make_icon.py` 画图标（PNG + 256px ICO）；`geobench.ai._resource` 让源码树与打包后读同一份 prompt；**没有 Python / 不需要 VC++ 运行库**（`VCRUNTIME140*.dll` 已随包）；AI 需要自备模型服务，不配也能作图/判定/导出。发布物 = `geobench-win64.zip`（**68.8 MB**），附 `samples/`（三角形与中点、参数滑块、九点圆）与一页 `使用说明.md`；`.github/workflows/release.yml` 手动触发构建 artifact、`v*` tag 自动发 Release；`geobench.exe --smoke-test` 在 offscreen 下建窗口并检查三份 prompt，退出码 0。 |
 | 2026-11-24 | **范围收紧：只做竞赛几何（D21）** —— 用户：「**圆锥曲线什么的不用做，我们只做竞赛几何**」。把**圆锥曲线 8 条**与**轨迹 / 包络 / 参数曲线 3 条**标为**范围外**：命令表保留登记（覆盖率仍可读），但**不排期、不实现**；未实现从 17 条降到 **6 条低优先级**。路线图的下一步改为**交付链路**（`.ggb` 导出 → TikZ → 题库格式），之后补**自由弧 / 扇形**（竞赛图真的会用）；密切圆、刚性多边形、区域内点继续放低。 |
 | 2026-11-23 | **T059：自由数值 + 滑块** —— 让"数"成为和点、线、圆一样的对象。① `数 a = 2.5` 建一个 `number.free` 节点，值存成**精确常量** `5/2`；`to_dsl` 写回时也是精确值。② `OpContext.scalar` 让数字参与构造：`圆(P, a)` 半径、`旋转(B, a, A)` 角度、`位似` 比例、线上的点参数；**测量值暂不能当参数**（它依赖图），明确拒绝。③ 构造栏顶部出现**参数区**：`a [滑块] 2.5 [数字框]`；拖动只走数值直算，图即时跟手；松手/停止 300ms/数字框回车后重建精确表达式；**拖动中过期的精确结果按 `exact_version` 丢弃**；一次拖动一步撤销。**顺带修正一个语义错误**：`圆(P, r)` 的第二个参数一直是「半径的平方」（`圆(A,25)` 半径 5），而 GeoGebra 与 `docs/dsl-spec.md` 都写半径 —— 参数化让它变刺眼（`a=3` 画出 √3），所以改成真正的半径，同步对拍 oracle、测量测试和命令表摘要。验收 `test_parameters.py`（7）+ `test_parameters_panel.py`（7）+ oracle。 |

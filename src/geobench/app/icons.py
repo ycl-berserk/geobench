@@ -15,7 +15,15 @@ from __future__ import annotations
 import math
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QBrush, QColor, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QGuiApplication,
+    QIcon,
+    QPainter,
+    QPen,
+    QPixmap,
+)
 
 from geobench.app.theme import PALETTE
 
@@ -467,6 +475,7 @@ GLYPHS: dict[str, str] = {
     "point.centroid": "centroid",
     "point.circumcenter": "circumcenter",
     "point.incenter": "incenter",
+    "point.excenter": "incenter",
     "point.orthocenter": "orthocenter",
     "point.foot": "foot",
     "point.intersect_lines": "cross",
@@ -483,6 +492,7 @@ GLYPHS: dict[str, str] = {
     "line.tangent": "tangent",
     "line.polar": "polar",
     "segment.free": "segment",
+    "segment.perpendicular": "perpendicular",
     "ray.free": "ray",
     "polyline.free": "polyline",
     "polygon.free": "triangle",
@@ -491,12 +501,15 @@ GLYPHS: dict[str, str] = {
     "circle.center_point": "circle",
     "circle.through": "circle_three",
     "circle.incircle": "incircle",
+    "arc.free": "arc",
     "arc.three_points": "arc",
+    "sector.circular": "sector",
     "sector.three_points": "sector",
     "transform.translate": "arrow",
     "transform.rotate": "rotate",
     "transform.dilate": "dilate",
     "transform.mirror": "mirror",
+    "transform.reflect_point": "mirror",
     "measure.distance": "distance",
     "measure.length": "segment",
     "measure.area": "area",
@@ -566,10 +579,19 @@ FAMILY_GLYPHS: dict[str, str] = {
 
 
 def _draw(glyph: str, colour: str, size: int) -> QPixmap:
-    pixmap = QPixmap(size, size)
+    # A high-DPI screen needs more than 24 physical pixels for a 24-point
+    # icon, or every tool looks slightly soft next to the text.
+    ratio = 1.0
+    app = QGuiApplication.instance()
+    screen = QGuiApplication.primaryScreen()
+    if app is not None and screen is not None:
+        ratio = screen.devicePixelRatio()
+    pixmap = QPixmap(int(size * ratio), int(size * ratio))
+    pixmap.setDevicePixelRatio(ratio)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    painter.scale(ratio, ratio)
     drawer = _DRAWERS.get(glyph, _g_point)
     drawer(painter, colour)
     painter.end()

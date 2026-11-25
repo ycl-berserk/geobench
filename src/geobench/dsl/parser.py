@@ -853,6 +853,7 @@ class Parser:
 
     def _fits(self, command: CommandSpec, args: list[Arg]) -> bool:
         """Do these arguments fit this operator's contract?"""
+        command = _resolve_alias(command)
         if command.id == "point.free":
             # A free point is handled by the store, not by an operator:
             # its arguments are two numbers.
@@ -923,7 +924,7 @@ class Parser:
         # that was *drawn* could not be opened up, while the same
         # segment written as two letters could.
         endpoints: tuple[str, ...] = ()
-        if kind == "segment" and len(operator_args) == 2:
+        if command.id == "segment.free" and len(operator_args) == 2:
             endpoints = (str(operator_args[0]), str(operator_args[1]))
         self.scope.objects[name] = Ref(
             name=name, kind=kind, node_id=name, endpoints=endpoints
@@ -987,6 +988,7 @@ _KIND_BY_COMMAND: dict[str, str] = {
     "point.centroid": POINT,
     "point.circumcenter": POINT,
     "point.incenter": POINT,
+    "point.excenter": POINT,
     "point.orthocenter": POINT,
     "point.on_line": POINT,
     "point.on_circle": POINT,
@@ -995,6 +997,7 @@ _KIND_BY_COMMAND: dict[str, str] = {
     "point.intersect_line_circle": POINT,
     "point.intersect_circles": POINT,
     "point.nearest_on_object": POINT,
+    "transform.reflect_point": POINT,
     "transform.mirror": POINT,
     "transform.translate": POINT,
     "transform.rotate": POINT,
@@ -1006,6 +1009,7 @@ _KIND_BY_COMMAND: dict[str, str] = {
     "line.angle_bisector": LINE,
     "line.tangent": LINE,
     "segment.free": SEGMENT,
+    "segment.perpendicular": SEGMENT,
     "circle.free": CIRCLE,
     "circle.center_point": CIRCLE,
     "circle.through": CIRCLE,
@@ -1014,6 +1018,7 @@ _KIND_BY_COMMAND: dict[str, str] = {
     "polygon.regular": POLYGON,
     "polyline.free": POLYLINE,
     "ray.free": RAY,
+    "arc.free": ARC,
     "arc.three_points": ARC,
     "sector.three_points": SECTOR,
     "point.polygon_vertex": POINT,

@@ -1,6 +1,6 @@
 """Reading a GeoGebra file: `.ggb` in, the DSL out.
 
-A `.ggb` is a ZIP with `geogebra.xml` inside it.  The XML lists the
+A `.ggb` is a ZIP with ``geogebra.xml`` inside it.  The XML lists the
 construction as a list of commands -- ``Segment(A,B) -> f`` -- in the
 order they were made, which is exactly the shape the DSL has: one line
 per command, in order.
@@ -23,17 +23,21 @@ each one loses something:
 - **zeros and ones.**  GeoGebra's intersection selector counts from 1,
   ours from 0.  Getting this wrong would swap two points of the figure,
   so it is converted in one place, with a test.
-- **names.**  GeoGebra writes ``H_{1}`` and ``f_1``; the DSL wants
-  identifiers.  The import renames them and says so.
+- **names.**  GeoGebra writes ``H_{1}``, ``f_1`` and ``H'``; the DSL
+  wants identifiers.  The import renames them, keeps a map from the old
+  name to the new, and says so.
 
 Anything the DSL cannot express is **reported**, not approximated: an
 import that quietly drops a construction produces a figure that is not
-the one the teacher has.
+the one the teacher has.  A command that depends on an object we did not
+import is skipped too -- never emitted as a line that would fail to
+parse.
 """
 
 from __future__ import annotations
 
-import re
+import contextlib
+import math
 import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import dataclass, field
@@ -41,12 +45,9 @@ from pathlib import Path
 
 import sympy as sp
 
+from geobench.commands import COMMANDS, JUDGEMENT, CommandSpec
+from geobench.dsl.parser import _KIND_BY_COMMAND
 from geobench.errors import GeobenchError
-
-#: How close an imported coordinate has to be to a rational, relative to
-#: the size of the figure.  A hand-drawn point has no exact value of its
-#: own, so "the simplest number in the neighbourhood" is the right one.
-DENOMINATOR_LIMIT = 10**6
 
 #: GeoGebra command names -> ours.  Chinese names are already ours (both
 #: come from GeoGebra), so only the English ones need saying.
@@ -61,6 +62,7 @@ _NAMES: dict[str, str] = {
     "Circumcenter": "外心",
     "Orthocenter": "垂心",
     "Incenter": "内心",
+    "Excenter": "旁心",
     "OrthogonalLine": "垂直",
     "PerpendicularLine": "垂直",
     "ParallelLine": "平行",
@@ -68,18 +70,43 @@ _NAMES: dict[str, str] = {
     "LineBisector": "中垂线",
     "AngleBisector": "角平分线",
     "AngularBisector": "角平分线",
+    "PerpendicularSegment": "垂线段",
     "Rotate": "旋转",
     "Translate": "平移",
     "Dilate": "位似",
     "Mirror": "镜像",
     "Reflect": "镜像",
+    "Angle": "角度",
+    "Distance": "距离",
+    "Length": "长度",
+    "Area": "面积",
+    "Perimeter": "周长",
+    "Radius": "半径",
+    "Slope": "斜率",
+    "Direction": "方向",
 }
 
-#: Commands whose *argument list* has to be rearranged, not just renamed.
-_REORDERED = frozenset({"LineBisector", "PerpendicularBisector", "Intersect", "Tangent", "Circle"})
+#: Our command table, by both names.  A construction whose name is not in
+#: here is reported instead of emitted: the parser would only refuse it.
+#:
+#: Several names are shared by a construction and a judgement -- ``外心``
+#: is both "the circumcentre of these three points" and "is this point
+#: the circumcentre?".  An import always wants the construction, so a
+#: judgement never replaces an entry that is already there.
+_KNOWN: dict[str, CommandSpec] = {}
+# Constructions first, so that a shared name always resolves to the one
+# that builds something.
+for _command in COMMANDS:
+    if _command.kind != JUDGEMENT:
+        _KNOWN[_command.name_zh] = _command
+        _KNOWN[_command.name_en] = _command
+for _command in COMMANDS:
+    _KNOWN.setdefault(_command.name_zh, _command)
+    _KNOWN.setdefault(_command.name_en, _command)
 
 #: The kinds a label can have, as far as the import cares.
 _LINE_LIKE = frozenset({"line", "segment"})
+
 
 
 @dataclass
@@ -103,17 +130,32 @@ class ImportResult:
 def _sanitize(label: str) -> str:
     """A GeoGebra label as a DSL name.
 
-    ``H_{1}`` becomes ``H1``, ``f_1`` becomes ``f1``: the DSL wants
-    identifiers, and GeoGebra's subscripts are the one place the two
-    disagree.
+    ``H_{1}`` becomes ``H1``, ``f_1`` becomes ``f1``, ``H'`` becomes
+    ``H1``: the DSL wants identifiers, and GeoGebra's subscripts and
+    primes are the places the two disagree.  Greek letters are names a
+    geometry figure actually uses, so they are kept.
     """
-    text = label.replace("_{", "").replace("}", "").replace("_", "")
-    text = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]", "", text)
+    text = label.replace("_{", "").replace("}", "")
+    text = text.replace("'", "1").replace("′", "1")
+    text = "".join(ch for ch in text if ch.isalnum())
     if not text:
         return "X"
     if text[0].isdigit():
         return "n" + text
     return text
+
+
+def _unique(name: str, used: set[str]) -> str:
+    """A name not already in the figure; suffixes 2, 3, ... when needed."""
+    if name not in used:
+        used.add(name)
+        return name
+    index = 2
+    while f"{name}{index}" in used:
+        index += 1
+    name = f"{name}{index}"
+    used.add(name)
+    return name
 
 
 def _exact(value: str) -> tuple[str, bool]:
@@ -132,17 +174,174 @@ def _exact(value: str) -> tuple[str, bool]:
     return str(rational), abs(shortened - number) > 0
 
 
+def _circumcircle(
+    first: tuple[float, float],
+    second: tuple[float, float],
+    third: tuple[float, float],
+) -> tuple[float, float, float] | None:
+    """The centre and radius of a circle through three saved points."""
+    ax, ay = first
+    bx, by = second
+    cx, cy = third
+    determinant = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+    if determinant == 0:
+        return None
+    s1, s2, s3 = ax * ax + ay * ay, bx * bx + by * by, cx * cx + cy * cy
+    ux = (s1 * (by - cy) + s2 * (cy - ay) + s3 * (ay - by)) / determinant
+    uy = (s1 * (cx - bx) + s2 * (ax - cx) + s3 * (bx - ax)) / determinant
+    return ux, uy, math.hypot(ax - ux, ay - uy)
+
+
+@dataclass
+class _RawCommand:
+    """One GeoGebra command, before translation."""
+
+    name: str
+    inputs: list[str]
+    outputs: list[str]
+
+
+@dataclass
+class _Macro:
+    """A custom tool defined in the file itself (``geogebra_macro.xml``)."""
+
+    name: str
+    inputs: list[str]
+    outputs: list[str]
+    commands: list[_RawCommand]
+
+
+def _read_macros(archive: zipfile.ZipFile) -> dict[str, _Macro]:
+    """The custom tools a file carries, by command name.
+
+    A teacher's figure often uses tools they built themselves, and those
+    tools shadow the built-in command of the same name.  The macro body,
+    not the name, is what the figure means, so an import expands them.
+    """
+    try:
+        xml = archive.read("geogebra_macro.xml")
+    except KeyError:
+        return {}
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError:
+        return {}
+    macros: dict[str, _Macro] = {}
+    for node in root.findall("macro"):
+        name = node.get("cmdName")
+        construction = node.find("construction")
+        if not name or construction is None:
+            continue
+        commands: list[_RawCommand] = []
+        for command in construction.findall("command"):
+            commands.append(
+                _RawCommand(
+                    command.get("name") or "",
+                    _attributes(command.findall("input")),
+                    _attributes(command.findall("output")),
+                )
+            )
+        macros[name] = _Macro(
+            name,
+            _attributes(node.findall("macroInput")),
+            _attributes(node.findall("macroOutput")),
+            commands,
+        )
+    return macros
+
+
+def _expand_macros(
+    construction: ET.Element,
+    macros: dict[str, _Macro],
+    result: ImportResult,
+) -> list[_RawCommand]:
+    """Flatten every macro call into the primitive commands it stands for."""
+    expanded: list[_RawCommand] = []
+    counter = 0
+    used_macros: set[str] = set()
+
+    def fresh(label: str) -> str:
+        nonlocal counter
+        counter += 1
+        return f"m{counter}_{_sanitize(label)}"
+
+    def emit(
+        name: str,
+        inputs: list[str],
+        outputs: list[str],
+        stack: tuple[str, ...],
+    ) -> None:
+        macro = macros.get(name)
+        if macro is None or name in stack:
+            expanded.append(_RawCommand(name, inputs, outputs))
+            return
+        used_macros.add(name)
+        # The macro's own labels are renamed, except its inputs (which are
+        # the caller's objects) and its outputs (which are the caller's
+        # results).  Without the renaming, two applications of the same
+        # tool would collide.
+        mapping = dict(zip(macro.inputs, inputs, strict=False))
+        inner_labels: set[str] = set()
+        for command in macro.commands:
+            inner_labels.update(command.inputs)
+            inner_labels.update(command.outputs)
+        for label in inner_labels:
+            if label not in mapping:
+                mapping[label] = fresh(label)
+        mapping.update(zip(macro.outputs, outputs, strict=False))
+        for command in macro.commands:
+            emit(
+                command.name,
+                [mapping.get(value, value) for value in command.inputs],
+                [mapping.get(value, value) for value in command.outputs],
+                (*stack, name),
+            )
+
+    for command in construction.findall("command"):
+        emit(
+            command.get("name") or "",
+            _attributes(command.findall("input")),
+            _attributes(command.findall("output")),
+            (),
+        )
+    for name in sorted(used_macros):
+        result.warnings.append(f"自定义工具「{name}」已按文件里的定义展开")
+    return expanded
+
+
 class _Kinds:
-    """What each label is, so an Intersect knows what it is intersecting."""
+    """What each label is, and everything the translator remembers."""
 
     def __init__(self) -> None:
         self.kind: dict[str, str] = {}
         self.endpoints: dict[str, tuple[str, str]] = {}
+        self.used: set[str] = set()
+        self.names: dict[str, str] = {}
+        """GeoGebra label -> the name it got in the DSL."""
+        self.coords: dict[str, tuple[float, float]] = {}
+        """Every point's saved position, including produced points."""
+        self.circles: dict[str, tuple[float, float, float]] = {}
+        """Circles we can place a ``Point`` on: centre and radius."""
+        self.missing: set[str] = set()
+        """Labels that were not imported; dependants are skipped."""
 
-    def set(self, label: str, kind: str, endpoints: tuple[str, str] | None = None) -> None:
+    def set(
+        self,
+        label: str,
+        kind: str,
+        endpoints: tuple[str, str] | None = None,
+    ) -> None:
         self.kind[label] = kind
         if endpoints is not None:
             self.endpoints[label] = endpoints
+
+    def name(self, label: str) -> str:
+        return self.names.get(label, _sanitize(label))
+
+    def allocate(self, label: str) -> str:
+        name = _unique(_sanitize(label), self.used)
+        self.names[label] = name
+        return name
 
 
 def import_ggb(path: Path) -> ImportResult:
@@ -156,6 +355,7 @@ def import_ggb(path: Path) -> ImportResult:
             xml = archive.read("geogebra.xml")
         except KeyError:
             raise GeobenchError(f"{path.name} 里没有 geogebra.xml") from None
+        macros = _read_macros(archive)
 
     try:
         root = ET.fromstring(xml)
@@ -169,6 +369,27 @@ def import_ggb(path: Path) -> ImportResult:
     result = ImportResult(dsl="")
     kinds = _Kinds()
     lines: list[str] = []
+
+    # Every point's saved position, free or produced: a ``Point(c)`` on
+    # a circle needs it to recover the parameter the teacher had.
+    for element in construction.findall("element"):
+        kind = element.get("type")
+        label = element.get("label") or ""
+        if kind == "point":
+            coords = element.find("coords")
+            if coords is not None:
+                with contextlib.suppress(TypeError, ValueError, ZeroDivisionError):
+                    # GeoGebra stores homogeneous coordinates; a computed
+                    # point may have z != 1, and x/z is where it really is.
+                    z = float(coords.get("z", "1") or 1)
+                    kinds.coords[label] = (
+                        float(coords.get("x", "0")) / z,
+                        float(coords.get("y", "0")) / z,
+                    )
+        elif kind == "text":
+            result.skipped.append(
+                f"文本 {label}: DSL 还没有文本对象，未导入"
+            )
 
     # -- the free points ---------------------------------------------------
     produced: set[str] = set()
@@ -185,10 +406,12 @@ def import_ggb(path: Path) -> ImportResult:
             continue
         coords = element.find("coords")
         if coords is None:
+            kinds.missing.add(label)
+            result.skipped.append(f"点 {label}: 没有坐标，未导入")
             continue
         x_text, moved_x = _exact(coords.get("x", "0"))
         y_text, moved_y = _exact(coords.get("y", "0"))
-        name = _sanitize(label)
+        name = kinds.allocate(label)
         if name != label:
             result.renames[label] = name
         if moved_x or moved_y:
@@ -203,13 +426,14 @@ def import_ggb(path: Path) -> ImportResult:
         lines.append(f"点 {points}")
 
     # -- the commands, in construction order -------------------------------
-    for command in construction.findall("command"):
-        name = command.get("name") or ""
-        inputs = _attributes(command.findall("input"))
-        outputs = _attributes(command.findall("output"))
-        line, skipped = _translate(name, inputs, outputs, kinds, result)
+    for raw in _expand_macros(construction, macros, result):
+        line, skipped = _translate(
+            raw.name, raw.inputs, raw.outputs, kinds, result
+        )
         if line is not None:
-            lines.append(line)
+            # One GeoGebra command may need two DSL lines (a perpendicular
+            # segment is also the foot it ends at); a newline separates them.
+            lines.extend(line.splitlines())
         if skipped:
             result.skipped.append(skipped)
 
@@ -236,89 +460,261 @@ def _translate(
     """One GeoGebra command as one DSL line, or a reason it cannot be."""
     if not outputs:
         return None, f"{name}({', '.join(inputs)}): 没有产出对象"
-    label = _sanitize(outputs[0])
-    if label != outputs[0]:
-        result.renames[outputs[0]] = label
-    if len(outputs) > 1:
-        result.skipped.append(
-            f"{name}({', '.join(inputs)}) 在 GeoGebra 里给出 {len(outputs)} 个对象"
-            f"（{', '.join(outputs)}），本语言一条命令一个对象 —— 只导入了 {outputs[0]}"
+
+    # A construction that depends on something we did not import cannot
+    # be imported either.  Saying so here keeps a dangling reference out
+    # of the DSL, where it would fail to parse.
+    missing_input = next(
+        (value for value in inputs if not _is_number(value) and value in kinds.missing),
+        None,
+    )
+    if missing_input is not None:
+        kinds.missing.update(outputs)
+        return None, (
+            f"{name}({', '.join(inputs)}): 依赖的 {missing_input} 没有导入，跳过"
+        )
+
+    # A macro may define a point or number of its own; when its body refers
+    # to one we could not carry over, the line is reported rather than
+    # emitted with a name the parser would not know.
+    unknown_input = next(
+        (
+            value
+            for value in inputs
+            if not _is_number(value) and value not in kinds.names
+        ),
+        None,
+    )
+    if unknown_input is not None:
+        kinds.missing.update(outputs)
+        return None, (
+            f"{name}({', '.join(inputs)}): {unknown_input} 没有定义，跳过"
         )
 
     def args(values: list[str]) -> list[str]:
         # A label is renamed; a *number* is left alone.  A rotation's
         # angle is "90", and turning it into the name "n90" would ask
         # the kernel for a point called n90.
-        return [value if _is_number(value) else _sanitize(value) for value in values]
+        return [value if _is_number(value) else kinds.name(value) for value in values]
+
+    # -- Point(c): a point on an object, not a free point -----------------
+    if name == "Point":
+        if len(inputs) != 1:
+            kinds.missing.update(outputs)
+            return None, f"Point({', '.join(inputs)}): 参数个数不认识"
+        source = kinds.name(inputs[0])
+        label = kinds.allocate(outputs[0])
+        if label != outputs[0]:
+            result.renames[outputs[0]] = label
+        saved = kinds.coords.get(outputs[0])
+        circle = kinds.circles.get(source)
+        if circle is not None and saved is not None:
+            cx, cy, _radius = circle
+            angle = math.atan2(saved[1] - cy, saved[0] - cx) / (2 * math.pi)
+            parameter = sp.Rational(angle - math.floor(angle)).limit_denominator(720)
+            kinds.set(label, "point")
+            result.warnings.append(
+                f"点 {outputs[0]} 是 {inputs[0]} 上的点，按保存位置取参数 {parameter}"
+            )
+            return f"{label} = 圆上的点({source}, {parameter})", ""
+        if saved is not None:
+            x_text, _ = _exact(str(saved[0]))
+            y_text, _ = _exact(str(saved[1]))
+            kinds.set(label, "point")
+            result.warnings.append(
+                f"点 {outputs[0]} 依附于 {inputs[0]}，无法还原约束，导入为自由点"
+            )
+            return f"点 {label}({x_text}, {y_text})", ""
+        kinds.missing.update(outputs)
+        return None, f"Point({inputs[0]}): 无法定位这个点"
+
+    # -- Midpoint(<segment>): GeoGebra takes the segment, we take its ends -
+    if name == "Midpoint" and len(inputs) == 1:
+        source = kinds.name(inputs[0])
+        label = kinds.allocate(outputs[0])
+        if label != outputs[0]:
+            result.renames[outputs[0]] = label
+        ends = kinds.endpoints.get(source)
+        if ends is not None:
+            kinds.set(label, "point")
+            return f"{label} = 中点({ends[0]}, {ends[1]})", ""
+        kinds.missing.update(outputs)
+        return None, f"{name}({source}): 这不是一条知道端点的线段，取不到中点"
+
+    # -- Line(<point>, <line>): the line through the point, parallel -------
+    if name in ("Line", "直线") and len(inputs) == 2:
+        second = kinds.name(inputs[1])
+        if kinds.kind.get(second) in _LINE_LIKE:
+            label = kinds.allocate(outputs[0])
+            if label != outputs[0]:
+                result.renames[outputs[0]] = label
+            first = kinds.name(inputs[0])
+            kinds.set(label, "line")
+            return f"{label} = 平行({first}, {second})", ""
+
+    # -- PerpendicularSegment(P, l): a segment *and* its foot -------------
+    if name in ("PerpendicularSegment", "垂线段") and len(inputs) == 2:
+        point = kinds.name(inputs[0])
+        line = kinds.name(inputs[1])
+        segment_label = kinds.allocate(outputs[0])
+        if segment_label != outputs[0]:
+            result.renames[outputs[0]] = segment_label
+        if len(outputs) > 1:
+            foot_label = kinds.allocate(outputs[1])
+            if foot_label != outputs[1]:
+                result.renames[outputs[1]] = foot_label
+            kinds.set(segment_label, "segment", (point, foot_label))
+            kinds.set(foot_label, "point")
+            # Two DSL lines: the foot is what the rest of the figure may
+            # depend on, and the segment is what the teacher sees.
+            return (
+                f"{foot_label} = 垂足({point}, {line})\n"
+                f"{segment_label} = 线段({point}, {foot_label})"
+            ), ""
+        kinds.set(segment_label, "segment")
+        return f"{segment_label} = 垂线段({point}, {line})", ""
+
+    # -- Mirror(P, Q): in GeoGebra the second argument may be a point ------
+    if name in ("Mirror", "镜像") and len(inputs) == 2:
+        second = kinds.name(inputs[1])
+        if kinds.kind.get(second) == "point":
+            label = kinds.allocate(outputs[0])
+            if label != outputs[0]:
+                result.renames[outputs[0]] = label
+            first = kinds.name(inputs[0])
+            kinds.set(label, "point")
+            return f"{label} = 点对称({first}, {second})", ""
 
     # -- the commands whose arguments are not just renamed ----------------
     if name in ("LineBisector", "PerpendicularBisector"):
-        if not inputs:
-            return None, f"{name}: 没有参数"
-        source = _sanitize(inputs[0])
-        ends = kinds.endpoints.get(source)
-        if ends is None:
-            return None, f"{name}({source}): 它不是一条已知端点的线段，无法转成中垂线"
-        first, second = args(list(ends))
-        kinds.set(label, "line")
-        return f"{label} = 中垂线({first}, {second})", ""
+        label = kinds.allocate(outputs[0])
+        if label != outputs[0]:
+            result.renames[outputs[0]] = label
+        if len(inputs) == 2:
+            first, second = args(inputs)
+            kinds.set(label, "line")
+            return f"{label} = 中垂线({first}, {second})", ""
+        if len(inputs) == 1:
+            source = kinds.name(inputs[0])
+            ends = kinds.endpoints.get(source)
+            if ends is not None:
+                first, second = args(list(ends))
+                kinds.set(label, "line")
+                return f"{label} = 中垂线({first}, {second})", ""
+            kinds.missing.update(outputs)
+            return None, (
+                f"{name}({source}): 它不是一条已知端点的线段，无法转成中垂线"
+            )
+        kinds.missing.update(outputs)
+        return None, f"{name}: 参数个数不认识"
 
     if name == "Intersect":
+        label = kinds.allocate(outputs[0])
+        if label != outputs[0]:
+            result.renames[outputs[0]] = label
         if len(inputs) < 2:
+            kinds.missing.update(outputs)
             return None, "Intersect: 参数不足"
-        first, second = _sanitize(inputs[0]), _sanitize(inputs[1])
+        first, second = kinds.name(inputs[0]), kinds.name(inputs[1])
         selector = inputs[2] if len(inputs) > 2 else "1"
         first_kind = kinds.kind.get(first, "")
         second_kind = kinds.kind.get(second, "")
         if first_kind in _LINE_LIKE and second_kind in _LINE_LIKE:
             kinds.set(label, "point")
-            return f"{label} = 交点({_sanitize(first)}, {_sanitize(second)})", ""
-        if {first_kind, second_kind} & _LINE_LIKE and "circle" in (first_kind, second_kind):
+            return f"{label} = 交点({first}, {second})", ""
+        if {first_kind, second_kind} & _LINE_LIKE and "circle" in (
+            first_kind,
+            second_kind,
+        ):
             line = first if first_kind in _LINE_LIKE else second
-            circle = second if first_kind in _LINE_LIKE else first
+            circle_name = second if first_kind in _LINE_LIKE else first
             index = _selector(selector)
             kinds.set(label, "point")
-            return (
-                f"{label} = 交点({_sanitize(line)}, {_sanitize(circle)}, {index})",
-                "",
-            )
+            return f"{label} = 交点({line}, {circle_name}, {index})", ""
         if first_kind == "circle" and second_kind == "circle":
             index = _selector(selector)
             kinds.set(label, "point")
-            return (
-                f"{label} = 交点({_sanitize(first)}, {_sanitize(second)}, {index})",
-                "",
-            )
+            return f"{label} = 交点({first}, {second}, {index})", ""
+        kinds.missing.update(outputs)
         return None, f"Intersect({first}, {second}): 不认识这两条对象的类型"
 
     if name == "Tangent":
+        label = kinds.allocate(outputs[0])
+        if label != outputs[0]:
+            result.renames[outputs[0]] = label
         if len(inputs) != 2:
+            kinds.missing.update(outputs)
             return None, "Tangent: 参数不足"
         kinds.set(label, "line")
-        return f"{label} = 切线({_sanitize(inputs[0])}, {_sanitize(inputs[1])})", ""
+        if len(outputs) > 1:
+            kinds.missing.update(outputs[1:])
+            result.skipped.append(
+                f"Tangent({', '.join(inputs)}) 在 GeoGebra 里给出 {len(outputs)} 条切线"
+                f"（{', '.join(outputs)}），本语言一条命令一条切线 —— 只导入了 {outputs[0]}"
+            )
+        return f"{label} = 切线({args(inputs)[0]}, {args(inputs)[1]})", ""
 
     if name == "Circle":
+        label = kinds.allocate(outputs[0])
+        if label != outputs[0]:
+            result.renames[outputs[0]] = label
         if len(inputs) == 3:
             kinds.set(label, "circle")
+            centres = [kinds.coords.get(value) for value in inputs]
+            if all(point is not None for point in centres):
+                circle = _circumcircle(*centres)  # type: ignore[arg-type]
+                if circle is not None:
+                    kinds.circles[label] = circle
             return f"{label} = 外接圆({', '.join(args(inputs))})", ""
         if len(inputs) == 2:
             kinds.set(label, "circle")
+            centre = kinds.coords.get(inputs[0])
+            through = kinds.coords.get(inputs[1])
+            if centre is not None and through is not None:
+                kinds.circles[label] = (
+                    centre[0],
+                    centre[1],
+                    math.hypot(through[0] - centre[0], through[1] - centre[1]),
+                )
             return f"{label} = 圆({', '.join(args(inputs))})", ""
+        kinds.missing.update(outputs)
         return None, f"Circle({', '.join(inputs)}): 参数个数不认识"
 
     # -- everything else: rename the command, keep the arguments ----------
     ours = _NAMES.get(name, name)
-    if name == "Segment" and len(inputs) == 2:
-        kinds.set(label, "segment", (_sanitize(inputs[0]), _sanitize(inputs[1])))
-    elif name in ("Line", "Ray", "OrthogonalLine", "ParallelLine"):
-        kinds.set(label, "line")
-    elif ours == "多边形":
-        kinds.set(label, "polygon")
-    elif ours in ("中点", "重心", "外心", "垂心", "内心", "交点"):
-        kinds.set(label, "point")
+    command = _KNOWN.get(name) or _KNOWN.get(ours)
+    if command is None or not command.implemented:
+        kinds.missing.update(outputs)
+        return None, (
+            f"{name}({', '.join(inputs)}): 这个构造还没有实现，跳过"
+        )
+    if command.kind == JUDGEMENT:
+        kinds.missing.update(outputs)
+        return None, f"{name}({', '.join(inputs)}): 这是判定，不是构造"
 
-    # A name that is neither ours nor in the table is reported: guessing
-    # a command is how a figure quietly becomes a different figure.
+    label = kinds.allocate(outputs[0])
+    if label != outputs[0]:
+        result.renames[outputs[0]] = label
+    if len(outputs) > 1:
+        # A polygon produces its edges as well; the DSL polygon draws
+        # them, so the extra labels are not separate objects.
+        kinds.missing.update(outputs[1:])
+        result.skipped.append(
+            f"{name}({', '.join(inputs)}) 在 GeoGebra 里给出 {len(outputs)} 个对象"
+            f"（{', '.join(outputs)}），本语言一条命令一个对象 —— 只导入了 {outputs[0]}"
+        )
+
+    if name == "Segment" and len(inputs) == 2:
+        kinds.set(
+            label,
+            "segment",
+            (kinds.name(inputs[0]), kinds.name(inputs[1])),
+        )
+    else:
+        output_kind = _KIND_BY_COMMAND.get(command.alias_of or command.id)
+        if output_kind is not None:
+            kinds.set(label, output_kind)
+
     return f"{label} = {ours}({', '.join(args(inputs))})", ""
 
 

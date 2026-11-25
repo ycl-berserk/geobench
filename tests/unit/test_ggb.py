@@ -11,7 +11,9 @@ languages disagree are handled rather than approximated.
 
 from __future__ import annotations
 
+import os
 import zipfile
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -42,9 +44,44 @@ XML = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 
-def _write_ggb(path: Path, xml: str = XML) -> Path:
+MACRO_XML = """<?xml version="1.0" encoding="utf-8"?>
+<geogebra format="5.0">
+  <macro cmdName="外心">
+    <macroInput a0="A" a1="B" a2="C"/>
+    <macroOutput a0="E"/>
+    <construction>
+      <command name="Segment"><input a0="A" a1="B"/><output a0="f"/></command>
+      <command name="Midpoint"><input a0="A" a1="B"/><output a0="E"/></command>
+    </construction>
+  </macro>
+</geogebra>
+"""
+
+MACRO_FIGURE = """<?xml version="1.0" encoding="utf-8"?>
+<geogebra format="5.0">
+  <construction>
+    <element type="point" label="A"><coords x="0" y="0" z="1"/></element>
+    <element type="point" label="B"><coords x="4" y="0" z="1"/></element>
+    <element type="point" label="C"><coords x="1" y="3" z="1"/></element>
+    <command name="外心"><input a0="A" a1="B" a2="C"/><output a0="O"/></command>
+    <command name="Segment"><input a0="A" a1="O"/><output a0="s"/></command>
+  </construction>
+</geogebra>
+"""
+
+#: The teacher's own files, used as a smoke test where they are present.
+CORPUS = Path(
+    os.environ.get(
+        "GEOBENCH_CORPUS", str(Path.home() / "Desktop" / "竞赛图形ggb示例")
+    )
+)
+
+
+def _write_ggb(path: Path, xml: str = XML, macro: str | None = None) -> Path:
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("geogebra.xml", xml)
+        if macro is not None:
+            archive.writestr("geogebra_macro.xml", macro)
     return path
 
 
@@ -133,3 +170,80 @@ def test_a_coordinate_is_taken_as_an_exact_number(tmp_path: Path) -> None:
     assert "-163393/100000" in first
     assert "468611/100000" in first
     assert any("浮点" in item for item in result.warnings)
+
+
+FORMS = """<?xml version="1.0" encoding="utf-8"?>
+<geogebra format="5.0">
+  <construction>
+    <element type="point" label="A"><coords x="0" y="0" z="1"/></element>
+    <element type="point" label="B"><coords x="4" y="0" z="1"/></element>
+    <element type="point" label="C"><coords x="1" y="3" z="1"/></element>
+    <command name="Segment"><input a0="A" a1="B"/><output a0="f"/></command>
+    <command name="Midpoint"><input a0="f"/><output a0="M"/></command>
+    <command name="Line"><input a0="A" a1="f"/><output a0="p"/></command>
+    <command name="PerpendicularSegment">
+      <input a0="C" a1="f"/><output a0="h"/><output a1="D"/>
+    </command>
+    <command name="Mirror"><input a0="C" a1="M"/><output a0="C_1"/></command>
+  </construction>
+</geogebra>
+"""
+
+
+def test_geogebra_forms_the_dsl_does_not_share_are_translated(tmp_path: Path) -> None:
+    """Midpoint(segment), Line(point, line), a perpendicular segment, a half-turn."""
+    result = import_ggb(_write_ggb(tmp_path / "forms.ggb", FORMS))
+    lines = result.dsl.splitlines()
+    assert "M = 中点(A, B)" in lines
+    assert "p = 平行(A, f)" in lines
+    assert "D = 垂足(C, f)" in lines
+    assert "h = 线段(C, D)" in lines
+    assert "C1 = 点对称(C, M)" in lines
+
+
+def test_a_custom_tool_is_expanded_not_matched_by_name(tmp_path: Path) -> None:
+    """A teacher's 外心 tool shadows the built-in: its body is the truth."""
+    result = import_ggb(
+        _write_ggb(tmp_path / "macro.ggb", MACRO_FIGURE, MACRO_XML)
+    )
+    lines = result.dsl.splitlines()
+    assert "O = 中点(A, B)" in lines
+    assert not any("外心(" in line for line in lines)
+    assert any("自定义工具" in item for item in result.warnings)
+
+
+def test_the_points_stay_inside_the_circle(tmp_path: Path) -> None:
+    """``Point(c)`` keeps the parameter the teacher had, not a free point."""
+    xml = """<?xml version="1.0" encoding="utf-8"?>
+    <geogebra format="5.0"><construction>
+      <element type="point" label="O"><coords x="0" y="0" z="1"/></element>
+      <element type="point" label="A"><coords x="2" y="0" z="1"/></element>
+      <element type="point" label="B"><coords x="0" y="2" z="1"/></element>
+      <command name="Circle"><input a0="O" a1="A"/><output a0="c"/></command>
+      <command name="Point"><input a0="c"/><output a0="B"/></command>
+    </construction></geogebra>"""
+    result = import_ggb(_write_ggb(tmp_path / "on-circle.ggb", xml))
+    line = next(
+        line for line in result.dsl.splitlines() if line.startswith("B = 圆上的点")
+    )
+    parameter = line.split(", ")[-1].rstrip(")")
+    assert 0 <= Fraction(parameter) < 1
+    figure = parse_dsl(result.dsl)
+    evaluate_numeric(figure)
+    assert figure.nodes["B"].op == "point.on_circle"
+
+
+CORPUS_FILES = sorted(CORPUS.glob("*.ggb")) if CORPUS.is_dir() else []
+
+
+@pytest.mark.skipif(not CORPUS_FILES, reason="the teacher's corpus is not here")
+@pytest.mark.parametrize("path", CORPUS_FILES, ids=lambda path: path.name)
+def test_the_real_corpus_imports_and_builds(
+    path: Path, registry: OperatorRegistry
+) -> None:
+    """Every real file goes through the importer and the kernel."""
+    result = import_ggb(path)
+    assert result.dsl.strip()
+    figure = parse_dsl(result.dsl)
+    evaluate_figure(figure, registry)
+    evaluate_numeric(figure)

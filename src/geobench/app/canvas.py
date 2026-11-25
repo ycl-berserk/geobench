@@ -157,6 +157,10 @@ class FigureCanvas(QWidget):
         self._drag_moved = False
         self._drag_offset = (0.0, 0.0)
         self._pending_points: list[str] = []
+        #: Proved claims worth drawing: equal lengths get ticks, a right
+        #: angle gets its square.  The table says what is true; the
+        #: figure says it where the eye looks.
+        self._proof_marks: list[tuple[str, tuple[str, ...]]] = []
         self._tool: ToolSpec | None = None
         self._tool_args: list[str] = []
         self._awaiting_value = False
@@ -187,6 +191,11 @@ class FigureCanvas(QWidget):
 
     def zoom_out(self) -> None:
         self.zoom(1 / ZOOM_STEP)
+
+    def set_proof_marks(self, marks: list[tuple[str, tuple[str, ...]]]) -> None:
+        """Draw the claims the kernel proved, in the figure itself."""
+        self._proof_marks = list(marks)
+        self.update()
 
     def set_show_axes(self, shown: bool) -> None:
         """Show or hide the axes and their numbers."""
@@ -267,8 +276,138 @@ class FigureCanvas(QWidget):
                 self._draw_point(painter, viewport, primitive, style)
             elif isinstance(primitive, LabelPrimitive):
                 self._draw_label(painter, viewport, primitive, style)
+        self._draw_proof_marks(painter, viewport)
         self._draw_selection(painter, viewport, style)
         self._draw_hint(painter, style)
+
+    # -- proof marks -------------------------------------------------------
+
+    def _numeric(self, node_id: str, key: str) -> tuple[float, ...] | None:
+        node = self.controller.figure().nodes.get(node_id)
+        if node is None:
+            return None
+        values = (node.cache.get("numeric") or {}).get(key)
+        if values is None:
+            return None
+        if isinstance(values, (int, float)):
+            return (float(values),)
+        return tuple(float(value) for value in values)
+
+    def _point_xy(self, node_id: str) -> tuple[float, float] | None:
+        coords = self._numeric(node_id, "coords")
+        if coords is None or len(coords) < 2:
+            return None
+        return coords[0], coords[1]
+
+    def _line_coeffs(self, node_id: str) -> tuple[float, float, float] | None:
+        line = self._numeric(node_id, "line")
+        if line is not None and len(line) >= 3:
+            return line[0], line[1], line[2]
+        segment = self._numeric(node_id, "segment")
+        if segment is not None and len(segment) == 4:
+            x1, y1, x2, y2 = segment
+            return y1 - y2, x2 - x1, x1 * y2 - x2 * y1
+        return None
+
+    def _draw_proof_marks(self, painter: QPainter, viewport: Viewport) -> None:
+        if not self._proof_marks:
+            return
+        painter.save()
+        painter.setPen(QPen(QColor(PALETTE.ok), 1.6))
+        tick_index = 0
+        for kind, args in self._proof_marks:
+            if kind == "equal_length" and len(args) == 4:
+                tick_index += 1
+                count = (tick_index - 1) % 3 + 1
+                first = (self._point_xy(args[0]), self._point_xy(args[1]))
+                second = (self._point_xy(args[2]), self._point_xy(args[3]))
+                if all(point is not None for pair in (first, second) for point in pair):
+                    self._tick(painter, viewport, first, count)
+                    self._tick(painter, viewport, second, count)
+            elif kind == "perpendicular" and len(args) == 2:
+                self._right_angle(painter, viewport, args[0], args[1])
+        painter.restore()
+
+    def _tick(
+        self,
+        painter: QPainter,
+        viewport: Viewport,
+        pair: tuple[tuple[float, float] | None, tuple[float, float] | None],
+        count: int,
+    ) -> None:
+        start, end = pair
+        if start is None or end is None:
+            return
+        x1, y1 = viewport.to_screen(*start)
+        x2, y2 = viewport.to_screen(*end)
+        dx, dy = x2 - x1, y2 - y1
+        length = math.hypot(dx, dy)
+        if length < 2.0:
+            return
+        ux, uy = dx / length, dy / length
+        nx, ny = -uy, ux
+        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+        for index in range(count):
+            offset = (index - (count - 1) / 2) * 4.0
+            cx, cy = mx + nx * offset, my + ny * offset
+            half = 5.0
+            painter.drawLine(
+                QPointF(cx - ux * half, cy - uy * half),
+                QPointF(cx + ux * half, cy + uy * half),
+            )
+
+    def _right_angle(
+        self, painter: QPainter, viewport: Viewport, first: str, second: str
+    ) -> None:
+        one = self._line_coeffs(first)
+        two = self._line_coeffs(second)
+        if one is None or two is None:
+            return
+        a1, b1, c1 = one
+        a2, b2, c2 = two
+        determinant = a1 * b2 - a2 * b1
+        if abs(determinant) < 1e-12:
+            return
+        x = (b1 * c2 - b2 * c1) / determinant
+        y = (c1 * a2 - c2 * a1) / determinant
+        px, py = viewport.to_screen(x, y)
+        u = self._screen_direction(viewport, one)
+        v = self._screen_direction(viewport, two)
+        if u is None or v is None:
+            return
+        size = 12.0
+        ux, uy = u
+        vx, vy = v
+        painter.drawLine(
+            QPointF(px, py), QPointF(px + ux * size, py + uy * size)
+        )
+        painter.drawLine(
+            QPointF(px + ux * size, py + uy * size),
+            QPointF(px + (ux + vx) * size, py + (uy + vy) * size),
+        )
+        painter.drawLine(
+            QPointF(px, py), QPointF(px + vx * size, py + vy * size)
+        )
+
+    def _screen_direction(
+        self, viewport: Viewport, line: tuple[float, float, float]
+    ) -> tuple[float, float] | None:
+        a, b, c = line
+        if abs(b) > abs(a):
+            p1 = (0.0, -c / b)
+            p2 = (1.0, -(a + c) / b)
+        elif a != 0:
+            p1 = (-c / a, 0.0)
+            p2 = (-(b + c) / a, 1.0)
+        else:
+            return None
+        x1, y1 = viewport.to_screen(*p1)
+        x2, y2 = viewport.to_screen(*p2)
+        dx, dy = x2 - x1, y2 - y1
+        length = math.hypot(dx, dy)
+        if length == 0:
+            return None
+        return dx / length, dy / length
 
     def _draw_grid(self, painter: QPainter, viewport: Viewport) -> None:
         """A grid, faint enough to be a guide rather than a subject.

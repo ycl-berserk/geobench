@@ -172,6 +172,13 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
         for _ in range(DEGENERATE):
             pts = _collinear_triple(rng)
             add(pts, ["A", "B", "C"], "edge", "value", "collinear triple still has a centroid")
+    elif op_id == "point.excenter":
+        for _ in range(TARGET):
+            pts = _non_degenerate_triangle(rng)
+            add(pts, ["A", "B", "C"], "normal", "value", "excenter opposite A")
+        for _ in range(DEGENERATE):
+            pts = _collinear_triple(rng)
+            add(pts, ["A", "B", "C"], "degenerate", "error", "collinear triple")
     elif op_id == "point.foot":
         for _ in range(TARGET):
             pts = _distinct_pair(rng)
@@ -256,6 +263,13 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
             pts = _distinct_pair(rng)
             same = {"A": pts["A"], "B": pts["A"]}
             add(same, ["A", "B"], "degenerate", "error", "identical endpoints")
+    elif op_id == "segment.perpendicular":
+        for _ in range(TARGET):
+            pts = _points(rng, 3)
+            add(pts, ["C", "line:A,B"], "normal", "value", "point and line")
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 3)
+            add(pts, ["C", "line:A,A"], "degenerate", "error", "degenerate line")
     elif op_id == "circle.through":
         for _ in range(TARGET):
             pts = _non_degenerate_triangle(rng)
@@ -435,6 +449,32 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
                 "degenerate",
                 "error",
                 "two vertices coincide",
+            )
+    elif op_id == "arc.free":
+        for _ in range(TARGET):
+            pts = _distinct_points(rng, 3)
+            add(
+                {"O": pts["A"], "A": pts["B"], "B": pts["C"]},
+                ["O", "A", "B"],
+                "normal",
+                "value",
+                "a centre and two ends",
+            )
+        add(
+            {"O": ("0", "0"), "A": ("3", "0"), "B": ("-3", "0")},
+            ["O", "A", "B"],
+            "edge",
+            "value",
+            "a semicircle",
+        )
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 3)
+            add(
+                {"O": pts["A"], "A": pts["A"], "B": pts["B"]},
+                ["O", "A", "B"],
+                "degenerate",
+                "error",
+                "the radius is zero",
             )
     elif op_id == "arc.three_points":
         for _ in range(TARGET):
@@ -842,6 +882,34 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
             "value",
             "a line at forty-five degrees",
         )
+    elif op_id == "transform.reflect_point":
+        for _ in range(TARGET):
+            pts = _distinct_pair(rng)
+            add(pts, ["A", "B"], "normal", "value", "half-turn about B")
+        # A point reflected in itself stays put.
+        add(
+            {"A": ("3", "4"), "B": ("3", "4")},
+            ["A", "B"],
+            "edge",
+            "value",
+            "the centre is the point itself",
+        )
+        # The centre at the origin negates the point.
+        add(
+            {"A": ("6", "-2"), "B": ("0", "0")},
+            ["A", "B"],
+            "edge",
+            "value",
+            "the centre is the origin",
+        )
+        # A point on an axis keeps the other coordinate.
+        add(
+            {"A": ("5", "0"), "B": ("0", "3")},
+            ["A", "B"],
+            "edge",
+            "value",
+            "the point lies on the x-axis",
+        )
     elif op_id == "transform.mirror":
         for _ in range(TARGET):
             pts = _points(rng, 3)
@@ -955,6 +1023,7 @@ OPERATORS = [
     "point.nearest_on_object",
     "point.circumcenter",
     "point.incenter",
+    "point.excenter",
     "point.orthocenter",
     "line.free",
     "line.perpendicular_through",
@@ -963,11 +1032,13 @@ OPERATORS = [
     "line.angle_bisector",
     "line.tangent",
     "segment.free",
+    "segment.perpendicular",
     "circle.through",
     "circle.free",
     "circle.center_point",
     "circle.incircle",
     "polygon.free",
+    "arc.free",
     "arc.three_points",
     "sector.three_points",
     "ray.free",
@@ -984,6 +1055,7 @@ OPERATORS = [
     "measure.radius",
     "measure.slope",
     "measure.direction",
+    "transform.reflect_point",
     "transform.mirror",
     "transform.translate",
     "transform.rotate",

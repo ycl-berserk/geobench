@@ -61,6 +61,15 @@ def oracle_foot(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
     return projected.x, projected.y
 
 
+def oracle_perpendicular_segment(
+    ctx: OpContext, args: list[str]
+) -> tuple[Any, Any, Any, Any]:
+    """The point and its projection, as the segment's two ends."""
+    point = _point(ctx, args[0])
+    foot = _line(ctx, args[1]).projection(point)
+    return point.x, point.y, foot.x, foot.y
+
+
 def oracle_intersect_lines(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
     intersection = _line(ctx, args[0]).intersection(_line(ctx, args[1]))
     # sympy returns a list of intersections; a single crossing yields one point.
@@ -79,6 +88,22 @@ def oracle_incenter(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
     triangle = sp.Triangle(_point(ctx, args[0]), _point(ctx, args[1]), _point(ctx, args[2]))
     incenter = triangle.incenter
     return incenter.x, incenter.y
+
+
+def oracle_excenter(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
+    """The excenter opposite the first point, by the side-length formula."""
+    a = _point(ctx, args[0])
+    b = _point(ctx, args[1])
+    c = _point(ctx, args[2])
+    a_len = b.distance(c)
+    b_len = c.distance(a)
+    c_len = a.distance(b)
+    denominator = -a_len + b_len + c_len
+    if denominator == 0:
+        raise ValueError("degenerate triangle")
+    x = (-a_len * a.x + b_len * b.x + c_len * c.x) / denominator
+    y = (-a_len * a.y + b_len * b.y + c_len * c.y) / denominator
+    return x, y
 
 
 def oracle_orthocenter(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
@@ -245,6 +270,15 @@ def oracle_circle_incicle(ctx: OpContext, args: list[str]) -> tuple[Any, Any, An
     return circle.center.x, circle.center.y, circle.radius**2
 
 
+def oracle_transform_reflect_point(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
+    """Half-turn about the centre: the centre is the midpoint of the pair."""
+    p = _point(ctx, args[0])
+    centre = _point(ctx, args[1])
+    vector = centre - p
+    image = centre + vector
+    return image.x, image.y
+
+
 def oracle_transform_mirror(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
     reflected = _point(ctx, args[0]).reflect(_line(ctx, args[1]))
     return reflected.x, reflected.y
@@ -262,6 +296,16 @@ def oracle_transform_rotate(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
     # sympy rotates counter-clockwise by radians.
     moved = _point(ctx, args[0]).rotate(degrees * sp.pi / 180, centre)
     return moved.x, moved.y
+
+
+def oracle_arc_center_points(
+    ctx: OpContext, args: list[str]
+) -> tuple[Any, Any, Any, Any, Any, Any, Any]:
+    """Centre, squared radius, and the two ends, by sympy's distance."""
+    o = _point(ctx, args[0])
+    a = _point(ctx, args[1])
+    b = _point(ctx, args[2])
+    return o.x, o.y, a.distance(o) ** 2, a.x, a.y, b.x, b.y
 
 
 def oracle_arc_three_points(ctx: OpContext, args: list[str]) -> tuple[Any, ...]:
@@ -551,6 +595,7 @@ ORACLES = {
     "point.intersect_line_circle": oracle_intersect_line_circle,
     "point.circumcenter": oracle_circumcenter,
     "point.incenter": oracle_incenter,
+    "point.excenter": oracle_excenter,
     "point.orthocenter": oracle_orthocenter,
     "line.free": oracle_line_free,
     "line.perpendicular_through": oracle_perpendicular_through,
@@ -563,6 +608,7 @@ ORACLES = {
     "point.on_line": oracle_point_on_line,
     "point.nearest_on_object": oracle_nearest_on_object,
     "segment.free": oracle_segment_free,
+    "segment.perpendicular": oracle_perpendicular_segment,
     "circle.through": oracle_circle_through,
     "circle.center_point": oracle_circle_center_point,
     "circle.incircle": oracle_circle_incicle,
@@ -581,8 +627,10 @@ ORACLES = {
     "measure.radius": oracle_measure_radius,
     "measure.slope": oracle_measure_slope,
     "measure.direction": oracle_measure_direction,
+    "arc.free": oracle_arc_center_points,
     "arc.three_points": oracle_arc_three_points,
     "sector.three_points": oracle_sector_three_points,
+    "transform.reflect_point": oracle_transform_reflect_point,
     "transform.mirror": oracle_transform_mirror,
     "transform.translate": oracle_transform_translate,
     "transform.rotate": oracle_transform_rotate,
