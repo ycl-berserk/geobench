@@ -40,7 +40,6 @@ _SIMPLE = {
     "point.midpoint": "Midpoint",
     "point.centroid": "Centroid",
     "point.incenter": "Incenter",
-    "point.excenter": "Excenter",
     "point.orthocenter": "Orthocenter",
     "line.free": "Line",
     "line.perpendicular_through": "PerpendicularLine",
