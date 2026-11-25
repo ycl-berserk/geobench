@@ -44,7 +44,7 @@ def _arcs(figure) -> list[ArcPrimitive]:
 def test_the_arc_through_three_points_is_drawn(registry: OperatorRegistry) -> None:
     figure = _figure(
         registry,
-        "点 A(4,0) B(0,4) C(-4,0)\n弧 = 圆弧(A, B, C)",
+        "点 A(4,0) B(0,4) C(-4,0)\n弧 = 三点弧(A, B, C)",
     )
     arcs = _arcs(figure)
     assert len(arcs) == 1
@@ -61,7 +61,7 @@ def test_the_arc_takes_the_side_the_middle_point_is_on(registry: OperatorRegistr
     """The arc from A to B that passes through C is the long one."""
     figure = _figure(
         registry,
-        "点 A(4,0) B(0,4) C(-4,0)\n弧 = 圆弧(A, C, B)",
+        "点 A(4,0) B(0,4) C(-4,0)\n弧 = 三点弧(A, C, B)",
     )
     arc = _arcs(figure)[0]
     # Counter-clockwise from A to B is 90 degrees and does not contain
@@ -86,7 +86,7 @@ def test_the_sector_is_a_filled_wedge(registry: OperatorRegistry) -> None:
 def test_the_arc_is_drawn_as_an_svg_path(registry: OperatorRegistry) -> None:
     figure = _figure(
         registry,
-        "点 A(4,0) B(0,4) C(-4,0)\n弧 = 圆弧(A, B, C)",
+        "点 A(4,0) B(0,4) C(-4,0)\n弧 = 三点弧(A, B, C)",
     )
     svg = render_svg(figure)
     assert "<path" in svg
@@ -100,7 +100,7 @@ def test_three_collinear_points_leave_the_arc_undefined(registry: OperatorRegist
     path cannot refuse them; the placement is what fails, and the node
     is marked undefined while the rest of the figure stays intact.
     """
-    figure = parse_dsl("点 A(0,0) B(1,0) C(2,0)\n弧 = 圆弧(A, B, C)")
+    figure = parse_dsl("点 A(0,0) B(1,0) C(2,0)\n弧 = 三点弧(A, B, C)")
     evaluate_exact(figure, registry)
     evaluate_numeric(figure)
     assert [node_id for node_id, _ in undefined_nodes(figure)] == ["弧"]

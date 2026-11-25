@@ -294,8 +294,8 @@ src/geobench/
 | `Circle` | 圆 | `circle.center_point` | `[x]` |
 | `Circumcircle` | 外接圆 | `circle.through` | `[x]` |
 | `Incircle` | 内切圆 | `circle.incircle` | `[x]` |
-| `Arc` | 弧 | `arc.free` | `[x]` |
-| `CircularArc` | 圆弧 | `arc.three_points` | `[x]` |
+| `CircularArc` | 圆弧 | `arc.free` | `[x]` |
+| `CircumcircularArc` | 三点弧 | `arc.three_points` | `[x]` |
 | `CircularSector` | 圆扇形 | `sector.circular` | `[x]` |
 | `Sector` | 扇形 | `sector.free` | `[ ]` |
 | `SectorThreePoints` | 三点扇形 | `sector.three_points` | `[x]` |

@@ -528,6 +528,14 @@ def _translate(
         kinds.missing.update(outputs)
         return None, f"Point({inputs[0]}): 无法定位这个点"
 
+    # -- Arc(<circle>, M, N): no command of ours takes a circle yet --------
+    if name == "Arc" and len(inputs) == 3:
+        kinds.missing.update(outputs)
+        return None, (
+            f"Arc({', '.join(inputs)}): GeoGebra 的 Arc 取圆上的两点，"
+            "本语言还没有这个写法（圆弧请用圆心加两点）"
+        )
+
     # -- Midpoint(<segment>): GeoGebra takes the segment, we take its ends -
     if name == "Midpoint" and len(inputs) == 1:
         source = kinds.name(inputs[0])
