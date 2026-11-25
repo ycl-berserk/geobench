@@ -211,7 +211,7 @@ class Palette:
             margin: 4px {SPACE_SM}px;
         }}
         QToolButton {{
-            padding: {SPACE_SM - 2}px {SPACE_MD}px;
+            padding: {SPACE_XS}px {SPACE_SM}px;
             border: 1px solid transparent;
             border-radius: {RADIUS}px;
             color: {self.text};
@@ -232,8 +232,8 @@ class Palette:
         }}
         QToolButton::menu-indicator {{
             subcontrol-position: right center;
-            right: 2px;
-            width: 14px;
+            right: 1px;
+            width: 12px;
         }}
 
         /* -- buttons ---------------------------------------------------- */

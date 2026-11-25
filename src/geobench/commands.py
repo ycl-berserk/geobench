@@ -512,7 +512,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         "判定",
         JUDGEMENT,
         6,
-        "两个角相等",
+        "两个角相等（每个角的三点里顶点在中间）",
         True,
         arg_kinds=("point",) * 6,
     ),

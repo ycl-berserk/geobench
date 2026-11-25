@@ -291,14 +291,16 @@ def _centroid_of(ctx: JudgeContext, args: list[str]) -> Expr:
 def _angle_equal(ctx: JudgeContext, args: list[str]) -> Expr:
     """The angles ABC and DEF have the same measure.
 
-    The **cosine** is used, because it is injective on [0, 180] -- the
-    unsigned angle. The lengths enter through their square roots, which
-    is the price of keeping the sign: squaring the cosine would also
-    accept a pair of supplementary angles, and that would be a false
-    "proved".
+    The arguments are written the way a paper writes an angle: the
+    **vertex is in the middle**, so ``角相等(B, P, D, B, C, A)`` is
+    ``∠BPD = ∠BCA``.  (``角度(B,P,D)`` measures the same angle.)  The
+    cosine is used because it is injective on [0, 180] -- the unsigned
+    angle. The lengths enter through their square roots, which is the
+    price of keeping the sign: squaring the cosine would also accept a
+    pair of supplementary angles, and that would be a false "proved".
     """
-    first = _angle_parts(ctx, args[0], args[1], args[2])
-    second = _angle_parts(ctx, args[3], args[4], args[5])
+    first = _angle_parts(ctx, args[1], args[0], args[2])
+    second = _angle_parts(ctx, args[4], args[3], args[5])
     return first[0] * sp.sqrt(second[2]) - second[0] * sp.sqrt(first[2])
 
 

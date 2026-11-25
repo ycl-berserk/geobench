@@ -30,6 +30,7 @@ f = 直线(A, B)
 p = 垂直(C, f)
 断言 相等(A, M, M, B)
 断言 垂直(f, p)
+断言 角相等(B, A, C, C, A, B)
 """
 
 
@@ -50,11 +51,13 @@ def test_a_proved_claim_becomes_a_mark(window: StudioWindow) -> None:
     verdicts = [
         Verdict(kind="equal_length", verdict="proved", scope=IDENTITY),
         Verdict(kind="perpendicular", verdict="proved", scope=IDENTITY),
+        Verdict(kind="angle_equal", verdict="proved", scope=IDENTITY),
     ]
     window._on_verdicts(0, verdicts)
     assert window.canvas._proof_marks == [
         ("equal_length", ("A", "M", "M", "B")),
         ("perpendicular", ("f", "p")),
+        ("angle_equal", ("B", "A", "C", "C", "A", "B")),
     ]
 
 
@@ -62,6 +65,7 @@ def test_a_refuted_claim_is_not_drawn(window: StudioWindow) -> None:
     verdicts = [
         Verdict(kind="equal_length", verdict="refuted", scope=IDENTITY),
         Verdict(kind="perpendicular", verdict="refuted", scope=IDENTITY),
+        Verdict(kind="angle_equal", verdict="refuted", scope=IDENTITY),
     ]
     window._on_verdicts(0, verdicts)
     assert window.canvas._proof_marks == []
@@ -73,6 +77,7 @@ def test_the_canvas_draws_the_marks(window: StudioWindow) -> None:
         [
             Verdict(kind="equal_length", verdict="proved", scope=IDENTITY),
             Verdict(kind="perpendicular", verdict="proved", scope=IDENTITY),
+            Verdict(kind="angle_equal", verdict="proved", scope=IDENTITY),
         ],
     )
     image = QImage(640, 480, QImage.Format.Format_ARGB32)

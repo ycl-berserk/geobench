@@ -115,14 +115,18 @@ class _Writer:
         )
         if detail is not None:
             element.append(detail)
+        node = self.figure.nodes.get(node_id)
+        if node is not None and not node.style.visible:
+            ET.SubElement(element, "show", {"object": "false", "label": "true"})
 
     def raw_element(self, label: str, kind: str) -> None:
         """An element for a helper object (an auxiliary circle or line)."""
-        ET.SubElement(
+        element = ET.SubElement(
             self.construction,
             "element",
             {"type": _ELEMENT_TYPE.get(kind, kind), "label": label},
         )
+        ET.SubElement(element, "show", {"object": "false", "label": "false"})
 
     def command(self, name: str, inputs: list[str], outputs: list[str]) -> None:
         command = ET.SubElement(self.construction, "command", {"name": name})

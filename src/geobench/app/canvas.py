@@ -315,6 +315,7 @@ class FigureCanvas(QWidget):
         painter.save()
         painter.setPen(QPen(QColor(PALETTE.ok), 1.6))
         tick_index = 0
+        angle_index = 0
         for kind, args in self._proof_marks:
             if kind == "equal_length" and len(args) == 4:
                 tick_index += 1
@@ -326,6 +327,15 @@ class FigureCanvas(QWidget):
                     self._tick(painter, viewport, second, count)
             elif kind == "perpendicular" and len(args) == 2:
                 self._right_angle(painter, viewport, args[0], args[1])
+            elif kind == "angle_equal" and len(args) == 6:
+                angle_index += 1
+                count = (angle_index - 1) % 3 + 1
+                self._angle_mark(
+                    painter, viewport, args[0], args[1], args[2], count
+                )
+                self._angle_mark(
+                    painter, viewport, args[3], args[4], args[5], count
+                )
         painter.restore()
 
     def _tick(
@@ -388,6 +398,61 @@ class FigureCanvas(QWidget):
         painter.drawLine(
             QPointF(px, py), QPointF(px + vx * size, py + vy * size)
         )
+
+    def _angle_mark(
+        self,
+        painter: QPainter,
+        viewport: Viewport,
+        vertex: str,
+        first: str,
+        second: str,
+        count: int,
+    ) -> None:
+        """A small arc at the vertex, with a tick for which equality it is."""
+        centre = self._point_xy(vertex)
+        one = self._point_xy(first)
+        two = self._point_xy(second)
+        if centre is None or one is None or two is None:
+            return
+        vx, vy = viewport.to_screen(*centre)
+        ax, ay = viewport.to_screen(*one)
+        bx, by = viewport.to_screen(*two)
+        start = math.atan2(ay - vy, ax - vx)
+        end = math.atan2(by - vy, bx - vx)
+        sweep = (end - start) % (2 * math.pi)
+        if sweep > math.pi:
+            sweep -= 2 * math.pi
+        radius = 17.0 + 3.0 * (count - 1)
+        points = []
+        steps = 14
+        for index in range(steps + 1):
+            angle = start + sweep * index / steps
+            points.append(
+                QPointF(
+                    vx + radius * math.cos(angle),
+                    vy + radius * math.sin(angle),
+                )
+            )
+        for index in range(steps):
+            painter.drawLine(points[index], points[index + 1])
+        # The tick sits on the arc, so two equal angles can be paired by
+        # counting marks the way a paper does it.
+        middle = start + sweep / 2
+        for offset in range(count):
+            shift = (offset - (count - 1) / 2) * 0.10
+            angle = middle + shift
+            inner = radius - 3.5
+            outer = radius + 3.5
+            painter.drawLine(
+                QPointF(
+                    vx + inner * math.cos(angle),
+                    vy + inner * math.sin(angle),
+                ),
+                QPointF(
+                    vx + outer * math.cos(angle),
+                    vy + outer * math.sin(angle),
+                ),
+            )
 
     def _screen_direction(
         self, viewport: Viewport, line: tuple[float, float, float]

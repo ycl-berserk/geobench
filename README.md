@@ -36,7 +36,7 @@
 > 到 [Releases](https://github.com/ycl-berserk/geobench/releases) 下载 `geobench-win64.zip`，
 > 解压后双击 `geobench.exe`。**不需要 Python、GeoGebra 或其它依赖。**
 > 第一次运行 Windows 可能提示“未知发布者”，点「更多信息 → 仍要运行」。
-> `samples/` 里有三个示例，`使用说明.md` 是一页上手说明；AI 作图可选，需要自备模型服务。
+> `samples/` 里有四个示例（含量角与角相等），`使用说明.md` 是一页上手说明；AI 作图可选，需要自备模型服务。
 >
 > 实现的契约在 [`docs/spec.md`](docs/spec.md)，DSL 语法在 [`docs/dsl-spec.md`](docs/dsl-spec.md)，生产方式在 [`docs/ai-workflow.md`](docs/ai-workflow.md)，决策记录在 [`docs/decisions.md`](docs/decisions.md)。
 > **这个项目里想得比较巧的几个地方**：[`docs/ideas.md`](docs/ideas.md) ——

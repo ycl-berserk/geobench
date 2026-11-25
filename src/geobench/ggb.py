@@ -254,6 +254,7 @@ def _expand_macros(
     construction: ET.Element,
     macros: dict[str, _Macro],
     result: ImportResult,
+    hidden: set[str],
 ) -> list[_RawCommand]:
     """Flatten every macro call into the primitive commands it stands for."""
     expanded: list[_RawCommand] = []
@@ -263,7 +264,11 @@ def _expand_macros(
     def fresh(label: str) -> str:
         nonlocal counter
         counter += 1
-        return f"m{counter}_{_sanitize(label)}"
+        name = f"m{counter}_{_sanitize(label)}"
+        # A macro's internal construction is how GeoGebra computes the
+        # tool's output; the teacher sees the output, not the scaffolding.
+        hidden.add(name)
+        return name
 
     def emit(
         name: str,
@@ -325,6 +330,9 @@ class _Kinds:
         self.missing: set[str] = set()
         """Labels that were not imported; dependants are skipped."""
 
+        self.hidden: set[str] = set()
+        """Labels the source file does not draw (``show object="false"``)."""
+
     def set(
         self,
         label: str,
@@ -375,6 +383,9 @@ def import_ggb(path: Path) -> ImportResult:
     for element in construction.findall("element"):
         kind = element.get("type")
         label = element.get("label") or ""
+        show = element.find("show")
+        if show is not None and show.get("object") == "false":
+            kinds.hidden.add(label)
         if kind == "point":
             coords = element.find("coords")
             if coords is not None:
@@ -398,6 +409,7 @@ def import_ggb(path: Path) -> ImportResult:
             produced.update(output.attrib.values())
 
     free: list[tuple[str, str, str]] = []
+    hidden_free: list[str] = []
     for element in construction.findall("element"):
         if element.get("type") != "point":
             continue
@@ -420,13 +432,16 @@ def import_ggb(path: Path) -> ImportResult:
             )
         free.append((name, x_text, y_text))
         kinds.set(name, "point")
+        if label in kinds.hidden:
+            hidden_free.append(name)
 
     if free:
         points = " ".join(f"{name}({x}, {y})" for name, x, y in free)
         lines.append(f"点 {points}")
+        lines.extend(f"隐藏 {name}" for name in hidden_free)
 
     # -- the commands, in construction order -------------------------------
-    for raw in _expand_macros(construction, macros, result):
+    for raw in _expand_macros(construction, macros, result, kinds.hidden):
         line, skipped = _translate(
             raw.name, raw.inputs, raw.outputs, kinds, result
         )
@@ -434,6 +449,11 @@ def import_ggb(path: Path) -> ImportResult:
             # One GeoGebra command may need two DSL lines (a perpendicular
             # segment is also the foot it ends at); a newline separates them.
             lines.extend(line.splitlines())
+            # An object the source file does not draw stays in the figure
+            # -- later constructions depend on it -- but is not drawn.
+            for output_label in raw.outputs:
+                if output_label in kinds.hidden and output_label in kinds.names:
+                    lines.append(f"隐藏 {kinds.name(output_label)}")
         if skipped:
             result.skipped.append(skipped)
 

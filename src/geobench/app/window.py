@@ -1394,16 +1394,29 @@ class StudioWindow(QMainWindow):
         self.canvas.fit()
         self.refresh()
         notes = [*result.warnings, *result.skipped]
+        hidden = sum(
+            1 for line in result.dsl.splitlines() if line.startswith("隐藏 ")
+        )
         if notes:
             QMessageBox.information(
                 self,
                 "从 GeoGebra 读入",
                 f"读入了 {path.name}。\n\n有 {len(notes)} 处需要你看一眼：\n\n"
-                + "\n".join(f"· {note}" for note in notes[:12]),
+                + "\n".join(f"· {note}" for note in notes[:12])
+                + (
+                    f"\n\n另有 {hidden} 个辅助对象按原文件的设置隐藏，"
+                    "后面的构造仍然用得到它们。"
+                    if hidden
+                    else ""
+                ),
             )
-        self.status.showMessage(
-            f"读入了 {path.name}" + (f"（{len(notes)} 处调整）" if notes else "")
-        )
+        details: list[str] = []
+        if notes:
+            details.append(f"{len(notes)} 处调整")
+        if hidden:
+            details.append(f"{hidden} 个辅助对象已隐藏")
+        suffix = f"（{'，'.join(details)}）" if details else ""
+        self.status.showMessage(f"读入了 {path.name}{suffix}")
 
     def _build_empty_state(self) -> QWidget:
         """The first screen: three ways into a figure, and a quiet hint.
@@ -1631,7 +1644,9 @@ class StudioWindow(QMainWindow):
         """
         toolbar = QToolBar("构造")
         toolbar.setMovable(False)
-        toolbar.setIconSize(QSize(22, 22))
+        # The icons sit beside a word, not instead of one; 18 px keeps
+        # the glyph inside its block instead of crowding the label.
+        toolbar.setIconSize(QSize(18, 18))
         self.addToolBar(toolbar)
 
         # The pointer comes first, the way it does in every drawing
@@ -2324,6 +2339,7 @@ class StudioWindow(QMainWindow):
             if verdict.verdict == "proved" and relation.kind in {
                 "equal_length",
                 "perpendicular",
+                "angle_equal",
             }:
                 marks.append((relation.kind, tuple(relation.args)))
         self.canvas.set_proof_marks(marks)

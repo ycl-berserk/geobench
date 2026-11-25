@@ -432,11 +432,19 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
             # two labels on top of each other are unreadable.
             dx, dy = _label_offset(centre, position[0], position[1])
             offset = (-dx, -dy)
+            text = _format_number(value[0])
+            if node.op == "measure.angle":
+                # A bare 43.6 at a vertex could be a length; the degree
+                # sign is what makes it an angle at a glance.
+                text += "°"
+                self_arc = _angle_arc(figure, node, ink)
+                if self_arc is not None:
+                    main.append(self_arc)
             labels.append(
                 LabelPrimitive(
                     position[0],
                     position[1],
-                    _format_number(value[0]),
+                    text,
                     offset[0],
                     offset[1],
                 )
@@ -574,6 +582,40 @@ def _format_number(value: float) -> str:
     if abs(value - round(value)) < 1e-9:
         return str(round(value))
     return f"{value:.2f}".rstrip("0").rstrip(".")
+
+
+def _angle_arc(
+    figure: Figure, node: Node, ink: Ink
+) -> ArcPrimitive | None:
+    """A small arc at a measured angle, so the vertex is a picture.
+
+    The radius is a fraction of the shorter arm: the arc belongs to the
+    angle, not to the size of the paper, and it stays inside the figure
+    when a point is dragged close.
+    """
+    if len(node.args) != 3:
+        return None
+    coords = [_numeric_payload(figure, arg, "coords") for arg in node.args]
+    if any(value is None or len(value) < 2 for value in coords):
+        return None
+    vertex, first, second = coords
+    assert vertex is not None and first is not None and second is not None
+    vx, vy = vertex[0], vertex[1]
+    length = min(
+        math.hypot(first[0] - vx, first[1] - vy),
+        math.hypot(second[0] - vx, second[1] - vy),
+    )
+    radius = length * 0.35
+    if radius <= 0:
+        return None
+    start, span = _arc_angles(
+        vx, vy, first[0], first[1], second[0], second[1], None
+    )
+    if span > 180:
+        # The measured angle is the smaller one; the arc should be too.
+        start = start + span - 360
+        span = 360 - span
+    return ArcPrimitive(vx, vy, radius, start, span, False, False, "", ink)
 
 
 def _number_position(figure: Figure, node: Node) -> tuple[float, float] | None:

@@ -210,6 +210,32 @@ def test_a_custom_tool_is_expanded_not_matched_by_name(tmp_path: Path) -> None:
     assert "O = 中点(A, B)" in lines
     assert not any("外心(" in line for line in lines)
     assert any("自定义工具" in item for item in result.warnings)
+    # The macro's own segment is scaffolding; it must not appear in the
+    # drawing even though it stays in the construction.
+    assert any(line.startswith("隐藏 m") for line in lines)
+
+
+def test_an_object_the_source_hides_is_not_drawn(tmp_path: Path) -> None:
+    """GeoGebra's show=false is a decision, not a detail to lose."""
+    xml = """<?xml version="1.0" encoding="utf-8"?>
+    <geogebra format="5.0"><construction>
+      <element type="point" label="A"><coords x="0" y="0" z="1"/></element>
+      <element type="point" label="B"><coords x="4" y="0" z="1"/></element>
+      <element type="point" label="C"><coords x="2" y="3" z="1"/></element>
+      <command name="Line"><input a0="A" a1="B"/><output a0="l"/></command>
+      <element type="line" label="l"><show object="false" label="false"/></element>
+      <command name="Midpoint"><input a0="A" a1="B"/><output a0="M"/></command>
+      <element type="point" label="M"><show object="false" label="false"/>
+        <coords x="2" y="0" z="1"/></element>
+    </construction></geogebra>"""
+    result = import_ggb(_write_ggb(tmp_path / "hidden.ggb", xml))
+    lines = result.dsl.splitlines()
+    assert "l = 直线(A, B)" in lines
+    assert "隐藏 l" in lines
+    assert "隐藏 M" in lines
+    figure = parse_dsl(result.dsl)
+    assert figure.nodes["l"].style.visible is False
+    assert figure.nodes["M"].style.visible is False
 
 
 def test_the_points_stay_inside_the_circle(tmp_path: Path) -> None:
