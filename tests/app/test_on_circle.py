@@ -109,6 +109,11 @@ def test_the_point_tool_lands_on_a_circle(
     window = StudioWindow(controller)
     window.resize(1000, 700)
     window.show()
+    point = next(
+        tool for group in window._groups for tool in group.tools
+        if tool.op == "point.free"
+    )
+    window._arm(point)
     app.processEvents()
     _circle(controller)
     app.processEvents()

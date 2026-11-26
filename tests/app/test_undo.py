@@ -93,6 +93,11 @@ def test_a_drag_is_one_step_not_one_per_frame(
     window.show()
     app.processEvents()
     canvas = window.canvas
+    point = next(
+        tool for group in window._groups for tool in group.tools
+        if tool.op == "point.free"
+    )
+    window._arm(point)
 
     QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=QPoint(200, 400))
     app.processEvents()

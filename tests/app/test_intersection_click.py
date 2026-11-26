@@ -71,6 +71,12 @@ def _window(controller: StudioController) -> StudioWindow:
     window = StudioWindow(controller)
     window.resize(1000, 700)
     window.show()
+    # These tests place points by clicking; the pointer is the default.
+    point = next(
+        tool for group in window._groups for tool in group.tools
+        if tool.op == "point.free"
+    )
+    window._arm(point)
     return window
 
 

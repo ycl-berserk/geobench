@@ -12,7 +12,7 @@ from geobench.model import Figure, Node, Relation, Style
 from geobench.registry import ArgSpec, OperatorRegistry, OpSpec
 from geobench.state import ApplyResult, FigureStore, OpRequest
 
-__version__ = "0.3.0.dev0"
+__version__ = "0.4.0.dev0"
 
 __all__ = [
     "FIELD",

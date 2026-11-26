@@ -17,6 +17,7 @@ from geobench.dsl.errors import DSLParseError
 from geobench.evaluate import evaluate_figure
 from geobench.operators import register_builtins
 from geobench.primitives import (
+    FREE_POINT_COLOR,
     LabelPrimitive,
     PointPrimitive,
     SegmentPrimitive,
@@ -79,6 +80,18 @@ def test_the_label_moves_to_the_position_the_author_chose(
     # The point itself did not move: this is appearance, not geometry.
     point = next(p for p in primitives if isinstance(p, PointPrimitive) and p.id == "A")
     assert (point.x, point.y) == (0.0, 0.0)
+
+
+def test_a_free_point_is_blue_and_a_derived_point_is_black(
+    registry: OperatorRegistry,
+) -> None:
+    """The blue dot is the one the hand can move; the rest are results."""
+    _, primitives = _draw("点 A(0,0) B(4,0)\nM = 中点(A,B)\n", registry)
+    points = {p.id: p for p in primitives if isinstance(p, PointPrimitive)}
+    assert points["A"].free
+    assert points["A"].ink.color == FREE_POINT_COLOR
+    assert not points["M"].free
+    assert points["M"].ink.color is None
 
 
 def test_a_bigger_point_is_a_bigger_dot(registry: OperatorRegistry) -> None:

@@ -60,6 +60,12 @@ def _payload(
     return payload
 
 
+#: A point the teacher can drag gets a colour of its own.  It is the one
+#: thing in the figure that responds to the hand, and GeoGebra has taught
+#: everybody to look for the blue dot.
+FREE_POINT_COLOR = "#1565c0"
+
+
 @dataclass(frozen=True)
 class Ink:
     """How one object is drawn, when it differs from the figure's style.
@@ -78,11 +84,19 @@ class Ink:
     @classmethod
     def of(cls, node: Node) -> Ink:
         style = node.style
+        color: str | None
+        if style.color in ("", "#000000"):
+            # Free points are the draggable ones: blue, as in GeoGebra.
+            # Every other object keeps the figure's black.
+            color = (
+                FREE_POINT_COLOR
+                if node.kind == "point" and node.role == "free"
+                else None
+            )
+        else:
+            color = style.color
         return cls(
-            # The default black is "no override": it is what the figure
-            # already draws, so keeping it out of the primitive keeps the
-            # picture identical to one that never had a style at all.
-            color=None if style.color in ("", "#000000") else style.color,
+            color=color,
             width=style.line_width,
             point_size=style.point_size,
             label_pos=style.label_pos,
@@ -527,7 +541,13 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                 dx,
                 dy,
                 "",
-                Ink(color=point.ink.color),
+                # The dot is blue to say "drag me"; the letter next to it
+                # stays ink-black, as it does on paper.
+                Ink(
+                    color=None
+                    if point.ink.color == FREE_POINT_COLOR
+                    else point.ink.color
+                ),
             )
         )
 

@@ -111,7 +111,6 @@ from geobench.app.theme import (
     set_ui_size,
 )
 from geobench.app.tools import (
-    POINT_TOOL,
     SELECT_TOOL,
     ToolGroup,
     ToolSpec,
@@ -643,18 +642,10 @@ class StudioWindow(QMainWindow):
         self.verdictsReady.connect(self._on_verdicts)
         self.exactReady.connect(self._on_exact)
         self.refresh()
-        # A tool is armed from the start. An empty toolbar and an idle
-        # canvas look like a program that is not working: a click with
-        # no tool armed does nothing, and nothing says so.
-        point_group = next(
-            (
-                group
-                for group in self._groups
-                if any(tool.op == "point.free" for tool in group.tools)
-            ),
-            None,
-        )
-        self._arm(POINT_TOOL, point_group)
+        # The pointer is armed from the start: opening a figure should not
+        # put a point under the first click.  The point tool is one click
+        # away, and the first screen says so.
+        self._arm(SELECT_TOOL)
 
     # -- layout ------------------------------------------------------------
 
@@ -993,7 +984,9 @@ class StudioWindow(QMainWindow):
         self._axes_action = QAction("坐标轴", self)
         self._axes_action.setCheckable(True)
         self._axes_action.setChecked(self.canvas.show_axes)
-        self._axes_action.setToolTip("在画布上显示坐标轴与刻度（导出时不画）")
+        self._axes_action.setToolTip(
+            "在画布上显示坐标轴、刻度与网格（导出时不画）"
+        )
         self._axes_action.toggled.connect(self._set_axes)
         view_menu.addAction(self._axes_action)
         view_menu.addSeparator()
@@ -1442,7 +1435,7 @@ class StudioWindow(QMainWindow):
 
         note = QLabel(
             "打开一个做好的例子，用一句话描述图形，"
-            "或者打开 GeoGebra 文件。也可以直接点一下画布，放一个点。"
+            "或者打开 GeoGebra 文件。要自己画，先选工具栏的「点」。"
         )
         note.setObjectName("panelNote")
         note.setWordWrap(True)
@@ -1644,9 +1637,9 @@ class StudioWindow(QMainWindow):
         """
         toolbar = QToolBar("构造")
         toolbar.setMovable(False)
-        # The icons sit beside a word, not instead of one; 18 px keeps
+        # The icons sit beside a word, not instead of one; 16 px keeps
         # the glyph inside its block instead of crowding the label.
-        toolbar.setIconSize(QSize(18, 18))
+        toolbar.setIconSize(QSize(16, 16))
         self.addToolBar(toolbar)
 
         # The pointer comes first, the way it does in every drawing

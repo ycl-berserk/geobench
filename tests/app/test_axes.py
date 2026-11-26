@@ -47,24 +47,26 @@ def test_tick_steps_are_round_numbers() -> None:
     assert _tick_step(400) == 0.2
 
 
-def test_the_axes_are_on_by_default_and_can_be_hidden(app: QApplication) -> None:
+def test_the_axes_are_off_by_default_and_can_be_shown(app: QApplication) -> None:
+    """Competition paper has no graph paper on it."""
     window = _window(app)
-    assert window.canvas.show_axes
-    assert window._axes_action.isChecked()
-
-    window._axes_action.setChecked(False)
-    app.processEvents()
     assert not window.canvas.show_axes
+    assert not window._axes_action.isChecked()
 
     window._axes_action.setChecked(True)
     app.processEvents()
     assert window.canvas.show_axes
+
+    window._axes_action.setChecked(False)
+    app.processEvents()
+    assert not window.canvas.show_axes
     window.close()
 
 
 def test_the_axis_is_darker_than_the_grid(app: QApplication) -> None:
     """The x-axis is drawn, and it is visible against the paper."""
     window = _window(app)
+    window.canvas.set_show_axes(True)
     viewport = window.canvas._viewport()
     # Between two grid lines and away from the tick labels.
     sx, sy = viewport.to_screen(4.37, 0.0)

@@ -87,7 +87,7 @@ def test_the_armed_tool_shows_in_the_toolbar(app: QApplication) -> None:
         for button in window.findChildren(QToolButton)
         if button.isChecked()
     ]
-    assert armed == ["点"]
+    assert armed == ["选择"]
     window.close()
 
 

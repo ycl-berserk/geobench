@@ -35,17 +35,20 @@ def controller() -> StudioController:
     return StudioController()
 
 
-def test_a_tool_is_armed_from_the_start(app: QApplication, controller: StudioController) -> None:
+def test_a_tool_is_armed_from_the_start(
+    app: QApplication, controller: StudioController
+) -> None:
     """An idle canvas looks like a broken program.
 
-    With no tool armed a click does nothing, and nothing says so. The
-    point tool is the obvious first move, so it is armed for the user.
+    The pointer is armed, not the point tool: opening a figure must not
+    drop a point under the first click, and selecting is the thing a
+    teacher does before anything else.
     """
     window = StudioWindow(controller)
     window.show()
     app.processEvents()
     tool = window.canvas.tool()
-    assert tool is not None and tool.op == "point.free"
+    assert tool is not None and tool.op == "select"
     window.close()
 
 
@@ -63,6 +66,7 @@ def test_a_click_places_a_point_where_the_user_clicked(
     window.show()
     app.processEvents()
     canvas = window.canvas
+    _arm(window, "点")
 
     target = QPoint(canvas.width() // 2, canvas.height() // 2)
     QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=target)
@@ -87,6 +91,7 @@ def test_the_view_stays_put_when_the_figure_changes(
     window.show()
     app.processEvents()
     canvas = window.canvas
+    _arm(window, "点")
 
     before = canvas._viewport().view
     for x, y in ((100, 100), (400, 300)):
@@ -107,6 +112,7 @@ def test_a_click_on_an_existing_point_drags_it(
     window.show()
     app.processEvents()
     canvas = window.canvas
+    _arm(window, "点")
 
     centre = QPoint(canvas.width() // 2, canvas.height() // 2)
     QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=centre)
@@ -133,7 +139,7 @@ def test_the_canvas_says_what_a_click_will_do(
     window = StudioWindow(controller)
     window.show()
     app.processEvents()
-    assert "点" in window.canvas.armed_hint()
+    assert "选中" in window.canvas.armed_hint()
     window.close()
 
 
@@ -159,6 +165,7 @@ def test_a_variable_tool_waits_for_the_return_key(
     window.show()
     app.processEvents()
     canvas = window.canvas
+    _arm(window, "点")
 
     corners = ((120, 420), (420, 420), (270, 180))
     for x, y in corners:
@@ -189,6 +196,7 @@ def test_the_return_key_with_too_few_points_does_nothing(
     window.show()
     app.processEvents()
     canvas = window.canvas
+    _arm(window, "点")
 
     QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=QPoint(120, 420))
     app.processEvents()
@@ -210,6 +218,7 @@ def test_a_measurement_tool_writes_the_number_on_the_figure(
     window.show()
     app.processEvents()
     canvas = window.canvas
+    _arm(window, "点")
 
     for x, y in ((120, 420), (420, 420)):
         QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, pos=QPoint(x, y))

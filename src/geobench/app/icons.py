@@ -592,6 +592,11 @@ def _draw(glyph: str, colour: str, size: int) -> QPixmap:
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
     painter.scale(ratio, ratio)
+    # A glyph that touches its own edge looks bigger than the button it
+    # sits in.  Keep a hair of paper around every drawing.
+    inset = size * 0.07
+    painter.translate(inset, inset)
+    painter.scale(0.86, 0.86)
     drawer = _DRAWERS.get(glyph, _g_point)
     drawer(painter, colour)
     painter.end()

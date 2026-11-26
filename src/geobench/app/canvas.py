@@ -20,11 +20,13 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
+    QCursor,
     QFont,
     QKeyEvent,
     QPainter,
     QPainterPath,
     QPen,
+    QPixmap,
     QPolygonF,
 )
 from PySide6.QtWidgets import (
@@ -67,6 +69,34 @@ from geobench.style import (
 #: The view the canvas starts with: a square of ten units, which is
 #: about the size of a competition figure before anything is drawn.
 DEFAULT_VIEW = View(-10.0, -10.0, 10.0, 10.0)
+
+#: The small crosshair used by the drawing tools.  The system crosshair
+#: is large enough to hide the point under it; this one leaves the centre
+#: open, the way a pair of dividers does.
+_PRECISION_CURSOR: QCursor | None = None
+
+
+def precision_cursor() -> QCursor:
+    global _PRECISION_CURSOR
+    if _PRECISION_CURSOR is not None:
+        return _PRECISION_CURSOR
+    size = 17
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+    pen = QPen(QColor(PALETTE.text))
+    pen.setWidth(1)
+    painter.setPen(pen)
+    centre = size // 2
+    gap, arm = 2, 7
+    painter.drawLine(centre - arm, centre, centre - gap, centre)
+    painter.drawLine(centre + gap, centre, centre + arm, centre)
+    painter.drawLine(centre, centre - arm, centre, centre - gap)
+    painter.drawLine(centre, centre + gap, centre, centre + arm)
+    painter.end()
+    _PRECISION_CURSOR = QCursor(pixmap, centre, centre)
+    return _PRECISION_CURSOR
 
 #: How far a click may miss a point and still grab it, in pixels.
 GRAB_RADIUS_PX = 8.0
@@ -151,8 +181,9 @@ class FigureCanvas(QWidget):
         self._zoom = 1.0
         self._pan = (0.0, 0.0)
         #: Coordinates on the paper.  Screen only: the export is the
-        #: figure, not the worksheet.
-        self.show_axes = True
+        #: figure, not the worksheet.  Off by default: a competition
+        #: figure is paper, not graph paper.
+        self.show_axes = False
         self._dragging: str | None = None
         self._drag_moved = False
         self._drag_offset = (0.0, 0.0)
@@ -480,6 +511,10 @@ class FigureCanvas(QWidget):
         It is on the screen only: the exported figure is black on white,
         the way a competition paper is.
         """
+        if not self.show_axes:
+            # The grid goes with the axes: both are worksheet aids, and a
+            # blank sheet is what a competition problem is drawn on.
+            return
         step = 1.0
         pixels = step * viewport.scale
         view = viewport.view
@@ -779,15 +814,11 @@ class FigureCanvas(QWidget):
         self._tool = tool
         self._tool_args = []
         self._awaiting_value = False
-        if tool is None:
+        if tool is None or tool.op == "select":
             self.setCursor(Qt.CursorShape.ArrowCursor)
             self.update()
             return
-        self.setCursor(
-            Qt.CursorShape.CrossCursor
-            if tool.op == "point.free"
-            else Qt.CursorShape.PointingHandCursor
-        )
+        self.setCursor(precision_cursor())
         self.update()
         self._ask_for_next()
 
@@ -1011,6 +1042,10 @@ class FigureCanvas(QWidget):
         position = event.position()  # type: ignore[attr-defined]
         px, py = position.x(), position.y()
         if self._dragging is None:
+            if self._tool is not None and self._tool.op != "select":
+                # Keep the precision crosshair while a drawing tool is
+                # armed; hovering must not turn it back into an arrow.
+                return
             self.setCursor(
                 Qt.CursorShape.OpenHandCursor
                 if self._hit_point(px, py)

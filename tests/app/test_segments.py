@@ -48,6 +48,14 @@ def controller() -> StudioController:
     return controller
 
 
+def _arm_point(window: StudioWindow) -> None:
+    point = next(
+        tool for group in window._groups for tool in group.tools
+        if tool.op == "point.free"
+    )
+    window._arm(point)
+
+
 def _click(window: StudioWindow, x: float, y: float) -> None:
     viewport = window.canvas._viewport()
     sx, sy = viewport.to_screen(x, y)
@@ -109,6 +117,7 @@ def test_the_point_tool_on_a_segment_makes_a_point_on_it(
     window.resize(1000, 700)
     window.show()
     app.processEvents()
+    _arm_point(window)
 
     _click(window, -1.0, 0.0)  # a quarter of the way along s1
     app.processEvents()
@@ -130,6 +139,7 @@ def test_the_point_tool_at_a_crossing_makes_the_crossing(
     window.resize(1000, 700)
     window.show()
     app.processEvents()
+    _arm_point(window)
 
     _click(window, 0.0, 0.0)  # where s1 and s2 cross
     app.processEvents()
