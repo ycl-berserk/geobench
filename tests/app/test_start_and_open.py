@@ -72,6 +72,7 @@ def test_the_first_screen_offers_a_blank_figure(app: QApplication) -> None:
     assert not window.controller.figure().nodes
     assert window.canvas.tool() is not None
     assert window.canvas.tool().op == "point.free"
+    assert window._empty_state.isHidden()
     window.close()
 
 

@@ -496,6 +496,9 @@ class StudioWindow(QMainWindow):
         self._verdict_args: list[list[str]] = []
         self._witness: dict[str, object] | None = None
         self._path: Path | None = None
+        #: Once the user has chosen 从零开始, the first-screen card has
+        #: done its job even though the figure is still empty.
+        self._suppress_empty_state = False
         #: Has the figure changed since it was last opened or saved?
         self._dirty = False
         self._recovery_text, self._recovery_note = recovery_paths()
@@ -1349,6 +1352,7 @@ class StudioWindow(QMainWindow):
             return
         self._path = path
         self._dirty = False
+        self._suppress_empty_state = False
         self._clear_recovery()
         self._remember_recent(path)
         self._update_title()
@@ -1382,6 +1386,7 @@ class StudioWindow(QMainWindow):
         # and the teacher keeps the original untouched.
         self._path = None
         self._dirty = False
+        self._suppress_empty_state = False
         self._clear_recovery()
         self._update_title()
         self.canvas.fit()
@@ -1466,6 +1471,7 @@ class StudioWindow(QMainWindow):
             return
         self._path = None
         self._dirty = False
+        self._suppress_empty_state = False
         self._clear_recovery()
         self._update_title()
         self.canvas.fit()
@@ -1567,6 +1573,7 @@ class StudioWindow(QMainWindow):
         if isinstance(original, str) and original.endswith(".geobench"):
             self._path = Path(original)
         self._dirty = True
+        self._suppress_empty_state = False
         self._update_title()
         self.canvas.fit()
         self.refresh()
@@ -1609,6 +1616,7 @@ class StudioWindow(QMainWindow):
         self.controller.clear()
         self._path = None
         self._dirty = False
+        self._suppress_empty_state = True
         self._clear_recovery()
         self._update_title()
         self.canvas.fit()
@@ -1970,7 +1978,10 @@ class StudioWindow(QMainWindow):
         self._refresh_parameters()
         self.canvas.prune_selection()
         self._refresh_relation_choices(self.canvas.selected())
-        empty = not self.controller.figure().nodes
+        empty = (
+            not self.controller.figure().nodes
+            and not self._suppress_empty_state
+        )
         self._empty_state.setVisible(empty)
         self._refresh_exact()
         if self._dragging:

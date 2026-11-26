@@ -561,6 +561,22 @@ class StudioController:
         node.style = replace(node.style, label=label.strip() or None)
         self._changed()
 
+    def set_style_many(self, node_ids: list[str], **fields: Any) -> None:
+        """Change the same drawing attribute on several objects at once.
+
+        One intention, one undo step: recolouring a selection should not
+        leave a handful of entries on the stack.
+        """
+        self.push_undo()
+        changed = False
+        for node_id in node_ids:
+            node = self.figure().nodes.get(node_id)
+            if node is not None:
+                node.style = replace(node.style, **fields)
+                changed = True
+        if changed:
+            self._changed()
+
     def set_color(self, node_id: str, color: str | None) -> None:
         """Set, or clear, the colour this object is drawn in.
 

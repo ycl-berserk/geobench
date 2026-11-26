@@ -15,7 +15,8 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 try:
-    from PySide6.QtCore import QPoint, Qt
+    from PySide6.QtCore import QPoint, QPointF, Qt
+    from PySide6.QtGui import QMouseEvent
     from PySide6.QtTest import QTest
     from PySide6.QtWidgets import QApplication, QToolButton
 except ImportError as exc:  # pragma: no cover - depends on the machine
@@ -98,6 +99,38 @@ def test_plus_zooms_in_and_minus_zooms_out(
     outer = canvas._viewport().scale
     assert inner > before
     assert outer < inner
+    window.close()
+
+
+def test_right_drag_pans_while_a_tool_is_armed(
+    app: QApplication, controller: StudioController
+) -> None:
+    window = StudioWindow(controller)
+    window.resize(900, 600)
+    window.show()
+    app.processEvents()
+    canvas = window.canvas
+    _arm(window, "点")
+    start = QPointF(canvas.width() / 2, canvas.height() / 2)
+    end = QPointF(start.x() + 70, start.y() + 40)
+    for kind, buttons, button in (
+        (QMouseEvent.Type.MouseButtonPress, Qt.MouseButton.RightButton, Qt.MouseButton.RightButton),
+        (QMouseEvent.Type.MouseMove, Qt.MouseButton.RightButton, Qt.MouseButton.NoButton),
+        (QMouseEvent.Type.MouseButtonRelease, Qt.MouseButton.NoButton, Qt.MouseButton.RightButton),
+    ):
+        point = start if kind == QMouseEvent.Type.MouseButtonPress else end
+        event = QMouseEvent(
+            kind, point, point, button, buttons, Qt.KeyboardModifier.NoModifier
+        )
+        if kind == QMouseEvent.Type.MouseButtonPress:
+            canvas.mousePressEvent(event)
+        elif kind == QMouseEvent.Type.MouseMove:
+            canvas.mouseMoveEvent(event)
+        else:
+            canvas.mouseReleaseEvent(event)
+    app.processEvents()
+    assert canvas._pan != (0.0, 0.0)
+    assert not controller.figure().nodes
     window.close()
 
 

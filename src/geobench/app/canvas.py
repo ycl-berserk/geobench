@@ -16,7 +16,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, replace
 
-from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -52,13 +52,14 @@ from geobench.primitives import (
     LinePrimitive,
     PointPrimitive,
     PolygonPrimitive,
+    Primitive,
     RayPrimitive,
     SegmentPrimitive,
     TextPrimitive,
     distance_to,
     hit_test,
 )
-from geobench.render import View, clip_ray, fit_view
+from geobench.render import View, clip_line, clip_ray, fit_view
 from geobench.style import (
     COLOR_CHOICES,
     LABEL_DIRECTIONS,
@@ -212,6 +213,11 @@ class FigureCanvas(QWidget):
         self._selected: list[str] = []
         self._hover_point: str | None = None
         self._hover_crossing: tuple[float, float] | None = None
+        self._rubber_start: tuple[float, float] | None = None
+        self._rubber_current: tuple[float, float] | None = None
+        self._rubber_moved = False
+        self._suppress_context_menu = False
+        self._right_pan = False
         controller.on_change(self.update)
         controller.on_move(self._moved)
 
@@ -352,6 +358,7 @@ class FigureCanvas(QWidget):
         self._draw_proof_marks(painter, viewport)
         self._draw_selection(painter, viewport, style)
         self._draw_tool_feedback(painter, viewport)
+        self._draw_rubber_band(painter)
         self._draw_hint(painter, style)
 
     # -- proof marks -------------------------------------------------------
@@ -899,6 +906,157 @@ class FigureCanvas(QWidget):
             painter.drawLine(QPointF(x, y + 5), QPointF(x, y + 8))
         painter.restore()
 
+    def _draw_rubber_band(self, painter: QPainter) -> None:
+        if self._rubber_start is None or self._rubber_current is None:
+            return
+        rect = QRectF(
+            QPointF(*self._rubber_start), QPointF(*self._rubber_current)
+        ).normalized()
+        painter.save()
+        pen = QPen(QColor(PALETTE.accent), 1.1)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        painter.setPen(pen)
+        painter.setBrush(QColor(47, 111, 181, 24))
+        painter.drawRect(rect)
+        painter.restore()
+
+    def _objects_in_rect(self, rect: QRectF) -> list[str]:
+        """Every selectable object whose drawing touches the rectangle."""
+        viewport = self._viewport()
+        top_left = viewport.to_figure(rect.left(), rect.top())
+        bottom_right = viewport.to_figure(rect.right(), rect.bottom())
+        figure_view = View(
+            min(top_left[0], bottom_right[0]),
+            min(top_left[1], bottom_right[1]),
+            max(top_left[0], bottom_right[0]),
+            max(top_left[1], bottom_right[1]),
+        )
+        found: list[str] = []
+        for primitive in self.controller.primitives():
+            node_id = getattr(primitive, "id", "")
+            node = self.controller.figure().nodes.get(node_id)
+            if node is None or node.kind not in SELECTABLE_KINDS:
+                continue
+            if self._primitive_hits_rect(primitive, rect, viewport, figure_view):
+                found.append(node_id)
+        return found
+
+    def _primitive_hits_rect(
+        self,
+        primitive: Primitive,
+        rect: QRectF,
+        viewport: Viewport,
+        figure_view: View,
+    ) -> bool:
+        def sample(points: list[tuple[float, float]]) -> bool:
+            return any(rect.contains(QPointF(*viewport.to_screen(x, y))) for x, y in points)
+
+        if isinstance(primitive, PointPrimitive):
+            return rect.contains(
+                QPointF(*viewport.to_screen(primitive.x, primitive.y))
+            )
+        if isinstance(primitive, SegmentPrimitive):
+            return sample(
+                [
+                    (
+                        primitive.x1 + (primitive.x2 - primitive.x1) * index / 24,
+                        primitive.y1 + (primitive.y2 - primitive.y1) * index / 24,
+                    )
+                    for index in range(25)
+                ]
+            )
+        if isinstance(primitive, RayPrimitive):
+            clipped = clip_ray(
+                primitive.x0,
+                primitive.y0,
+                primitive.x1,
+                primitive.y1,
+                figure_view,
+            )
+            return clipped is not None
+        if isinstance(primitive, LinePrimitive):
+            return clip_line(primitive.a, primitive.b, primitive.c, figure_view) is not None
+        if isinstance(primitive, CirclePrimitive):
+            return sample(
+                [
+                    (
+                        primitive.cx + primitive.radius * math.cos(index * math.pi / 32),
+                        primitive.cy + primitive.radius * math.sin(index * math.pi / 32),
+                    )
+                    for index in range(64)
+                ]
+            )
+        if isinstance(primitive, ArcPrimitive):
+            return sample(
+                [
+                    (
+                        primitive.cx + primitive.radius * math.cos(
+                            math.radians(primitive.start_angle + primitive.span_angle * index / 32)
+                        ),
+                        primitive.cy + primitive.radius * math.sin(
+                            math.radians(primitive.start_angle + primitive.span_angle * index / 32)
+                        ),
+                    )
+                    for index in range(33)
+                ]
+            )
+        if isinstance(primitive, (PolygonPrimitive,)):
+            vertices = [primitive.vertices[index : index + 2] for index in range(0, len(primitive.vertices) - 1, 2)]
+            return any(
+                sample(
+                    [
+                        (
+                            vertices[index][0]
+                            + (vertices[(index + 1) % len(vertices)][0] - vertices[index][0]) * step / 16,
+                            vertices[index][1]
+                            + (vertices[(index + 1) % len(vertices)][1] - vertices[index][1]) * step / 16,
+                        )
+                        for step in range(17)
+                    ]
+                )
+                for index in range(len(vertices))
+            )
+        return False
+
+    def _selection_menu(self, global_pos: QPoint) -> None:
+        ids = list(self._selected)
+        if len(ids) < 2:
+            return
+        menu = QMenu(self)
+        delete = menu.addAction(f"删除选中的 {len(ids)} 个对象")
+        delete.triggered.connect(lambda: self.deleteManyRequested.emit(ids))
+        menu.addSeparator()
+        color_menu = menu.addMenu("颜色")
+        for name, code in COLOR_CHOICES:
+            action = color_menu.addAction(name)
+            action.triggered.connect(
+                lambda _checked=False, code=code: self.controller.set_style_many(
+                    ids, color=code
+                )
+            )
+        menu.addSeparator()
+        visible = any(
+            not self.controller.figure().nodes[node_id].style.visible
+            for node_id in ids
+            if node_id in self.controller.figure().nodes
+        )
+        show = menu.addAction("显示" if visible else "隐藏")
+        show.triggered.connect(
+            lambda: self.controller.set_style_many(ids, visible=visible)
+        )
+        dashed = any(
+            self.controller.figure().nodes[node_id].style.line_style != "dashed"
+            for node_id in ids
+            if node_id in self.controller.figure().nodes
+        )
+        line = menu.addAction("实线" if dashed else "虚线")
+        line.triggered.connect(
+            lambda: self.controller.set_style_many(
+                ids, line_style="solid" if dashed else "dashed"
+            )
+        )
+        menu.exec(global_pos)
+
     # -- interaction -------------------------------------------------------
 
     def set_tool(self, tool: ToolSpec | None) -> None:
@@ -1083,6 +1241,22 @@ class FigureCanvas(QWidget):
         """
         position = event.position()  # type: ignore[attr-defined]
         px, py = position.x(), position.y()
+        if event.button() == Qt.MouseButton.RightButton:  # type: ignore[attr-defined]
+            if self._tool is not None and self._tool.op == "select":
+                if self._hit_object(px, py, SELECTABLE_KINDS) is None:
+                    self._rubber_start = (px, py)
+                    self._rubber_current = (px, py)
+                    self._rubber_moved = False
+                    self.update()
+                return
+            # With a construction tool armed, the right button is the
+            # hand: it pans instead of feeding the tool.
+            self._dragging = "__pan__"
+            self._drag_offset = (px, py)
+            self._pan_from_select = False
+            self._pan_moved = False
+            self._right_pan = True
+            return
         if event.button() == Qt.MouseButton.MiddleButton:  # type: ignore[attr-defined]
             self._dragging = "__pan__"
             self._drag_offset = (px, py)
@@ -1154,6 +1328,13 @@ class FigureCanvas(QWidget):
     def mouseMoveEvent(self, event: object) -> None:
         position = event.position()  # type: ignore[attr-defined]
         px, py = position.x(), position.y()
+        if self._rubber_start is not None:
+            self._rubber_current = (px, py)
+            start = self._rubber_start
+            if math.hypot(px - start[0], py - start[1]) > 3:
+                self._rubber_moved = True
+            self.update()
+            return
         if self._dragging is None:
             # Hovering must not swap the small pointer for a large system
             # hand.  The pointer is the same from the first click on.
@@ -1187,10 +1368,28 @@ class FigureCanvas(QWidget):
         self.controller.move_point(self._dragging, target[0], target[1])
 
     def mouseReleaseEvent(self, _event: object) -> None:
+        if self._rubber_start is not None:
+            start = self._rubber_start
+            current = self._rubber_current or start
+            rect = QRectF(QPointF(*start), QPointF(*current)).normalized()
+            if self._rubber_moved:
+                ids = self._objects_in_rect(rect)
+                self._selected = ids
+                self.selectionChanged.emit(list(ids))
+                self.update()
+            else:
+                self.select(None)
+            self._rubber_start = None
+            self._rubber_current = None
+            self._rubber_moved = False
+            self._suppress_context_menu = True
+            return
         moved = self._drag_moved
         if self._dragging == "__pan__":
             if self._pan_from_select and not self._pan_moved:
                 self.select(None)
+            if self._right_pan and self._pan_moved:
+                self._suppress_context_menu = True
         elif self._dragging is not None and moved:
             # Apply the last position before the figure settles. The
             # timer may have a frame queued, and the release is where
@@ -1205,6 +1404,7 @@ class FigureCanvas(QWidget):
         self._drag_moved = False
         self._pan_from_select = False
         self._pan_moved = False
+        self._right_pan = False
         self._drag_target = None
 
     def _moved(self, _node_id: str) -> None:
@@ -1218,9 +1418,17 @@ class FigureCanvas(QWidget):
         for a competition figure: delete it, hide it, or draw it dashed
         because it is only there to support the figure.
         """
+        if self._suppress_context_menu:
+            self._suppress_context_menu = False
+            return
+        if self._rubber_start is not None:
+            return
         position = event.pos()
         node_id = self._hit_object(position.x(), position.y(), SELECTABLE_KINDS)
         if node_id is None:
+            return
+        if len(self._selected) > 1 and node_id in self._selected:
+            self._selection_menu(event.globalPos())
             return
         menu = self._object_menu(node_id)
         # The menu's own actions do the work; a dismissed menu does

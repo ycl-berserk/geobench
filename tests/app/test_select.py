@@ -17,7 +17,8 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 try:
-    from PySide6.QtCore import QPoint, Qt
+    from PySide6.QtCore import QPoint, QPointF, Qt
+    from PySide6.QtGui import QMouseEvent
     from PySide6.QtTest import QTest
     from PySide6.QtWidgets import QApplication, QToolButton
 except ImportError as exc:  # pragma: no cover - depends on the machine
@@ -58,6 +59,68 @@ def _screen_of(canvas, node_id: str) -> QPoint:
     x, y = canvas.controller.point_positions()[node_id]
     sx, sy = viewport.to_screen(x, y)
     return QPoint(int(sx), int(sy))
+
+
+def _right_drag(canvas, start: QPoint, end: QPoint) -> None:
+    press = QMouseEvent(
+        QMouseEvent.Type.MouseButtonPress,
+        QPointF(start),
+        QPointF(start),
+        Qt.MouseButton.RightButton,
+        Qt.MouseButton.RightButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    move = QMouseEvent(
+        QMouseEvent.Type.MouseMove,
+        QPointF(end),
+        QPointF(end),
+        Qt.MouseButton.NoButton,
+        Qt.MouseButton.RightButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    release = QMouseEvent(
+        QMouseEvent.Type.MouseButtonRelease,
+        QPointF(end),
+        QPointF(end),
+        Qt.MouseButton.RightButton,
+        Qt.MouseButton.NoButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    canvas.mousePressEvent(press)
+    canvas.mouseMoveEvent(move)
+    canvas.mouseReleaseEvent(release)
+
+
+def test_right_drag_selects_everything_in_the_rectangle(
+    app: QApplication, controller: StudioController
+) -> None:
+    window = StudioWindow(controller)
+    window.resize(1000, 700)
+    window.show()
+    app.processEvents()
+    _triangle(controller)
+    app.processEvents()
+    _arm_select(window)
+    app.processEvents()
+    canvas = window.canvas
+    viewport = canvas._viewport()
+    start = QPoint(*map(round, viewport.to_screen(-1, -1)))
+    end = QPoint(*map(round, viewport.to_screen(7, 5)))
+    _right_drag(canvas, start, end)
+    app.processEvents()
+    assert {"A", "B", "C"} <= set(canvas.selected())
+    window.close()
+
+
+def test_a_multi_selection_can_be_recoloured_and_deleted(
+    app: QApplication, controller: StudioController
+) -> None:
+    _triangle(controller)
+    controller.set_style_many(["A", "B"], color="#c0392b")
+    assert controller.figure().nodes["A"].style.color == "#c0392b"
+    assert controller.figure().nodes["B"].style.color == "#c0392b"
+    controller.remove_nodes(["A", "B"])
+    assert "A" not in controller.figure().nodes
 
 
 def test_the_pointer_picks_an_object(app: QApplication, controller: StudioController) -> None:
