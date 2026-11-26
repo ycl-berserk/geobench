@@ -111,7 +111,11 @@ GRAB_RADIUS_PX = 8.0
 #: pixels, before the click means "their intersection".  On the crossing
 #: itself both distances are zero; a click a few pixels along the line
 #: means the line.  This is that few pixels.
-CROSSING_MAGNET_PX = 4.0
+CROSSING_MAGNET_PX = 8.0
+
+#: A crossing is a little more forgiving than a point: the eye sees the
+#: two strokes meet and aims between them.
+CROSSING_RADIUS_PX = 12.0
 
 #: The colour of the paper the figure is drawn on.
 PAPER = "#ffffff"
@@ -212,6 +216,8 @@ class FigureCanvas(QWidget):
         self._tool_args: list[str] = []
         self._awaiting_value = False
         self._selected: list[str] = []
+        self._hover_point: str | None = None
+        self._hover_crossing: tuple[float, float] | None = None
         controller.on_change(self.update)
         controller.on_move(self._moved)
 
@@ -243,6 +249,29 @@ class FigureCanvas(QWidget):
         """Draw the claims the kernel proved, in the figure itself."""
         self._proof_marks = list(marks)
         self.update()
+
+    def _update_hover(self, px: float, py: float) -> None:
+        """Remember what the cursor is over, so the next click is visible."""
+        point = self._hit_point(px, py)
+        crossing = None
+        if point is None and self._tool is not None and self._tool.op == "point.free":
+            viewport = self._viewport()
+            fx, fy = viewport.to_figure(px, py)
+            candidate = self.controller.crossing_near(
+                fx, fy, CROSSING_RADIUS_PX / viewport.scale
+            )
+            if candidate is not None:
+                crossing = (candidate.x, candidate.y)
+        if point != self._hover_point or crossing != self._hover_crossing:
+            self._hover_point = point
+            self._hover_crossing = crossing
+            self.update()
+
+    def _clear_hover(self) -> None:
+        if self._hover_point is not None or self._hover_crossing is not None:
+            self._hover_point = None
+            self._hover_crossing = None
+            self.update()
 
     def set_show_axes(self, shown: bool) -> None:
         """Show or hide the axes and their numbers."""
@@ -328,6 +357,7 @@ class FigureCanvas(QWidget):
                 self._draw_text(painter, viewport, primitive, style)
         self._draw_proof_marks(painter, viewport)
         self._draw_selection(painter, viewport, style)
+        self._draw_tool_feedback(painter, viewport)
         self._draw_hint(painter, style)
 
     # -- proof marks -------------------------------------------------------
@@ -845,6 +875,36 @@ class FigureCanvas(QWidget):
                 line,
             )
 
+    def _draw_tool_feedback(self, painter: QPainter, viewport: Viewport) -> None:
+        """Show what the tool has accepted, and what is under the cursor."""
+        positions = self.controller.point_positions()
+        painter.save()
+        # Arguments already collected: a grey dot with an accent ring.
+        for node_id in self._tool_args:
+            if node_id not in positions:
+                continue
+            x, y = viewport.to_screen(*positions[node_id])
+            painter.setPen(QPen(QColor(PALETTE.accent), 1.3))
+            painter.setBrush(QColor("#aeb6c2"))
+            painter.drawEllipse(QPointF(x, y), 4.8, 4.8)
+        # The point the cursor is about to pick.
+        if self._hover_point is not None and self._hover_point in positions:
+            x, y = viewport.to_screen(*positions[self._hover_point])
+            painter.setPen(QPen(QColor(PALETTE.accent), 1.4))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(QPointF(x, y), 8.0, 8.0)
+        # A crossing under the point tool: show the exact spot.
+        if self._hover_crossing is not None:
+            x, y = viewport.to_screen(*self._hover_crossing)
+            painter.setPen(QPen(QColor(PALETTE.accent), 1.4))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(QPointF(x, y), 5.0, 5.0)
+            painter.drawLine(QPointF(x - 8, y), QPointF(x - 5, y))
+            painter.drawLine(QPointF(x + 5, y), QPointF(x + 8, y))
+            painter.drawLine(QPointF(x, y - 8), QPointF(x, y - 5))
+            painter.drawLine(QPointF(x, y + 5), QPointF(x, y + 8))
+        painter.restore()
+
     # -- interaction -------------------------------------------------------
 
     def set_tool(self, tool: ToolSpec | None) -> None:
@@ -857,6 +917,7 @@ class FigureCanvas(QWidget):
         self._tool = tool
         self._tool_args = []
         self._awaiting_value = False
+        self._clear_hover()
         # Every tool uses the same small pointer: the cursor is the hand,
         # and the armed tool is already named on the toolbar.
         self.setCursor(precision_cursor())
@@ -940,9 +1001,11 @@ class FigureCanvas(QWidget):
         if not tool.variable and len(self._tool_args) >= len(tool.args):
             args = list(self._tool_args)
             self._tool_args = []
+            self.update()
             self.constructRequested.emit(tool.op, args)
             self._ask_for_next()
             return
+        self.update()
         self._ask_for_next()
 
     def _finish_variable_tool(self) -> None:
@@ -1078,6 +1141,9 @@ class FigureCanvas(QWidget):
             self._tool_click(px, py)
             return
 
+    def leaveEvent(self, _event: object) -> None:
+        self._clear_hover()
+
     def mouseDoubleClickEvent(self, event: object) -> None:
         """A double click on a point: type its exact position.
 
@@ -1097,6 +1163,7 @@ class FigureCanvas(QWidget):
         if self._dragging is None:
             # Hovering must not swap the small pointer for a large system
             # hand.  The pointer is the same from the first click on.
+            self._update_hover(px, py)
             return
         if self._dragging == "__pan__":
             self._pan = (
@@ -1354,7 +1421,7 @@ class FigureCanvas(QWidget):
             # is what pointing at a crossing means -- but a click along
             # an object, away from the crossing, still attaches to the
             # object.
-            tolerance = GRAB_RADIUS_PX / viewport.scale
+            tolerance = CROSSING_RADIUS_PX / viewport.scale
             crossing = self.controller.crossing_near(fx, fy, tolerance)
             attach = self._nearest_attachable(px, py)
             magnet = CROSSING_MAGNET_PX / viewport.scale

@@ -129,6 +129,22 @@ def test_line_and_circle_crossing_makes_the_intersection(
     window.close()
 
 
+def test_a_click_a_few_pixels_from_the_crossing_still_snaps(
+    app: QApplication,
+) -> None:
+    """The eye aims between two strokes; 8 px is still the crossing."""
+    controller = _line_circle()
+    window = _window(controller)
+    app.processEvents()
+    scale = window.canvas._viewport().scale
+    _click(window, 1.0 + 6.0 / scale, 0.0)
+    app.processEvents()
+    node = _made(controller, "point.intersect_line_circle")
+    assert node.placement is not None
+    assert float(node.placement[0]) == pytest.approx(1.0, abs=1e-6)
+    window.close()
+
+
 def test_the_other_branch_is_the_other_selector(app: QApplication) -> None:
     controller = _line_circle()
     window = _window(controller)
