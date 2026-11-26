@@ -107,12 +107,6 @@ def precision_cursor() -> QCursor:
 #: How far a click may miss a point and still grab it, in pixels.
 GRAB_RADIUS_PX = 8.0
 
-#: How much closer a crossing has to be than the object it lies on, in
-#: pixels, before the click means "their intersection".  On the crossing
-#: itself both distances are zero; a click a few pixels along the line
-#: means the line.  This is that few pixels.
-CROSSING_MAGNET_PX = 8.0
-
 #: A crossing is a little more forgiving than a point: the eye sees the
 #: two strokes meet and aims between them.
 CROSSING_RADIUS_PX = 12.0
@@ -1424,10 +1418,11 @@ class FigureCanvas(QWidget):
             tolerance = CROSSING_RADIUS_PX / viewport.scale
             crossing = self.controller.crossing_near(fx, fy, tolerance)
             attach = self._nearest_attachable(px, py)
-            magnet = CROSSING_MAGNET_PX / viewport.scale
-            if crossing is not None and (
-                attach is None or crossing.distance <= attach[2] + magnet
-            ):
+            # With the point tool, a crossing wins whenever the cursor is
+            # inside its radius.  "I clicked where the two lines meet"
+            # means the intersection, even if the cursor is a few pixels
+            # along one of them.
+            if crossing is not None:
                 op, args = crossing.operation()
                 self.constructRequested.emit(op, args)
                 return

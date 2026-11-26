@@ -211,11 +211,12 @@ def test_a_click_on_the_circle_away_from_the_crossing_stays_on_the_circle(
 def test_a_click_on_the_line_away_from_the_crossing_stays_on_the_line(
     app: QApplication,
 ) -> None:
-    controller = _line_circle()
+    controller = _line_circle(segment_to=5)
     window = _window(controller)
     app.processEvents()
 
-    _click(window, 0.5, 0.0)
+    # Far enough from either crossing to mean the line itself.
+    _click(window, 3.0, 0.0)
     app.processEvents()
 
     node = _made(controller, "point.on_line")
