@@ -939,20 +939,29 @@ def _translate(
         return None, f"Intersect({first}, {second}): 不认识这两条对象的类型"
 
     if name == "Tangent":
-        label = kinds.allocate(outputs[0])
-        if label != outputs[0]:
-            result.renames[outputs[0]] = label
         if len(inputs) != 2:
             kinds.missing.update(outputs)
             return None, "Tangent: 参数不足"
-        kinds.set(label, "line")
-        if len(outputs) > 1:
-            kinds.missing.update(outputs[1:])
+        labels = []
+        for output in outputs:
+            label = kinds.allocate(output)
+            if label != output:
+                result.renames[output] = label
+            labels.append(label)
+        first, second = args(inputs)
+        kinds.set(labels[0], "line")
+        if len(outputs) == 1:
+            return f"{labels[0]} = 切线({first}, {second})", ""
+        kinds.set(labels[1], "line")
+        if len(outputs) > 2:
+            kinds.missing.update(outputs[2:])
             result.skipped.append(
-                f"Tangent({', '.join(inputs)}) 在 GeoGebra 里给出 {len(outputs)} 条切线"
-                f"（{', '.join(outputs)}），本语言一条命令一条切线 —— 只导入了 {outputs[0]}"
+                f"Tangent({', '.join(inputs)}) 多出的 {len(outputs) - 2} 条切线没有导入"
             )
-        return f"{label} = 切线({args(inputs)[0]}, {args(inputs)[1]})", ""
+        return (
+            f"{labels[0]} = 切线({first}, {second})\n"
+            f"{labels[1]} = 另一切线({first}, {second})"
+        ), ""
 
     if name == "Circle":
         label = kinds.allocate(outputs[0])
@@ -980,24 +989,66 @@ def _translate(
         kinds.missing.update(outputs)
         return None, f"Circle({', '.join(inputs)}): 参数个数不认识"
 
-    # -- two-line angle bisector: no matching operator yet ----------------
+    # -- Polygon: GeoGebra also returns each edge as an object ------------
+    if name == "Polygon" and len(inputs) >= 3 and len(outputs) > 1:
+        labels = []
+        for output in outputs:
+            label = kinds.allocate(output)
+            if label != output:
+                result.renames[output] = label
+            labels.append(label)
+        polygon = labels[0]
+        kinds.set(polygon, "polygon")
+        generated = [
+            f"{polygon} = 多边形({', '.join(args(inputs))})"
+        ]
+        edges = min(len(outputs) - 1, len(inputs))
+        for index in range(edges):
+            edge = labels[index + 1]
+            start = kinds.name(inputs[index])
+            end = kinds.name(inputs[(index + 1) % len(inputs)])
+            kinds.set(edge, "segment", (start, end))
+            generated.append(f"{edge} = 线段({start}, {end})")
+        if len(outputs) - 1 > edges:
+            kinds.missing.update(outputs[edges + 1 :])
+            result.skipped.append(
+                f"{name}({', '.join(inputs)}) 多出的 {len(outputs) - 1 - edges} 个对象无法导入"
+            )
+        return "\n".join(generated), ""
+
+    # -- two-line angle bisector: one of the two answers ----------------
     if name in ("AngularBisector", "AngleBisector") and len(inputs) == 2:
         first_kind = kinds.kind.get(kinds.name(inputs[0]), "")
         second_kind = kinds.kind.get(kinds.name(inputs[1]), "")
         if first_kind in _LINE_LIKE and second_kind in _LINE_LIKE:
-            kinds.missing.update(outputs)
-            return None, (
-                f"{name}({', '.join(inputs)}): 两条线的角平分线还没有对应命令"
+            label = kinds.allocate(outputs[0])
+            if label != outputs[0]:
+                result.renames[outputs[0]] = label
+            kinds.set(label, "line")
+            if len(outputs) > 1:
+                kinds.missing.update(outputs[1:])
+                result.skipped.append(
+                    f"{name}({', '.join(inputs)}) 给出两条角平分线，"
+                    f"只导入了 {outputs[0]}"
+                )
+            return (
+                f"{label} = 角平分线({kinds.name(inputs[0])}, "
+                f"{kinds.name(inputs[1])})",
+                "",
             )
 
-    # -- Mirror(line/circle, line): only point reflection is implemented --
+    # -- Mirror(line/circle, line) ----------------------------------------
     if name in ("Mirror", "Reflect") and inputs:
         first_kind = kinds.kind.get(kinds.name(inputs[0]), "")
-        if first_kind and first_kind != "point":
-            kinds.missing.update(outputs)
-            return None, (
-                f"{name}({', '.join(inputs)}): 目前只导入点关于线/点的镜像，"
-                f"{first_kind} 的镜像还没有对应命令"
+        if first_kind in {"line", "segment", "circle"}:
+            label = kinds.allocate(outputs[0])
+            if label != outputs[0]:
+                result.renames[outputs[0]] = label
+            kinds.set(label, first_kind if first_kind == "circle" else "line")
+            return (
+                f"{label} = 镜像({kinds.name(inputs[0])}, "
+                f"{kinds.name(inputs[1])})",
+                "",
             )
 
     # -- everything else: rename the command, keep the arguments ----------

@@ -126,12 +126,11 @@ def test_a_line_bisector_is_written_with_its_two_ends(tmp_path: Path) -> None:
     assert "i = 中垂线(A, B)" in result.dsl.splitlines()
 
 
-def test_two_answers_are_reported_not_dropped(tmp_path: Path) -> None:
-    """GeoGebra's tangent gives two lines; the DSL gives one."""
+def test_two_tangents_are_both_imported(tmp_path: Path) -> None:
+    """GeoGebra's tangent gives two lines; both are now kept."""
     result = import_ggb(_write_ggb(tmp_path / "figure.ggb"))
     assert "k = 切线(B, c)" in result.dsl.splitlines()
-    assert "n = 切线(B, c)" not in result.dsl.splitlines()
-    assert any("Tangent" in item and "2" in item for item in result.skipped)
+    assert "n = 另一切线(B, c)" in result.dsl.splitlines()
 
 
 def test_a_subscript_is_renamed_and_said_so(tmp_path: Path) -> None:
@@ -250,6 +249,42 @@ def test_the_intersection_selector_matches_the_saved_point(
     assert y == pytest.approx(0.0)
 
 
+def test_a_polygon_keeps_its_edge_objects(tmp_path: Path) -> None:
+    """GeoGebra returns a polygon plus its edges; dependants use them."""
+    xml = """<?xml version="1.0" encoding="utf-8"?>
+    <geogebra format="5.0"><construction>
+      <element type="point" label="A"><coords x="0" y="0" z="1"/></element>
+      <element type="point" label="B"><coords x="4" y="0" z="1"/></element>
+      <element type="point" label="C"><coords x="0" y="3" z="1"/></element>
+      <command name="Polygon"><input a0="A" a1="B" a2="C"/>
+        <output a0="q"/><output a0="a"/><output a0="b"/><output a0="c"/></command>
+      <command name="Midpoint"><input a0="a"/><output a0="M"/></command>
+    </construction></geogebra>"""
+    result = import_ggb(_write_ggb(tmp_path / "polygon.ggb", xml))
+    lines = result.dsl.splitlines()
+    assert "a = 线段(A, B)" in lines
+    assert "M = 中点(A, B)" in lines
+    figure = parse_dsl(result.dsl)
+    assert figure.nodes["a"].kind == "segment"
+
+
+def test_both_tangents_are_imported(tmp_path: Path) -> None:
+    xml = """<?xml version="1.0" encoding="utf-8"?>
+    <geogebra format="5.0"><construction>
+      <element type="point" label="O"><coords x="0" y="0" z="1"/></element>
+      <element type="point" label="A"><coords x="4" y="0" z="1"/></element>
+      <element type="point" label="P"><coords x="6" y="0" z="1"/></element>
+      <command name="Circle"><input a0="O" a1="A"/><output a0="c"/></command>
+      <command name="Tangent"><input a0="P" a1="c"/>
+        <output a0="t"/><output a0="u"/></command>
+    </construction></geogebra>"""
+    result = import_ggb(_write_ggb(tmp_path / "tangent.ggb", xml))
+    assert "t = 切线(P, c)" in result.dsl.splitlines()
+    assert "u = 另一切线(P, c)" in result.dsl.splitlines()
+    figure = parse_dsl(result.dsl)
+    assert figure.nodes["u"].op == "line.tangent_second"
+
+
 def test_a_nan_point_is_reported_and_does_not_stop_the_import(
     tmp_path: Path,
 ) -> None:
@@ -281,9 +316,10 @@ def test_a_two_line_angle_bisector_is_reported_not_emitted(
         <output a0="i"/><output a1="j"/></command>
     </construction></geogebra>"""
     result = import_ggb(_write_ggb(tmp_path / "bisector.ggb", xml))
-    assert any("两条线" in item for item in result.skipped)
+    assert "i = 角平分线(f, g)" in result.dsl.splitlines()
+    assert any("两条角平分线" in item for item in result.skipped)
     figure = parse_dsl(result.dsl)
-    assert "i" not in figure.nodes
+    assert figure.nodes["i"].op == "line.angle_bisector_lines"
 
 
 def test_colour_and_line_style_come_across(tmp_path: Path) -> None:

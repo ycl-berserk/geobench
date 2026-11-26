@@ -279,6 +279,43 @@ def oracle_transform_reflect_point(ctx: OpContext, args: list[str]) -> tuple[Any
     return image.x, image.y
 
 
+def oracle_angle_bisector_lines(
+    ctx: OpContext, args: list[str]
+) -> tuple[tuple[Any, Any, Any], ...]:
+    """Both bisectors, by the normalized line equations."""
+    a1, b1, c1 = _line(ctx, args[0]).coefficients
+    a2, b2, c2 = _line(ctx, args[1]).coefficients
+    n1 = sp.sqrt(a1 * a1 + b1 * b1)
+    n2 = sp.sqrt(a2 * a2 + b2 * b2)
+    return (
+        (a1 / n1 + a2 / n2, b1 / n1 + b2 / n2, c1 / n1 + c2 / n2),
+        (a1 / n1 - a2 / n2, b1 / n1 - b2 / n2, c1 / n1 - c2 / n2),
+    )
+
+
+def oracle_line_mirror(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any]:
+    """Reflect two points of the line, then join their images."""
+    mirror = _line(ctx, args[1])
+    a, b, c = _line(ctx, args[0]).coefficients
+    if b != 0:
+        first = sp.Point(0, -c / b)
+        second = sp.Point(1, -(a + c) / b)
+    elif a != 0:
+        first = sp.Point(-c / a, 0)
+        second = sp.Point(-(b + c) / a, 1)
+    else:
+        raise ValueError("degenerate line")
+    image = Line(first.reflect(mirror), second.reflect(mirror))
+    ia, ib, ic = image.coefficients
+    return ia, ib, ic
+
+
+def oracle_circle_mirror(ctx: OpContext, args: list[str]) -> tuple[Any, Any, Any]:
+    cx, cy, r2 = ctx.circle(args[0])
+    centre = sp.Point(cx, cy).reflect(_line(ctx, args[1]))
+    return centre.x, centre.y, r2
+
+
 def oracle_transform_mirror(ctx: OpContext, args: list[str]) -> tuple[Any, Any]:
     reflected = _point(ctx, args[0]).reflect(_line(ctx, args[1]))
     return reflected.x, reflected.y
@@ -603,6 +640,10 @@ ORACLES = {
     "line.perpendicular_bisector": oracle_perpendicular_bisector,
     "line.angle_bisector": oracle_angle_bisector,
     "line.tangent": oracle_tangent,
+    "line.angle_bisector_lines": oracle_angle_bisector_lines,
+    "line.mirror": oracle_line_mirror,
+    "circle.mirror": oracle_circle_mirror,
+    "line.tangent_second": oracle_tangent,
     "point.intersect_circles": oracle_intersect_circles,
     "point.on_circle": oracle_point_on_circle,
     "point.on_line": oracle_point_on_line,

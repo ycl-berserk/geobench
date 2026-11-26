@@ -327,7 +327,28 @@ def battery(op_id: str, rng: random.Random) -> list[Fixture]:
                 "error",
                 "the vertex coincides with one side's endpoint",
             )
-    elif op_id == "line.tangent":
+    elif op_id == "line.angle_bisector_lines":
+        for _ in range(TARGET):
+            pts = _non_degenerate_triangle(rng)
+            add(pts, ["line:A,B", "line:A,C"], "normal", "value", "two lines")
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 2)
+            add(pts, ["line:A,B", "line:A,A"], "degenerate", "error", "degenerate line")
+    elif op_id == "line.mirror":
+        for _ in range(TARGET):
+            pts = _distinct_points(rng, 4)
+            add(pts, ["line:A,B", "line:C,D"], "normal", "value", "line in a line")
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 3)
+            add(pts, ["line:A,B", "line:C,C"], "degenerate", "error", "degenerate mirror")
+    elif op_id == "circle.mirror":
+        for _ in range(TARGET):
+            pts = _distinct_points(rng, 3)
+            add(pts, ["circle:A,4", "line:B,C"], "normal", "value", "circle in a line")
+        for _ in range(DEGENERATE):
+            pts = _points(rng, 2)
+            add(pts, ["circle:A,4", "line:B,B"], "degenerate", "error", "degenerate mirror")
+    elif op_id in ("line.tangent", "line.tangent_second"):
         # The point of tangency is one of the three points the circle
         # passes through, so it is on the circle by construction.
         for _ in range(TARGET):
@@ -1031,6 +1052,10 @@ OPERATORS = [
     "line.perpendicular_bisector",
     "line.angle_bisector",
     "line.tangent",
+    "line.tangent_second",
+    "line.angle_bisector_lines",
+    "line.mirror",
+    "circle.mirror",
     "segment.free",
     "segment.perpendicular",
     "circle.through",

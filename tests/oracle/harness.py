@@ -287,6 +287,8 @@ SET_COMPARISON = {
     "point.intersect_line_circle",
     "point.intersect_circles",
     "line.tangent",
+    "line.tangent_second",
+    "line.angle_bisector_lines",
 }
 
 

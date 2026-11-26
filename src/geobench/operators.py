@@ -350,6 +350,95 @@ def op_perpendicular_segment(ctx: OpContext, args: list[str]) -> dict[str, objec
     return {"kind": "segment", "segment": (px, py, fx, fy)}
 
 
+def op_angle_bisector_lines(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """One bisector of the angle between two lines (角平分线(线,线))."""
+    a1, b1, c1 = ctx.as_line(args[0])
+    a2, b2, c2 = ctx.as_line(args[1])
+    n1 = sp.sqrt(a1 * a1 + b1 * b1)
+    n2 = sp.sqrt(a2 * a2 + b2 * b2)
+    if n1 == 0 or n2 == 0:
+        raise DegenerateError("a bisector needs two non-degenerate lines")
+    a = a1 / n1 + a2 / n2
+    b = b1 / n1 + b2 / n2
+    c = c1 / n1 + c2 / n2
+    if a == 0 and b == 0:
+        raise DegenerateError("the lines are parallel and opposite; no unique bisector")
+    return {"kind": "line", "line": (a, b, c)}
+
+
+def op_line_mirror(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The reflection of a line in another line (镜像(线,线))."""
+    a, b, c = ctx.as_line(args[0])
+    ma, mb, mc = ctx.as_line(args[1])
+    norm_sq = ma * ma + mb * mb
+    if norm_sq == 0:
+        raise DegenerateError("degenerate mirror line")
+    dot = (a * ma + b * mb) / norm_sq
+    # Reflection is affine: x -> x - 2((m.x + c_m) / |m|^2) m.  The
+    # constant of the mirror line therefore moves the image line too.
+    return {
+        "kind": "line",
+        "line": (
+            a - 2 * dot * ma,
+            b - 2 * dot * mb,
+            c - 2 * dot * mc,
+        ),
+    }
+
+
+def op_circle_mirror(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The reflection of a circle in a line (镜像(圆,线))."""
+    cx, cy, r2 = ctx.circle(args[0])
+    a, b, c = ctx.as_line(args[1])
+    denominator = a * a + b * b
+    if denominator == 0:
+        raise DegenerateError("degenerate mirror line")
+    shift = (a * cx + b * cy + c) / denominator
+    return {
+        "kind": "circle",
+        "circle": (cx - 2 * shift * a, cy - 2 * shift * b, r2),
+    }
+
+
+def op_tangent_second(ctx: OpContext, args: list[str]) -> dict[str, object]:
+    """The other tangent from a point outside the circle.
+
+    The two tangents are mirror images in the line from the centre to
+    the point, so this is the first formula with the sign of the square
+    root flipped.  For a point on the circle the two collapse to the one
+    tangent there; for a point inside there is still none.
+    """
+    (px, py) = ctx.point(args[0])
+    (cx, cy, r2) = ctx.circle(args[1])
+    radius_sign = _sign_of(r2)
+    if radius_sign is not None and radius_sign <= 0:
+        return {"kind": "line", "no_value": "the circle has no radius; there is no tangent"}
+    ux, uy = px - cx, py - cy
+    d2 = ux * ux + uy * uy
+    gap = d2 - r2
+    if _sign_of(d2) == 0:
+        return {
+            "kind": "line",
+            "no_value": "the point is the centre of the circle; there is no tangent",
+        }
+    gap_sign = _sign_of(gap)
+    if gap_sign is not None and gap_sign < 0:
+        return {
+            "kind": "line",
+            "no_value": "the point is inside the circle; there is no tangent",
+        }
+    length = sp.sqrt(gap)
+    radius = sp.sqrt(r2)
+    a = r2 * ux + radius * length * uy
+    b = r2 * uy - radius * length * ux
+    c = -(a * cx + b * cy) - r2 * d2
+    return {
+        "kind": "line",
+        "line": (a, b, c),
+        CONDITION_NONNEGATIVE: {"point_not_inside": gap},
+    }
+
+
 def op_intersect_lines(ctx: OpContext, args: list[str]) -> dict[str, object]:
     a1, b1, c1 = ctx.as_line(args[0])
     a2, b2, c2 = ctx.as_line(args[1])
@@ -1428,6 +1517,28 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
     ),
     (
         OpSpec(
+            id="line.mirror",
+            kind="line",
+            args=(ArgSpec("line", "line"), ArgSpec("mirror", "line")),
+            returns="line",
+            degenerate_when=("degenerate mirror line",),
+            oracle="sympy.geometry:Line.reflect",
+        ),
+        op_line_mirror,
+    ),
+    (
+        OpSpec(
+            id="circle.mirror",
+            kind="circle",
+            args=(ArgSpec("circle", "circle"), ArgSpec("mirror", "line")),
+            returns="circle",
+            degenerate_when=("degenerate mirror line",),
+            oracle="sympy.geometry:Circle.reflect",
+        ),
+        op_circle_mirror,
+    ),
+    (
+        OpSpec(
             id="transform.translate",
             kind="point",
             args=(ArgSpec("p", "point"), ArgSpec("vector", "point")),
@@ -1749,6 +1860,17 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
     ),
     (
         OpSpec(
+            id="line.angle_bisector_lines",
+            kind="line",
+            args=(ArgSpec("l1", "line"), ArgSpec("l2", "line")),
+            returns="line",
+            degenerate_when=("a line is degenerate",),
+            oracle="the line whose distances to the two lines are equal",
+        ),
+        op_angle_bisector_lines,
+    ),
+    (
+        OpSpec(
             id="line.tangent",
             kind="line",
             args=(ArgSpec("p", "point"), ArgSpec("circle", "circle")),
@@ -1757,6 +1879,17 @@ _BUILTINS: list[tuple[OpSpec, OpImpl]] = [
             oracle="sympy.geometry:Circle.tangent_lines",
         ),
         op_tangent,
+    ),
+    (
+        OpSpec(
+            id="line.tangent_second",
+            kind="line",
+            args=(ArgSpec("p", "point"), ArgSpec("circle", "circle")),
+            returns="line",
+            degenerate_when=("p is inside the circle",),
+            oracle="sympy.geometry:Circle.tangent_lines",
+        ),
+        op_tangent_second,
     ),
     (
         OpSpec(

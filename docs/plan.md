@@ -279,7 +279,9 @@ src/geobench/
 | `Parallel` | 平行 | `line.parallel_through` | `[x]` |
 | `PerpendicularBisector` | 中垂线 | `line.perpendicular_bisector` | `[x]` |
 | `AngleBisector` | 角平分线 | `line.angle_bisector` | `[x]` |
+| `AngleBisectorLines` | 角平分线 | `line.angle_bisector_lines` | `[x]` |
 | `Tangent` | 切线 | `line.tangent` | `[x]` |
+| `SecondTangent` | 另一切线 | `line.tangent_second` | `[x]` |
 | `Polar` | 极线 | `line.polar` | `[x]` |
 | `Ray` | 射线 | `ray.free` | `[x]` |
 | `Segment` | 线段 | `segment.free` | `[x]` |
@@ -317,6 +319,8 @@ src/geobench/
 | `Rotate` | 旋转 | `transform.rotate` | `[x]` |
 | `Dilate` | 位似 | `transform.dilate` | `[x]` |
 | `Mirror` | 镜像 | `transform.mirror` | `[x]` |
+| `MirrorLine` | 镜像 | `line.mirror` | `[x]` |
+| `MirrorCircle` | 镜像 | `circle.mirror` | `[x]` |
 | `PointReflection` | 点对称 | `transform.reflect_point` | `[x]` |
 | `Reflect` | 反射 | `transform.reflect` | `[x]` |
 
@@ -508,6 +512,7 @@ T025 修的是"画板掉进精确路径"这件事 —— 详见
 
 | 日期 | 变更 |
 |---|---|
+| 2026-11-26 | **批量账号语料 + 多输出补齐** —— 用 Playwright 连接已登录 Chrome，118 个资源下载 115 个 `.ggb`（3 个是 Classroom 链接），111 个导入成功、4 个工具包为空。按实际跳过频率补：① `Polygon` 现在把 GeoGebra 的每条边也导入成真实 `线段`，依赖边的交点/中点不再连带跳过；② `Tangent` 两个输出都导入，第二个用新算子 `line.tangent_second`（`另一切线`）；③ 两条线的角平分线 `line.angle_bisector_lines`（先导入一条，第二条报告）；④ 线/圆关于线的镜像 `line.mirror` / `circle.mirror`；⑤ 非有限坐标（nan）点、`距离IC` 这类混排标签不再让导入崩溃。批量结果：115 个文件中 111 ok、4 empty，全部交点位置与保存坐标一致。 |
 | 2026-11-26 | **交点选择按保存位置校正** —— Jacobbi 的 G 位置完全不对，根因不是解析器读错命令，而是 **GeoGebra 的交点编号与内核不同**：文件写 `Intersect(d,n,2)`，保存的 G 是内核的 index 0，照抄 `2→1` 就落到弦的另一端（正好是 E）。导入现在**先数值回放**，用源文件保存的坐标在候选交点里选真正那个，并**迭代到依赖交点也修正**（N 依赖 H 的修正）；四个语料所有 `Intersect` 点与保存位置误差 < 0.02。新增合成 selector 回归测试和真实语料交点位置测试。 |
 | 2026-11-26 | **角度弧真正对到角上 / 图标逐枚居中 / 小指针** —— 两个根因：① `角度(A,B,C)` 的顶点是 **B**，但 `_angle_arc` 和角平分线方向把 A 当顶点，弧画到了另一个点；② 画布 `_draw_arc` 把角度取负，导致弧上下镜像。现在弧心=B、跨度=实测角，测试断言弧心 (4,0) 与 90°；`角相等` 的记号同样改为顶点在中间。③ 图标改为**逐枚测量墨迹包围盒后搬到画布中心**，不再假设每个手绘 glyph 本来居中；测试遍历全部 GLYPHS。④ 鼠标指针 18 px、纯色、无白边。 |
 | 2026-11-26 | **文本框 / 标签显示隐藏 / 导入修正** —— ① 新增 `text` 对象与 `文本 T("第一行\\n第二行", x, y)`：模型、DSL、屏幕、SVG、可拖动 HTML、`.ggb` 导入导出全链路；GeoGebra 的 `<expression>` + `<text><startPoint>` 会导入成文本框，`fit_view` 把文本宽度/行数算进边界。② 新增 `隐藏标签 A` / `显示标签 A`，导入 `show label="false"`；点还在，只是不画名字。③ 颜色/虚线上一轮已补，这一轮把点颜色统一为软件约定（自由蓝、派生黑），不再被源文件灰点带偏。验收：`test_text.py`（3）与 `.ggb` 导出回读含文本；全套 **1339 passed**。 |
