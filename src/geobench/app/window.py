@@ -1434,8 +1434,8 @@ class StudioWindow(QMainWindow):
         inner.addWidget(title)
 
         note = QLabel(
-            "打开一个做好的例子，用一句话描述图形，"
-            "或者打开 GeoGebra 文件。要自己画，先选工具栏的「点」。"
+            "从零开始画一张图，打开一个做好的例子，"
+            "用一句话描述图形，或者打开 GeoGebra 文件。"
         )
         note.setObjectName("panelNote")
         note.setWordWrap(True)
@@ -1443,6 +1443,7 @@ class StudioWindow(QMainWindow):
         inner.addWidget(note)
 
         starters = (
+            ("从零开始画图", self._start_blank),
             ("打开一个示例", self._open_example),
             ("用一句话作图", self._open_ai_panel),
             ("打开文件…", self._open_file),
@@ -1602,9 +1603,9 @@ class StudioWindow(QMainWindow):
             return not self._dirty
         return choice == QMessageBox.StandardButton.Discard
 
-    def _new_file(self) -> None:
+    def _new_file(self) -> bool:
         if not self._confirm_discard():
-            return
+            return False
         self.controller.clear()
         self._path = None
         self._dirty = False
@@ -1613,6 +1614,24 @@ class StudioWindow(QMainWindow):
         self.canvas.fit()
         self.refresh()
         self.status.showMessage("新建了一张空白图")
+        return True
+
+    def _start_blank(self) -> None:
+        """The first-screen route into a figure that is not an example."""
+        if not self._new_file():
+            return
+        point = next(
+            (
+                tool
+                for group in self._groups
+                for tool in group.tools
+                if tool.op == "point.free"
+            ),
+            None,
+        )
+        if point is not None:
+            self._arm(point)
+        self.status.showMessage("空白图：先点一下画布放第一个点")
 
     def closeEvent(self, event: QCloseEvent) -> None:
         # There is nobody to ask in a headless test run; a close there is

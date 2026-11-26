@@ -16,7 +16,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, replace
 
-from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -193,6 +193,16 @@ class FigureCanvas(QWidget):
         self._dragging: str | None = None
         self._drag_moved = False
         self._drag_offset = (0.0, 0.0)
+        self._pan_from_select = False
+        self._pan_moved = False
+        #: The latest drag position, applied at most once per timer tick.
+        #: Mouse events can arrive far faster than a figure can be
+        #: recomputed; the dropped intermediate frames are invisible.
+        self._drag_target: tuple[float, float] | None = None
+        self._drag_timer = QTimer(self)
+        self._drag_timer.setSingleShot(True)
+        self._drag_timer.setInterval(16)
+        self._drag_timer.timeout.connect(self._apply_drag)
         self._pending_points: list[str] = []
         #: Proved claims worth drawing: equal lengths get ticks, a right
         #: angle gets its square.  The table says what is true; the
@@ -250,8 +260,9 @@ class FigureCanvas(QWidget):
 
     def _viewport(self) -> Viewport:
         view = self._view
-        width = view.width * self._zoom
-        height = view.height * self._zoom
+        # A larger zoom means a *smaller* slice of the plane on screen.
+        width = view.width / self._zoom
+        height = view.height / self._zoom
         # Keep the aspect ratio of the widget, so nothing is squashed.
         widget_ratio = self.width() / self.height() if self.height() else 1.0
         figure_ratio = width / height if height else 1.0
@@ -1018,6 +1029,8 @@ class FigureCanvas(QWidget):
         if event.button() == Qt.MouseButton.MiddleButton:  # type: ignore[attr-defined]
             self._dragging = "__pan__"
             self._drag_offset = (px, py)
+            self._pan_from_select = False
+            self._pan_moved = False
             return
         additive = bool(
             QApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier
@@ -1051,6 +1064,16 @@ class FigureCanvas(QWidget):
             current = self.controller.point_positions()[node_id]
             self._drag_offset = (fx - current[0], fy - current[1])
             return
+        if (
+            self._tool is None or self._tool.op == "select"
+        ) and self._hit_object(px, py, SELECTABLE_KINDS) is None:
+            # Empty paper with the pointer: drag it to move the sheet.
+            # A click without movement still clears the selection.
+            self._dragging = "__pan__"
+            self._drag_offset = (px, py)
+            self._pan_from_select = True
+            self._pan_moved = False
+            return
         if self._tool is not None:
             self._tool_click(px, py)
             return
@@ -1081,24 +1104,47 @@ class FigureCanvas(QWidget):
                 self._pan[1] + (py - self._drag_offset[1]) / self._viewport().scale,
             )
             self._drag_offset = (px, py)
+            self._pan_moved = True
             self.update()
             return
         viewport = self._viewport()
         fx, fy = viewport.to_figure(px, py)
         self._drag_moved = True
-        self.controller.move_point(
-            self._dragging, fx - self._drag_offset[0], fy - self._drag_offset[1]
+        self._drag_target = (
+            fx - self._drag_offset[0],
+            fy - self._drag_offset[1],
         )
+        if not self._drag_timer.isActive():
+            self._drag_timer.start()
+
+    def _apply_drag(self) -> None:
+        """Move the point to the latest cursor position, once per tick."""
+        target = self._drag_target
+        self._drag_target = None
+        if target is None or self._dragging in (None, "__pan__"):
+            return
+        self.controller.move_point(self._dragging, target[0], target[1])
 
     def mouseReleaseEvent(self, _event: object) -> None:
         moved = self._drag_moved
-        if self._dragging is not None and self._dragging != "__pan__" and moved:
+        if self._dragging == "__pan__":
+            if self._pan_from_select and not self._pan_moved:
+                self.select(None)
+        elif self._dragging is not None and moved:
+            # Apply the last position before the figure settles. The
+            # timer may have a frame queued, and the release is where
+            # the final pixel has to land.
+            self._drag_timer.stop()
+            self._apply_drag()
             # The drag is over: the figure settles and the verdicts are
             # recomputed. A click that only picked something is not a
             # change, and changes nothing.
             self.controller.finish_move()
         self._dragging = None
         self._drag_moved = False
+        self._pan_from_select = False
+        self._pan_moved = False
+        self._drag_target = None
 
     def _moved(self, _node_id: str) -> None:
         """A point moved: the picture has to be redrawn. That is all."""

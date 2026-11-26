@@ -83,6 +83,43 @@ def test_a_click_places_a_point_where_the_user_clicked(
     window.close()
 
 
+def test_plus_zooms_in_and_minus_zooms_out(
+    app: QApplication, controller: StudioController
+) -> None:
+    window = StudioWindow(controller)
+    window.resize(900, 600)
+    window.show()
+    app.processEvents()
+    canvas = window.canvas
+    before = canvas._viewport().scale
+    canvas.zoom_in()
+    inner = canvas._viewport().scale
+    canvas.zoom_out()
+    outer = canvas._viewport().scale
+    assert inner > before
+    assert outer < inner
+    window.close()
+
+
+def test_dragging_empty_paper_pans_the_canvas(
+    app: QApplication, controller: StudioController
+) -> None:
+    window = StudioWindow(controller)
+    window.resize(900, 600)
+    window.show()
+    app.processEvents()
+    canvas = window.canvas
+    start = QPoint(canvas.width() // 2, canvas.height() // 2)
+    target = QPoint(start.x() + 80, start.y() + 50)
+    QTest.mousePress(canvas, Qt.MouseButton.LeftButton, pos=start)
+    QTest.mouseMove(canvas, target)
+    QTest.mouseRelease(canvas, Qt.MouseButton.LeftButton, pos=target)
+    app.processEvents()
+    assert canvas._pan != (0.0, 0.0)
+    assert not controller.figure().nodes
+    window.close()
+
+
 def test_the_view_stays_put_when_the_figure_changes(
     app: QApplication, controller: StudioController
 ) -> None:

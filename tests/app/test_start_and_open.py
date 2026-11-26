@@ -56,8 +56,22 @@ def _window(app: QApplication) -> StudioWindow:
 def test_the_empty_canvas_offers_a_way_in(app: QApplication) -> None:
     window = _window(app)
     texts = {button.text() for button in window._empty_state.findChildren(QPushButton)}
-    assert {"打开一个示例", "用一句话作图", "打开文件…"} <= texts
+    assert {"从零开始画图", "打开一个示例", "用一句话作图", "打开文件…"} <= texts
     assert not window._empty_state.isHidden()
+    window.close()
+
+
+def test_the_first_screen_offers_a_blank_figure(app: QApplication) -> None:
+    window = _window(app)
+    labels = {
+        button.text(): button
+        for button in window._empty_state.findChildren(QPushButton)
+    }
+    labels["从零开始画图"].click()
+    app.processEvents()
+    assert not window.controller.figure().nodes
+    assert window.canvas.tool() is not None
+    assert window.canvas.tool().op == "point.free"
     window.close()
 
 
