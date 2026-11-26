@@ -361,6 +361,9 @@ class _Kinds:
         self.dashed: set[str] = set()
         """Objects the source draws with a non-solid line style."""
 
+        self.labels_hidden: set[str] = set()
+        """Objects whose name the source does not print."""
+
     def set(
         self,
         label: str,
@@ -405,6 +408,11 @@ def import_ggb(path: Path) -> ImportResult:
     result = ImportResult(dsl="")
     kinds = _Kinds()
     lines: list[str] = []
+    texts: list[tuple[str, str, str, str]] = []
+    expressions = {
+        element.get("label", ""): element.get("exp", "")
+        for element in construction.findall("expression")
+    }
 
     # Every point's saved position, free or produced: a ``Point(c)`` on
     # a circle needs it to recover the parameter the teacher had.
@@ -414,6 +422,8 @@ def import_ggb(path: Path) -> ImportResult:
         show = element.find("show")
         if show is not None and show.get("object") == "false":
             kinds.hidden.add(label)
+        if show is not None and show.get("label") == "false":
+            kinds.labels_hidden.add(label)
         color = element.find("objColor")
         if color is not None:
             try:
@@ -447,9 +457,22 @@ def import_ggb(path: Path) -> ImportResult:
                         float(coords.get("y", "0")) / z,
                     )
         elif kind == "text":
-            result.skipped.append(
-                f"文本 {label}: DSL 还没有文本对象，未导入"
-            )
+            start = element.find("startPoint")
+            content = expressions.get(label, "")
+            # GeoGebra stores the expression with the quotes around it.
+            if len(content) >= 2 and content.startswith('"') and content.endswith('"'):
+                content = content[1:-1]
+            content = content.replace('\\"', '"')
+            if start is None or not content:
+                result.skipped.append(f"文本 {label}: 没有内容或位置，未导入")
+                continue
+            try:
+                x = format(float(start.get("x", "0")), ".6g")
+                y = format(float(start.get("y", "0")), ".6g")
+            except (TypeError, ValueError):
+                result.skipped.append(f"文本 {label}: 位置读不懂，未导入")
+                continue
+            texts.append((label, content, x, y))
 
     # -- the free points ---------------------------------------------------
     produced: set[str] = set()
@@ -488,6 +511,8 @@ def import_ggb(path: Path) -> ImportResult:
             free_style.append(f"颜色 {name} {kinds.colors[label]}")
         if label in kinds.dashed:
             free_style.append(f"辅助 {name}")
+        if label in kinds.labels_hidden:
+            free_style.append(f"隐藏标签 {name}")
 
     if free:
         points = " ".join(f"{name}({x}, {y})" for name, x, y in free)
@@ -517,8 +542,19 @@ def import_ggb(path: Path) -> ImportResult:
                         )
                     if output_label in kinds.dashed:
                         lines.append(f"辅助 {name}")
+                    if output_label in kinds.labels_hidden:
+                        lines.append(f"隐藏标签 {name}")
         if skipped:
             result.skipped.append(skipped)
+
+    for label, content, x, y in texts:
+        name = kinds.allocate(label)
+        escaped = (
+            content.replace("\\", "\\\\")
+            .replace('"', '\\"')
+            .replace("\n", "\\n")
+        )
+        lines.append(f'文本 {name}("{escaped}", {x}, {y})')
 
     result.dsl = "\n".join(lines) + "\n"
     return result

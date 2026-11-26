@@ -116,8 +116,18 @@ class _Writer:
         if detail is not None:
             element.append(detail)
         node = self.figure.nodes.get(node_id)
-        if node is not None and not node.style.visible:
-            ET.SubElement(element, "show", {"object": "false", "label": "true"})
+        if node is not None:
+            if not node.style.visible:
+                ET.SubElement(
+                    element,
+                    "show",
+                    {
+                        "object": "false",
+                        "label": "true" if node.style.label_visible else "false",
+                    },
+                )
+            elif not node.style.label_visible:
+                ET.SubElement(element, "show", {"object": "true", "label": "false"})
 
     def raw_element(self, label: str, kind: str) -> None:
         """An element for a helper object (an auxiliary circle or line)."""
@@ -178,6 +188,36 @@ class _Writer:
                             "z": "1",
                         },
                     ),
+                )
+                self.exported.add(node_id)
+                continue
+            if node.kind == "text" and node.role == "free":
+                position = node.placement or node.coords
+                if position is None:
+                    self.skip(node_id, "文本没有位置")
+                    continue
+                ET.SubElement(
+                    self.construction,
+                    "expression",
+                    {
+                        "label": self.label(node_id),
+                        "exp": node.args[0] if node.args else "",
+                        "type": "text",
+                    },
+                )
+                element = ET.SubElement(
+                    self.construction,
+                    "element",
+                    {"type": "text", "label": self.label(node_id)},
+                )
+                ET.SubElement(
+                    element,
+                    "startPoint",
+                    {
+                        "x": _number(position[0]),
+                        "y": _number(position[1]),
+                        "z": "1",
+                    },
                 )
                 self.exported.add(node_id)
                 continue

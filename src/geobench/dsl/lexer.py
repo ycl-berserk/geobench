@@ -33,6 +33,7 @@ class TokenKind(Enum):
     NUMBER = "number"
     SYMBOL = "symbol"
     PUNCT = "punct"
+    STRING = "string"
     END = "end"
 
 
@@ -57,7 +58,7 @@ class Token:
 #: ``点大小`` is here whole rather than being lexed as ``点`` + ``大小``:
 #: it is an attribute statement (T050), and without this the tokenizer
 #: would read it as a point declaration.
-KEYWORDS = frozenset({"点", "断言", "约束", "点大小"})
+KEYWORDS = frozenset({"点", "断言", "约束", "点大小", "文本"})
 
 #: The names the command table knows.
 #:
@@ -107,6 +108,34 @@ def tokenize_line(text: str, line_number: int) -> list[Token]:
             continue
         if char == "#":
             break  # comment to end of line
+        if char == '"':
+            # A text annotation.  The source is line-oriented, so a line
+            # break inside the text is written \n.
+            start = index
+            index += 1
+            parts: list[str] = []
+            while index < length and text[index] != '"':
+                if text[index] == "\\" and index + 1 < length:
+                    escaped = text[index + 1]
+                    parts.append(
+                        {"n": "\n", "t": "\t", "\\": "\\", '"': '"'}.get(
+                            escaped, escaped
+                        )
+                    )
+                    index += 2
+                    continue
+                parts.append(text[index])
+                index += 1
+            if index < length and text[index] == '"':
+                index += 1
+            tokens.append(
+                Token(
+                    TokenKind.STRING,
+                    "".join(parts),
+                    _span(line_number, start + 1, index - start),
+                )
+            )
+            continue
         # A symbol may be attached to an identifier, e.g. "⊙O" or "P_1".
         if char in SYMBOLS:
             tokens.append(Token(TokenKind.SYMBOL, char, _span(line_number, index + 1)))

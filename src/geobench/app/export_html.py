@@ -40,6 +40,7 @@ from geobench.primitives import (
     PolygonPrimitive,
     Primitive,
     SegmentPrimitive,
+    TextPrimitive,
     figure_primitives,
 )
 from geobench.render import View, clip_line, fit_view
@@ -520,6 +521,18 @@ def _body(
                 f'<{tag} id="o-{primitive.id}" points="{pairs}" fill="none" '
                 f'stroke="{color}" stroke-width="{width * 1.6}"'
                 f"{_dash(primitive.auxiliary)}/>"
+            )
+        elif isinstance(primitive, TextPrimitive):
+            spans = "".join(
+                f'<tspan x="{fmt(tx(primitive.x))}" '
+                f'dy="{fmt(0 if index == 0 else primitive.font_size * 1.25)}">'
+                f"{html.escape(line)}</tspan>"
+                for index, line in enumerate(primitive.text.splitlines() or [""])
+            )
+            parts.append(
+                f'<text x="{fmt(tx(primitive.x))}" '
+                f'y="{fmt(ty(primitive.y))}" fill="{color}" '
+                f'font-size="{fmt(primitive.font_size)}">{spans}</text>'
             )
         elif isinstance(primitive, LabelPrimitive):
             labels.append(

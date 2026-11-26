@@ -14,6 +14,7 @@ drift apart (decision D20).
 
 from __future__ import annotations
 
+import html
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -33,6 +34,7 @@ from geobench.primitives import (
     PolygonPrimitive,
     RayPrimitive,
     SegmentPrimitive,
+    TextPrimitive,
     figure_primitives,
 )
 from geobench.style import COMPETITION, PLAIN, FigureStyle, get_style
@@ -109,6 +111,25 @@ def fit_view(figure: Figure, padding: float = 0.6) -> View:
                 continue
             xs.append(position[0])
             ys.append(position[1])
+        elif node.kind == "text":
+            text_position = node.placement or node.coords
+            if text_position is not None:
+                try:
+                    x, y = float(text_position[0]), float(text_position[1])
+                except (TypeError, ValueError):
+                    continue
+                xs.append(x)
+                ys.append(y)
+                # The note runs downward and to the right from its anchor;
+                # leave room for the lines and the longest sentence so
+                # fitting does not cut the note in half.  The estimate is
+                # deliberately generous: a missing note is worse than a
+                # little extra paper.
+                content = node.args[0] if node.args else ""
+                lines = content.count("\n") + 1
+                longest = max((len(line) for line in content.splitlines()), default=0)
+                xs.append(x + 0.6 * longest)
+                ys.append(y - 0.55 * lines)
         elif node.kind == "circle":
             try:
                 cx, cy, r2 = numeric_circle(figure, node.id)
@@ -358,6 +379,21 @@ def render_svg(
                 f'stroke="{_stroke_color(style, primitive.ink)}" '
                 f'stroke-width="{_stroke_width(primitive.auxiliary, style, primitive.ink)}"'
                 f"{_dash(primitive.auxiliary)}/>"
+            )
+        elif isinstance(primitive, TextPrimitive):
+            colour = primitive.ink.color or style.stroke
+            lines = primitive.text.splitlines() or [""]
+            spans = "".join(
+                f'<tspan x="{_fmt(tx(primitive.x))}" '
+                f'dy="{_fmt(0 if index == 0 else primitive.font_size * 1.25)}">'
+                f"{html.escape(line)}</tspan>"
+                for index, line in enumerate(lines)
+            )
+            parts.append(
+                f'<text x="{_fmt(tx(primitive.x))}" '
+                f'y="{_fmt(ty(primitive.y))}" fill="{colour}" '
+                f'font-family="{style.font_family}" '
+                f'font-size="{_fmt(primitive.font_size)}">{spans}</text>'
             )
         elif isinstance(primitive, PointPrimitive):
             if not (math.isfinite(primitive.x) and math.isfinite(primitive.y)):

@@ -68,6 +68,14 @@ def to_dsl(figure: Figure) -> str:
         lines.append("点 " + " ".join(parts))
 
     for node in figure.nodes.values():
+        if node.kind != "text" or node.role != "free":
+            continue
+        content = (node.args[0] if node.args else "").replace("\\", "\\\\")
+        content = content.replace('"', '\\"').replace("\n", "\\n")
+        x, y = node.placement or ("0", "0")
+        lines.append(f'文本 {node.id}("{content}", {x}, {y})')
+
+    for node in figure.nodes.values():
         if node.role not in ("derived", "attached"):
             continue
         assert node.op is not None
@@ -88,6 +96,8 @@ def to_dsl(figure: Figure) -> str:
             lines.append(f"\u70b9\u5927\u5c0f {node.id} {node.style.point_size:g}")
         if node.style.label_pos:
             lines.append(f"\u6807\u7b7e\u4f4d\u7f6e {node.id} {node.style.label_pos}")
+        if not node.style.label_visible:
+            lines.append(f"\u9690\u85cf\u6807\u7b7e {node.id}")
 
     for relation in figure.relations:
         lines.append(_assertion(relation.kind, relation.args))

@@ -64,6 +64,7 @@ from geobench.model import (
     RAY,
     SECTOR,
     SEGMENT,
+    TEXT,
     Figure,
     Node,
     Relation,
@@ -224,6 +225,9 @@ class Parser:
         if head.text in {"数", "Number"}:
             self._parse_number(tokens)
             return
+        if head.text in {"文本", "Text"}:
+            self._parse_text(tokens)
+            return
         if head.is_keyword("断言"):
             self._parse_assertion(tokens)
             return
@@ -235,6 +239,12 @@ class Parser:
             return
         if head.text in {"\u8f85\u52a9", "Auxiliary"}:
             self._parse_attribute(tokens, hidden=False)
+            return
+        if head.text in {"\u9690\u85cf\u6807\u7b7e", "HideLabel"}:
+            self._parse_label_visibility(tokens, False)
+            return
+        if head.text in {"\u663e\u793a\u6807\u7b7e", "ShowLabel"}:
+            self._parse_label_visibility(tokens, True)
             return
         if head.text in {"\u989c\u8272", "Color"}:
             self._parse_appearance(tokens, "color")
@@ -443,6 +453,39 @@ class Parser:
 
     # -- 数 a = 2.5 ---------------------------------------------------------
 
+    def _parse_text(self, tokens: list[Token]) -> None:
+        """``文本 T("...", x, y)`` -- a note on the paper, not geometry."""
+        if (
+            len(tokens) != 9
+            or tokens[1].kind is not TokenKind.IDENT
+            or not tokens[2].is_punct("(")
+            or tokens[3].kind is not TokenKind.STRING
+            or not tokens[4].is_punct(",")
+            or tokens[5].kind is not TokenKind.NUMBER
+            or not tokens[6].is_punct(",")
+            or tokens[7].kind is not TokenKind.NUMBER
+            or not tokens[8].is_punct(")")
+        ):
+            raise self._fail(
+                tokens[0].span,
+                '这一行应该是：文本 名字("内容", x, y)',
+            )
+        name = tokens[1].text
+        content = tokens[3].text
+        x, y = tokens[5].text, tokens[7].text
+        node = Node(
+            id=name,
+            kind=TEXT,
+            role=FREE,
+            args=[content],
+            coords=(x, y),
+            placement=(x, y),
+        )
+        self._install(node, tokens[1].span)
+        self.scope.objects[name] = Ref(
+            name=name, kind=TEXT, node_id=name, endpoints=()
+        )
+
     def _parse_number(self, tokens: list[Token]) -> None:
         """A constant the lesson can drag: ``数 a = 2.5``.
 
@@ -556,6 +599,16 @@ class Parser:
             node.style = replace(node.style, visible=False)
         else:
             node.style = replace(node.style, line_style="dashed")
+
+    def _parse_label_visibility(self, tokens: list[Token], visible: bool) -> None:
+        """隐藏标签 l / 显示标签 l -- draw the name or not."""
+        if len(tokens) != 2:
+            raise self._fail(tokens[0].span, "这一行应该是：属性 对象")
+        name = tokens[1].text
+        node = self.figure.nodes.get(name)
+        if node is None:
+            raise self._fail(tokens[1].span, f"没有叫 {name!r} 的对象")
+        node.style = replace(node.style, label_visible=visible)
 
     def _parse_appearance(self, tokens: list[Token], field: str) -> None:
         """颜色 / 线宽 / 点大小 / 标签位置 -- how one object is drawn.

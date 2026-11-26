@@ -54,6 +54,7 @@ from geobench.primitives import (
     PolygonPrimitive,
     RayPrimitive,
     SegmentPrimitive,
+    TextPrimitive,
     distance_to,
     hit_test,
 )
@@ -312,6 +313,8 @@ class FigureCanvas(QWidget):
                 self._draw_point(painter, viewport, primitive, style)
             elif isinstance(primitive, LabelPrimitive):
                 self._draw_label(painter, viewport, primitive, style)
+            elif isinstance(primitive, TextPrimitive):
+                self._draw_text(painter, viewport, primitive, style)
         self._draw_proof_marks(painter, viewport)
         self._draw_selection(painter, viewport, style)
         self._draw_hint(painter, style)
@@ -806,6 +809,27 @@ class FigureCanvas(QWidget):
             QPointF(x + primitive.offset_x * offset, y - primitive.offset_y * offset),
             primitive.text,
         )
+
+    def _draw_text(
+        self,
+        painter: QPainter,
+        viewport: Viewport,
+        primitive: TextPrimitive,
+        style: FigureStyle,
+    ) -> None:
+        """A note on the paper, left-aligned at its anchor."""
+        x, y = viewport.to_screen(primitive.x, primitive.y)
+        font = QFont()
+        font.setFamily(style.font_family.split(",")[0].strip())
+        font.setPointSizeF(primitive.font_size)
+        painter.setFont(font)
+        painter.setPen(QColor(primitive.ink.color or style.stroke))
+        line_height = painter.fontMetrics().height()
+        for index, line in enumerate(primitive.text.splitlines() or [""]):
+            painter.drawText(
+                QPointF(x, y + index * line_height),
+                line,
+            )
 
     # -- interaction -------------------------------------------------------
 

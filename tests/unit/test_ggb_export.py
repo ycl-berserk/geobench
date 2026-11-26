@@ -30,6 +30,7 @@ q = 平行(C, f)
 圆弧(O, A, B)
 三点弧(A, B, C)
 圆扇形(O, A, B)
+文本 note("first line\\nsecond line", -1, -2)
 """
 
 
@@ -66,6 +67,7 @@ def test_the_exported_file_is_the_same_figure(
         assert before == pytest.approx(after)
     assert any(node.kind == "arc" for node in again.nodes.values())
     assert any(node.kind == "sector" for node in again.nodes.values())
+    assert again.nodes["note"].args[0] == "first line\nsecond line"
 
 
 def test_what_cannot_be_written_is_reported(

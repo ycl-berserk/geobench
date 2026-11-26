@@ -25,6 +25,7 @@ SECTOR = "sector"
 NUMBER = "number"
 RAY = "ray"
 POLYLINE = "polyline"
+TEXT = "text"
 
 FREE = "free"
 DERIVED = "derived"
@@ -33,7 +34,19 @@ DERIVED = "derived"
 #: changes is the parameter.
 ATTACHED = "attached"
 
-_KINDS = (POINT, LINE, SEGMENT, CIRCLE, POLYGON, ARC, SECTOR, NUMBER, RAY, POLYLINE)
+_KINDS = (
+    POINT,
+    LINE,
+    SEGMENT,
+    CIRCLE,
+    POLYGON,
+    ARC,
+    SECTOR,
+    NUMBER,
+    RAY,
+    POLYLINE,
+    TEXT,
+)
 _ROLES = (FREE, DERIVED, ATTACHED)
 
 #: The cache key holding the conditions a construction depends on.
@@ -67,6 +80,9 @@ class Style:
     fill: str | None = None
     label: str | None = None
     label_pos: str | None = None
+    #: Whether the object's own name is drawn.  GeoGebra lets a figure
+    #: turn labels off; that is a drawing choice, not a hidden object.
+    label_visible: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -78,6 +94,7 @@ class Style:
             "fill": self.fill,
             "label": self.label,
             "label_pos": self.label_pos,
+            "label_visible": self.label_visible,
         }
 
     @classmethod
@@ -91,6 +108,7 @@ class Style:
             fill=data.get("fill"),
             label=data.get("label"),
             label_pos=data.get("label_pos"),
+            label_visible=bool(data.get("label_visible", True)),
         )
 
 
@@ -293,6 +311,9 @@ class Figure:
                     raise ModelError(f"free point {node.id!r} needs exact coordinates")
                 for value in node.coords:
                     FIELD.coerce(value)
+            elif node.kind == TEXT:
+                # A note has a position, but no construction behind it.
+                pass
             else:
                 # A free line or circle is given directly by its exact equation;
                 # the coefficients live in the node cache after evaluation.
@@ -305,6 +326,9 @@ class Figure:
                 raise ModelError(f"derived node {node.id!r} must name an operator")
             if not node.args:
                 raise ModelError(f"derived node {node.id!r} must have arguments")
+        if node.kind == TEXT:
+            # A note's argument is its text, not another object.
+            return
         for arg in node.args:
             if arg in self.nodes:
                 continue

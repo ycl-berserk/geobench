@@ -224,6 +224,18 @@ class LabelPrimitive:
     ink: Ink = Ink()
 
 
+@dataclass(frozen=True)
+class TextPrimitive:
+    """A note on the paper: several lines, left-aligned at its anchor."""
+
+    x: float
+    y: float
+    text: str
+    font_size: float = 10.0
+    id: str = ""
+    ink: Ink = Ink()
+
+
 Primitive = (
     PointPrimitive
     | SegmentPrimitive
@@ -233,6 +245,7 @@ Primitive = (
     | ArcPrimitive
     | PolygonPrimitive
     | LabelPrimitive
+    | TextPrimitive
 )
 
 
@@ -417,9 +430,32 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                 PointPrimitive(
                     x,
                     y,
-                    node.style.label or node.label or node_id,
+                    (
+                        (node.style.label or node.label or node_id)
+                        if node.style.label_visible
+                        else ""
+                    ),
                     node.role == "free",
                     undefined,
+                    node_id,
+                    ink,
+                )
+            )
+            continue
+        elif node.kind == "text":
+            text_position = node.placement or node.coords
+            if not text_position:
+                continue
+            try:
+                x, y = float(text_position[0]), float(text_position[1])
+            except (TypeError, ValueError):
+                continue
+            main.append(
+                TextPrimitive(
+                    x,
+                    y,
+                    node.args[0] if node.args else "",
+                    style.font_size * 1.2,
                     node_id,
                     ink,
                 )
@@ -463,6 +499,8 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
                     # Put the number on the bisector, just outside the
                     # arc, the way a hand-written figure does.
                     offset = (bisector[0] * 2.2, bisector[1] * 2.2)
+                if not node.style.label_visible:
+                    continue
             labels.append(
                 LabelPrimitive(
                     position[0],
