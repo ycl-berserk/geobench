@@ -73,7 +73,7 @@ DEFAULT_VIEW = View(-10.0, -10.0, 10.0, 10.0)
 
 #: The small pointer used everywhere on the drawing surface.  The system
 #: arrow is large enough to cover the point under it; this one is drawn
-#: at 15 px, with a white edge so it stays visible on a black line.
+#: at 18 px, in one ink colour (no white halo).
 _PRECISION_CURSOR: QCursor | None = None
 
 
@@ -81,27 +81,27 @@ def precision_cursor() -> QCursor:
     global _PRECISION_CURSOR
     if _PRECISION_CURSOR is not None:
         return _PRECISION_CURSOR
-    size = 15
+    size = 18
     pixmap = QPixmap(size, size)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
     arrow = QPolygonF(
         [
-            QPointF(1.5, 1.0),
-            QPointF(1.5, 11.5),
-            QPointF(4.2, 8.8),
-            QPointF(6.2, 13.5),
-            QPointF(8.0, 12.7),
-            QPointF(6.0, 8.1),
-            QPointF(10.0, 8.1),
+            QPointF(2.0, 1.0),
+            QPointF(2.0, 14.0),
+            QPointF(5.0, 10.5),
+            QPointF(7.4, 16.2),
+            QPointF(9.4, 15.2),
+            QPointF(7.0, 9.7),
+            QPointF(12.0, 9.7),
         ]
     )
-    painter.setPen(QPen(QColor("#ffffff"), 1.8))
+    painter.setPen(QPen(QColor(PALETTE.text), 0.9))
     painter.setBrush(QColor(PALETTE.text))
     painter.drawPolygon(arrow)
     painter.end()
-    _PRECISION_CURSOR = QCursor(pixmap, 1, 1)
+    _PRECISION_CURSOR = QCursor(pixmap, 2, 1)
     return _PRECISION_CURSOR
 
 #: How far a click may miss a point and still grab it, in pixels.
@@ -369,11 +369,12 @@ class FigureCanvas(QWidget):
             elif kind == "angle_equal" and len(args) == 6:
                 angle_index += 1
                 count = (angle_index - 1) % 3 + 1
+                # The paper writes ∠ABC with the vertex in the middle.
                 self._angle_mark(
-                    painter, viewport, args[0], args[1], args[2], count
+                    painter, viewport, args[1], args[0], args[2], count
                 )
                 self._angle_mark(
-                    painter, viewport, args[3], args[4], args[5], count
+                    painter, viewport, args[4], args[3], args[5], count
                 )
         painter.restore()
 
@@ -755,15 +756,17 @@ class FigureCanvas(QWidget):
     ) -> None:
         """One arc or sector.
 
-        The screen's y points down, so the figure's counter-clockwise
-        angle is the negative of the painter's angle, and the span
-        changes sign with it.
+        Qt measures arc angles counter-clockwise from 3 o'clock, which is
+        the same convention the primitives use (they are worked out in
+        figure coordinates, where y points up).  Negating them here -- as
+        this used to -- mirrors every arc about the horizontal axis, so
+        an angle mark appeared in the wrong quadrant.
         """
         cx, cy = viewport.to_screen(primitive.cx, primitive.cy)
         radius = primitive.radius * viewport.scale
         rect = QRectF(cx - radius, cy - radius, 2 * radius, 2 * radius)
-        start = round(-primitive.start_angle * 16)
-        span = round(-primitive.span_angle * 16)
+        start = round(primitive.start_angle * 16)
+        span = round(primitive.span_angle * 16)
         painter.setPen(self._pen(primitive.auxiliary, style, primitive.ink))
         if primitive.filled:
             painter.setBrush(QBrush(QColor(style.sector_fill)))

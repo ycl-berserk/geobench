@@ -658,7 +658,8 @@ def _angle_bisector_direction(
     coords = [_numeric_payload(figure, arg, "coords") for arg in node.args]
     if any(value is None or len(value) < 2 for value in coords):
         return None
-    vertex, first, second = coords
+    # 角度(A, B, C) is the angle at B: the vertex is the middle point.
+    first, vertex, second = coords
     assert vertex is not None and first is not None and second is not None
     ux, uy = first[0] - vertex[0], first[1] - vertex[1]
     vx, vy = second[0] - vertex[0], second[1] - vertex[1]
@@ -687,7 +688,8 @@ def _angle_arc(
     coords = [_numeric_payload(figure, arg, "coords") for arg in node.args]
     if any(value is None or len(value) < 2 for value in coords):
         return None
-    vertex, first, second = coords
+    # 角度(A, B, C) is the angle at B: the vertex is the middle point.
+    first, vertex, second = coords
     assert vertex is not None and first is not None and second is not None
     vx, vy = vertex[0], vertex[1]
     length = min(

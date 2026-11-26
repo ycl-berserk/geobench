@@ -110,11 +110,14 @@ def test_an_angle_is_an_arc_and_a_named_number(
     registry: OperatorRegistry,
 ) -> None:
     """A small arc at the vertex, and ``∠ABC = 90°`` beside it."""
-    figure = parse_dsl("点 A(0,0) B(4,0) C(0,3)\na = 角度(A, B, C)")
+    figure = parse_dsl("点 A(0,0) B(4,0) C(4,3)\na = 角度(A, B, C)")
     evaluate_figure(figure, registry)
     primitives = figure_primitives(figure, get_style("competition"))
     arcs = [p for p in primitives if isinstance(p, ArcPrimitive)]
     assert len(arcs) == 1
+    # The arc is centred on B, the middle point, not on A.
+    assert (arcs[0].cx, arcs[0].cy) == (4.0, 0.0)
+    assert abs(arcs[0].span_angle) == pytest.approx(90.0)
     assert arcs[0].radius <= 0.2 * 4  # a mark, not a ring around the figure
     labels = [p.text for p in primitives if isinstance(p, LabelPrimitive)]
     assert any(text.startswith("∠ABC = ") for text in labels)

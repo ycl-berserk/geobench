@@ -79,7 +79,7 @@ def test_the_panes_have_headings(app: QApplication) -> None:
 
 def test_an_icon_is_centred_in_its_button(app: QApplication) -> None:
     """The glyph sits on the centre line, not low and to the right."""
-    for op in ("point.midpoint", "point.circumcenter", "line.free", "circle.free"):
+    for op in GLYPHS:
         image = tool_icon(op).pixmap(24, 24).toImage()
         xs: list[int] = []
         ys: list[int] = []

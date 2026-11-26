@@ -586,22 +586,42 @@ def _draw(glyph: str, colour: str, size: int) -> QPixmap:
     screen = QGuiApplication.primaryScreen()
     if app is not None and screen is not None:
         ratio = screen.devicePixelRatio()
-    pixmap = QPixmap(int(size * ratio), int(size * ratio))
-    pixmap.setDevicePixelRatio(ratio)
-    pixmap.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixmap)
+    # Draw the glyph into a transparent sheet first.  The glyphs were
+    # written by hand and a few of them sit off-centre in the 24-unit
+    # drawing box; measuring the ink and moving the sheet is the only
+    # way to guarantee that *every* icon is centred, not just the ones
+    # that happen to be symmetric.
+    scratch = QPixmap(int(size * ratio), int(size * ratio))
+    scratch.setDevicePixelRatio(ratio)
+    scratch.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(scratch)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
     painter.scale(ratio, ratio)
-    # Scale about the *centre* of the canvas.  Scaling about the origin
-    # and then shifting by an inset leaves the drawing slightly low and
-    # to the right; this keeps the glyph on the button's centre line.
-    centre = size / 2
-    painter.translate(centre, centre)
     painter.scale(0.80, 0.80)
-    painter.translate(-centre, -centre)
     drawer = _DRAWERS.get(glyph, _g_point)
     drawer(painter, colour)
     painter.end()
+
+    image = scratch.toImage()
+    xs: list[int] = []
+    ys: list[int] = []
+    for y in range(image.height()):
+        for x in range(image.width()):
+            if image.pixelColor(x, y).alpha() > 10:
+                xs.append(x)
+                ys.append(y)
+    if not xs:
+        return scratch
+    centre_x = (min(xs) + max(xs)) / 2 / ratio
+    centre_y = (min(ys) + max(ys)) / 2 / ratio
+    offset = QPointF(size / 2 - centre_x, size / 2 - centre_y)
+
+    pixmap = QPixmap(int(size * ratio), int(size * ratio))
+    pixmap.setDevicePixelRatio(ratio)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    composer = QPainter(pixmap)
+    composer.drawPixmap(offset, scratch)
+    composer.end()
     return pixmap
 
 
