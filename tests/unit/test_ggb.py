@@ -250,6 +250,42 @@ def test_the_intersection_selector_matches_the_saved_point(
     assert y == pytest.approx(0.0)
 
 
+def test_a_nan_point_is_reported_and_does_not_stop_the_import(
+    tmp_path: Path,
+) -> None:
+    xml = """<?xml version="1.0" encoding="utf-8"?>
+    <geogebra format="5.0"><construction>
+      <element type="point" label="A"><coords x="nan" y="nan" z="1"/></element>
+      <element type="point" label="B"><coords x="4" y="0" z="1"/></element>
+      <element type="point" label="距离IC"><coords x="1" y="2" z="1"/></element>
+    </construction></geogebra>"""
+    result = import_ggb(_write_ggb(tmp_path / "nan.ggb", xml))
+    assert any("nan" in item for item in result.skipped)
+    assert "mIC" in result.dsl
+    figure = parse_dsl(result.dsl)
+    assert "A" not in figure.nodes
+    assert "mIC" in figure.nodes
+
+
+def test_a_two_line_angle_bisector_is_reported_not_emitted(
+    tmp_path: Path,
+) -> None:
+    xml = """<?xml version="1.0" encoding="utf-8"?>
+    <geogebra format="5.0"><construction>
+      <element type="point" label="A"><coords x="0" y="0" z="1"/></element>
+      <element type="point" label="B"><coords x="4" y="0" z="1"/></element>
+      <element type="point" label="C"><coords x="0" y="4" z="1"/></element>
+      <command name="Segment"><input a0="A" a1="B"/><output a0="f"/></command>
+      <command name="Segment"><input a0="A" a1="C"/><output a0="g"/></command>
+      <command name="AngularBisector"><input a0="f" a1="g"/>
+        <output a0="i"/><output a1="j"/></command>
+    </construction></geogebra>"""
+    result = import_ggb(_write_ggb(tmp_path / "bisector.ggb", xml))
+    assert any("两条线" in item for item in result.skipped)
+    figure = parse_dsl(result.dsl)
+    assert "i" not in figure.nodes
+
+
 def test_colour_and_line_style_come_across(tmp_path: Path) -> None:
     """A red dotted auxiliary circle stays red and dotted."""
     xml = """<?xml version="1.0" encoding="utf-8"?>

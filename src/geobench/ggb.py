@@ -167,6 +167,17 @@ def _sanitize(label: str) -> str:
     text = "".join(ch for ch in text if ch.isalnum())
     if not text:
         return "X"
+    # The lexer reads a Chinese run and a Latin run as two tokens, so a
+    # GeoGebra label like 距离IC cannot be written as one identifier.
+    # Keep the readable Latin part and prefix it rather than breaking
+    # the line into two names.
+    has_cjk = any("\u4e00" <= char <= "\u9fff" for char in text)
+    has_ascii = any(char.isascii() and char.isalnum() for char in text)
+    if has_cjk and has_ascii:
+        ascii_part = "".join(
+            char for char in text if char.isascii() and char.isalnum()
+        )
+        text = "m" + (ascii_part or "name")
     if text[0].isdigit():
         return "n" + text
     return text
@@ -475,11 +486,15 @@ def import_ggb(path: Path) -> ImportResult:
                 result.skipped.append(f"文本 {label}: 没有内容或位置，未导入")
                 continue
             try:
-                x = format(float(start.get("x", "0")), ".6g")
-                y = format(float(start.get("y", "0")), ".6g")
+                raw_x = float(start.get("x", "0"))
+                raw_y = float(start.get("y", "0"))
             except (TypeError, ValueError):
-                result.skipped.append(f"文本 {label}: 位置读不懂，未导入")
+                raw_x = raw_y = math.nan
+            if not (math.isfinite(raw_x) and math.isfinite(raw_y)):
+                result.skipped.append(f"文本 {label}: 位置是 nan/∞，未导入")
                 continue
+            x = format(raw_x, ".6g")
+            y = format(raw_y, ".6g")
             texts.append((label, content, x, y))
 
     # -- the free points ---------------------------------------------------
@@ -501,6 +516,15 @@ def import_ggb(path: Path) -> ImportResult:
         if coords is None:
             kinds.missing.add(label)
             result.skipped.append(f"点 {label}: 没有坐标，未导入")
+            continue
+        try:
+            raw_x = float(coords.get("x", "0"))
+            raw_y = float(coords.get("y", "0"))
+        except (TypeError, ValueError):
+            raw_x = raw_y = math.nan
+        if not (math.isfinite(raw_x) and math.isfinite(raw_y)):
+            kinds.missing.add(label)
+            result.skipped.append(f"点 {label}: 坐标是 nan/∞，未导入")
             continue
         x_text, moved_x = _exact(coords.get("x", "0"))
         y_text, moved_y = _exact(coords.get("y", "0"))
@@ -955,6 +979,26 @@ def _translate(
             return f"{label} = 圆({', '.join(args(inputs))})", ""
         kinds.missing.update(outputs)
         return None, f"Circle({', '.join(inputs)}): 参数个数不认识"
+
+    # -- two-line angle bisector: no matching operator yet ----------------
+    if name in ("AngularBisector", "AngleBisector") and len(inputs) == 2:
+        first_kind = kinds.kind.get(kinds.name(inputs[0]), "")
+        second_kind = kinds.kind.get(kinds.name(inputs[1]), "")
+        if first_kind in _LINE_LIKE and second_kind in _LINE_LIKE:
+            kinds.missing.update(outputs)
+            return None, (
+                f"{name}({', '.join(inputs)}): 两条线的角平分线还没有对应命令"
+            )
+
+    # -- Mirror(line/circle, line): only point reflection is implemented --
+    if name in ("Mirror", "Reflect") and inputs:
+        first_kind = kinds.kind.get(kinds.name(inputs[0]), "")
+        if first_kind and first_kind != "point":
+            kinds.missing.update(outputs)
+            return None, (
+                f"{name}({', '.join(inputs)}): 目前只导入点关于线/点的镜像，"
+                f"{first_kind} 的镜像还没有对应命令"
+            )
 
     # -- everything else: rename the command, keep the arguments ----------
     ours = _NAMES.get(name, name)
