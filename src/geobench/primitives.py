@@ -448,12 +448,21 @@ def figure_primitives(figure: Figure, style: FigureStyle) -> list[Primitive]:
             offset = (-dx, -dy)
             text = _format_number(value[0])
             if node.op == "measure.angle":
-                # A bare 43.6 at a vertex could be a length; the degree
-                # sign is what makes it an angle at a glance.
-                text += "°"
+                # Name the angle as well as its size: a bare 43.6 at a
+                # vertex could be a length, and in a crowded figure it
+                # could be any of three angles.
+                if len(node.args) == 3:
+                    text = f"∠{''.join(node.args)} = {text}°"
+                else:
+                    text += "°"
                 self_arc = _angle_arc(figure, node, ink)
                 if self_arc is not None:
                     main.append(self_arc)
+                bisector = _angle_bisector_direction(figure, node)
+                if bisector is not None:
+                    # Put the number on the bisector, just outside the
+                    # arc, the way a hand-written figure does.
+                    offset = (bisector[0] * 2.2, bisector[1] * 2.2)
             labels.append(
                 LabelPrimitive(
                     position[0],
@@ -604,6 +613,28 @@ def _format_number(value: float) -> str:
     return f"{value:.2f}".rstrip("0").rstrip(".")
 
 
+def _angle_bisector_direction(
+    figure: Figure, node: Node
+) -> tuple[float, float] | None:
+    """The unit direction into the angle, for placing the number."""
+    coords = [_numeric_payload(figure, arg, "coords") for arg in node.args]
+    if any(value is None or len(value) < 2 for value in coords):
+        return None
+    vertex, first, second = coords
+    assert vertex is not None and first is not None and second is not None
+    ux, uy = first[0] - vertex[0], first[1] - vertex[1]
+    vx, vy = second[0] - vertex[0], second[1] - vertex[1]
+    lu, lv = math.hypot(ux, uy), math.hypot(vx, vy)
+    if lu == 0 or lv == 0:
+        return None
+    dx, dy = ux / lu + vx / lv, uy / lu + vy / lv
+    length = math.hypot(dx, dy)
+    if length < 1e-9:
+        # A straight angle: the bisector is perpendicular to the line.
+        return -uy / lu, ux / lu
+    return dx / length, dy / length
+
+
 def _angle_arc(
     figure: Figure, node: Node, ink: Ink
 ) -> ArcPrimitive | None:
@@ -625,7 +656,7 @@ def _angle_arc(
         math.hypot(first[0] - vx, first[1] - vy),
         math.hypot(second[0] - vx, second[1] - vy),
     )
-    radius = length * 0.35
+    radius = length * 0.12
     if radius <= 0:
         return None
     start, span = _arc_angles(
@@ -635,7 +666,19 @@ def _angle_arc(
         # The measured angle is the smaller one; the arc should be too.
         start = start + span - 360
         span = 360 - span
-    return ArcPrimitive(vx, vy, radius, start, span, False, False, "", ink)
+    # The angle mark is a pen line, not a stroke of the object's weight:
+    # a heavy arc at a small angle reads as a blob.
+    return ArcPrimitive(
+        vx,
+        vy,
+        radius,
+        start,
+        span,
+        False,
+        False,
+        "",
+        Ink(color=ink.color, width=0.8),
+    )
 
 
 def _number_position(figure: Figure, node: Node) -> tuple[float, float] | None:

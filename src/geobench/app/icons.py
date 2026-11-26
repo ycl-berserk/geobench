@@ -592,11 +592,13 @@ def _draw(glyph: str, colour: str, size: int) -> QPixmap:
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
     painter.scale(ratio, ratio)
-    # A glyph that touches its own edge looks bigger than the button it
-    # sits in.  Keep a hair of paper around every drawing.
-    inset = size * 0.07
-    painter.translate(inset, inset)
-    painter.scale(0.86, 0.86)
+    # Scale about the *centre* of the canvas.  Scaling about the origin
+    # and then shifting by an inset leaves the drawing slightly low and
+    # to the right; this keeps the glyph on the button's centre line.
+    centre = size / 2
+    painter.translate(centre, centre)
+    painter.scale(0.80, 0.80)
+    painter.translate(-centre, -centre)
     drawer = _DRAWERS.get(glyph, _g_point)
     drawer(painter, colour)
     painter.end()

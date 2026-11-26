@@ -18,7 +18,7 @@ from geobench.evaluate import (
     undefined_nodes,
 )
 from geobench.operators import register_builtins
-from geobench.primitives import LabelPrimitive, figure_primitives
+from geobench.primitives import ArcPrimitive, LabelPrimitive, figure_primitives
 from geobench.registry import OperatorRegistry
 from geobench.style import get_style
 
@@ -104,6 +104,20 @@ def test_a_vertical_line_has_no_slope(registry: OperatorRegistry) -> None:
     evaluate_exact(figure, registry)
     evaluate_numeric(figure)
     assert [node_id for node_id, _ in undefined_nodes(figure)] == ["k"]
+
+
+def test_an_angle_is_an_arc_and_a_named_number(
+    registry: OperatorRegistry,
+) -> None:
+    """A small arc at the vertex, and ``∠ABC = 90°`` beside it."""
+    figure = parse_dsl("点 A(0,0) B(4,0) C(0,3)\na = 角度(A, B, C)")
+    evaluate_figure(figure, registry)
+    primitives = figure_primitives(figure, get_style("competition"))
+    arcs = [p for p in primitives if isinstance(p, ArcPrimitive)]
+    assert len(arcs) == 1
+    assert arcs[0].radius <= 0.2 * 4  # a mark, not a ring around the figure
+    labels = [p.text for p in primitives if isinstance(p, LabelPrimitive)]
+    assert any(text.startswith("∠ABC = ") for text in labels)
 
 
 def test_the_measurement_is_written_on_the_figure(registry: OperatorRegistry) -> None:

@@ -70,9 +70,9 @@ from geobench.style import (
 #: about the size of a competition figure before anything is drawn.
 DEFAULT_VIEW = View(-10.0, -10.0, 10.0, 10.0)
 
-#: The small crosshair used by the drawing tools.  The system crosshair
-#: is large enough to hide the point under it; this one leaves the centre
-#: open, the way a pair of dividers does.
+#: The small pointer used everywhere on the drawing surface.  The system
+#: arrow is large enough to cover the point under it; this one is drawn
+#: at 15 px, with a white edge so it stays visible on a black line.
 _PRECISION_CURSOR: QCursor | None = None
 
 
@@ -80,22 +80,27 @@ def precision_cursor() -> QCursor:
     global _PRECISION_CURSOR
     if _PRECISION_CURSOR is not None:
         return _PRECISION_CURSOR
-    size = 17
+    size = 15
     pixmap = QPixmap(size, size)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
-    pen = QPen(QColor(PALETTE.text))
-    pen.setWidth(1)
-    painter.setPen(pen)
-    centre = size // 2
-    gap, arm = 2, 7
-    painter.drawLine(centre - arm, centre, centre - gap, centre)
-    painter.drawLine(centre + gap, centre, centre + arm, centre)
-    painter.drawLine(centre, centre - arm, centre, centre - gap)
-    painter.drawLine(centre, centre + gap, centre, centre + arm)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    arrow = QPolygonF(
+        [
+            QPointF(1.5, 1.0),
+            QPointF(1.5, 11.5),
+            QPointF(4.2, 8.8),
+            QPointF(6.2, 13.5),
+            QPointF(8.0, 12.7),
+            QPointF(6.0, 8.1),
+            QPointF(10.0, 8.1),
+        ]
+    )
+    painter.setPen(QPen(QColor("#ffffff"), 1.8))
+    painter.setBrush(QColor(PALETTE.text))
+    painter.drawPolygon(arrow)
     painter.end()
-    _PRECISION_CURSOR = QCursor(pixmap, centre, centre)
+    _PRECISION_CURSOR = QCursor(pixmap, 1, 1)
     return _PRECISION_CURSOR
 
 #: How far a click may miss a point and still grab it, in pixels.
@@ -814,10 +819,8 @@ class FigureCanvas(QWidget):
         self._tool = tool
         self._tool_args = []
         self._awaiting_value = False
-        if tool is None or tool.op == "select":
-            self.setCursor(Qt.CursorShape.ArrowCursor)
-            self.update()
-            return
+        # Every tool uses the same small pointer: the cursor is the hand,
+        # and the armed tool is already named on the toolbar.
         self.setCursor(precision_cursor())
         self.update()
         self._ask_for_next()
@@ -1042,15 +1045,8 @@ class FigureCanvas(QWidget):
         position = event.position()  # type: ignore[attr-defined]
         px, py = position.x(), position.y()
         if self._dragging is None:
-            if self._tool is not None and self._tool.op != "select":
-                # Keep the precision crosshair while a drawing tool is
-                # armed; hovering must not turn it back into an arrow.
-                return
-            self.setCursor(
-                Qt.CursorShape.OpenHandCursor
-                if self._hit_point(px, py)
-                else Qt.CursorShape.ArrowCursor
-            )
+            # Hovering must not swap the small pointer for a large system
+            # hand.  The pointer is the same from the first click on.
             return
         if self._dragging == "__pan__":
             self._pan = (

@@ -215,6 +215,25 @@ def test_a_custom_tool_is_expanded_not_matched_by_name(tmp_path: Path) -> None:
     assert any(line.startswith("隐藏 m") for line in lines)
 
 
+def test_colour_and_line_style_come_across(tmp_path: Path) -> None:
+    """A red dotted auxiliary circle stays red and dotted."""
+    xml = """<?xml version="1.0" encoding="utf-8"?>
+    <geogebra format="5.0"><construction>
+      <element type="point" label="A"><coords x="0" y="0" z="1"/></element>
+      <element type="point" label="B"><coords x="4" y="0" z="1"/></element>
+      <command name="Circle"><input a0="A" a1="B"/><output a0="c"/></command>
+      <element type="conic" label="c"><objColor r="211" g="47" b="47"/>
+        <lineStyle thickness="5" type="10" typeHidden="1"/></element>
+    </construction></geogebra>"""
+    result = import_ggb(_write_ggb(tmp_path / "style.ggb", xml))
+    lines = result.dsl.splitlines()
+    assert "颜色 c red" in lines
+    assert "辅助 c" in lines
+    figure = parse_dsl(result.dsl)
+    assert figure.nodes["c"].style.color != "#000000"
+    assert figure.nodes["c"].style.line_style == "dashed"
+
+
 def test_an_object_the_source_hides_is_not_drawn(tmp_path: Path) -> None:
     """GeoGebra's show=false is a decision, not a detail to lose."""
     xml = """<?xml version="1.0" encoding="utf-8"?>

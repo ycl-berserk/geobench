@@ -77,6 +77,22 @@ def test_the_panes_have_headings(app: QApplication) -> None:
     window.close()
 
 
+def test_an_icon_is_centred_in_its_button(app: QApplication) -> None:
+    """The glyph sits on the centre line, not low and to the right."""
+    for op in ("point.midpoint", "point.circumcenter", "line.free", "circle.free"):
+        image = tool_icon(op).pixmap(24, 24).toImage()
+        xs: list[int] = []
+        ys: list[int] = []
+        for y in range(image.height()):
+            for x in range(image.width()):
+                if image.pixelColor(x, y).alpha() > 10:
+                    xs.append(x)
+                    ys.append(y)
+        assert xs and ys, op
+        assert abs((min(xs) + max(xs)) / 2 - image.width() / 2) <= 1.5, op
+        assert abs((min(ys) + max(ys)) / 2 - image.height() / 2) <= 1.5, op
+
+
 def test_the_armed_tool_shows_in_the_toolbar(app: QApplication) -> None:
     """What is in force must be visible."""
     window = StudioWindow(StudioController())

@@ -48,6 +48,7 @@ import sympy as sp
 from geobench.commands import COMMANDS, JUDGEMENT, CommandSpec
 from geobench.dsl.parser import _KIND_BY_COMMAND
 from geobench.errors import GeobenchError
+from geobench.style import COLORS
 
 #: GeoGebra command names -> ours.  Chinese names are already ours (both
 #: come from GeoGebra), so only the English ones need saying.
@@ -106,6 +107,27 @@ for _command in COMMANDS:
 
 #: The kinds a label can have, as far as the import cares.
 _LINE_LIKE = frozenset({"line", "segment"})
+
+#: The DSL spells colours by name (a ``#`` would start a comment), so a
+#: GeoGebra colour is mapped to the nearest one the studio can write.
+_NAMED_COLORS = {
+    name: code
+    for name, code in COLORS.items()
+    if name.isascii()
+}
+_NAMED_RGB = {
+    name: tuple(int(code[i : i + 2], 16) for i in (1, 3, 5))
+    for name, code in _NAMED_COLORS.items()
+}
+
+
+def _nearest_color(rgb: tuple[int, int, int]) -> str:
+    return min(
+        _NAMED_RGB,
+        key=lambda name: sum(
+            (rgb[index] - _NAMED_RGB[name][index]) ** 2 for index in range(3)
+        ),
+    )
 
 
 
@@ -333,6 +355,12 @@ class _Kinds:
         self.hidden: set[str] = set()
         """Labels the source file does not draw (``show object="false"``)."""
 
+        self.colors: dict[str, str] = {}
+        """Object colours, as a DSL colour name, when the source set one."""
+
+        self.dashed: set[str] = set()
+        """Objects the source draws with a non-solid line style."""
+
     def set(
         self,
         label: str,
@@ -386,6 +414,27 @@ def import_ggb(path: Path) -> ImportResult:
         show = element.find("show")
         if show is not None and show.get("object") == "false":
             kinds.hidden.add(label)
+        color = element.find("objColor")
+        if color is not None:
+            try:
+                rgb = (
+                    int(color.get("r", "0")),
+                    int(color.get("g", "0")),
+                    int(color.get("b", "0")),
+                )
+            except (TypeError, ValueError):
+                rgb = (0, 0, 0)
+            if rgb != (0, 0, 0) and kind != "point":
+                # Points follow the studio's own convention: blue for
+                # free points, black for derived ones.  A source file's
+                # grey helper dots would only blur that distinction.
+                kinds.colors[label] = _nearest_color(rgb)
+        line_style = element.find("lineStyle")
+        if line_style is not None and line_style.get("type", "0") not in (
+            "0",
+            "",
+        ):
+            kinds.dashed.add(label)
         if kind == "point":
             coords = element.find("coords")
             if coords is not None:
@@ -410,6 +459,7 @@ def import_ggb(path: Path) -> ImportResult:
 
     free: list[tuple[str, str, str]] = []
     hidden_free: list[str] = []
+    free_style: list[str] = []
     for element in construction.findall("element"):
         if element.get("type") != "point":
             continue
@@ -434,11 +484,16 @@ def import_ggb(path: Path) -> ImportResult:
         kinds.set(name, "point")
         if label in kinds.hidden:
             hidden_free.append(name)
+        if label in kinds.colors:
+            free_style.append(f"颜色 {name} {kinds.colors[label]}")
+        if label in kinds.dashed:
+            free_style.append(f"辅助 {name}")
 
     if free:
         points = " ".join(f"{name}({x}, {y})" for name, x, y in free)
         lines.append(f"点 {points}")
         lines.extend(f"隐藏 {name}" for name in hidden_free)
+        lines.extend(free_style)
 
     # -- the commands, in construction order -------------------------------
     for raw in _expand_macros(construction, macros, result, kinds.hidden):
@@ -452,8 +507,16 @@ def import_ggb(path: Path) -> ImportResult:
             # An object the source file does not draw stays in the figure
             # -- later constructions depend on it -- but is not drawn.
             for output_label in raw.outputs:
-                if output_label in kinds.hidden and output_label in kinds.names:
-                    lines.append(f"隐藏 {kinds.name(output_label)}")
+                if output_label in kinds.names:
+                    name = kinds.name(output_label)
+                    if output_label in kinds.hidden:
+                        lines.append(f"隐藏 {name}")
+                    if output_label in kinds.colors:
+                        lines.append(
+                            f"颜色 {name} {kinds.colors[output_label]}"
+                        )
+                    if output_label in kinds.dashed:
+                        lines.append(f"辅助 {name}")
         if skipped:
             result.skipped.append(skipped)
 
