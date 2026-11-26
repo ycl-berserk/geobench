@@ -12,6 +12,7 @@ languages disagree are handled rather than approximated.
 from __future__ import annotations
 
 import os
+import xml.etree.ElementTree as ET
 import zipfile
 from fractions import Fraction
 from pathlib import Path
@@ -19,7 +20,11 @@ from pathlib import Path
 import pytest
 
 from geobench.dsl import parse_dsl
-from geobench.evaluate import evaluate_figure, evaluate_numeric
+from geobench.evaluate import (
+    evaluate_figure,
+    evaluate_numeric,
+    evaluate_numeric_direct,
+)
 from geobench.ggb import import_ggb
 from geobench.operators import register_builtins
 from geobench.registry import OperatorRegistry
@@ -215,6 +220,36 @@ def test_a_custom_tool_is_expanded_not_matched_by_name(tmp_path: Path) -> None:
     assert any(line.startswith("隐藏 m") for line in lines)
 
 
+def test_the_intersection_selector_matches_the_saved_point(
+    tmp_path: Path, registry: OperatorRegistry
+) -> None:
+    """GeoGebra's "second" answer is not necessarily the kernel's.
+
+    The source records where the selected point really is; the import
+    must use that to number the two answers, or the point jumps to the
+    other end of the chord.
+    """
+    xml = """<?xml version="1.0" encoding="utf-8"?>
+    <geogebra format="5.0"><construction>
+      <element type="point" label="A"><coords x="-10" y="0" z="1"/></element>
+      <element type="point" label="B"><coords x="10" y="0" z="1"/></element>
+      <element type="point" label="O"><coords x="0" y="0" z="1"/></element>
+      <element type="point" label="R"><coords x="5" y="0" z="1"/></element>
+      <command name="Line"><input a0="A" a1="B"/><output a0="l"/></command>
+      <command name="Circle"><input a0="O" a1="R"/><output a0="c"/></command>
+      <command name="Intersect"><input a0="l" a1="c" a2="2"/>
+        <output a0="P"/></command>
+      <element type="point" label="P"><coords x="5" y="0" z="1"/></element>
+    </construction></geogebra>"""
+    result = import_ggb(_write_ggb(tmp_path / "selector.ggb", xml))
+    figure = parse_dsl(result.dsl)
+    evaluate_figure(figure, registry)
+    evaluate_numeric(figure)
+    x, y = figure.nodes["P"].cache["numeric"]["coords"]
+    assert x == pytest.approx(5.0)
+    assert y == pytest.approx(0.0)
+
+
 def test_colour_and_line_style_come_across(tmp_path: Path) -> None:
     """A red dotted auxiliary circle stays red and dotted."""
     xml = """<?xml version="1.0" encoding="utf-8"?>
@@ -292,3 +327,47 @@ def test_the_real_corpus_imports_and_builds(
     figure = parse_dsl(result.dsl)
     evaluate_figure(figure, registry)
     evaluate_numeric(figure)
+
+
+@pytest.mark.skipif(not CORPUS_FILES, reason="the teacher's corpus is not here")
+@pytest.mark.parametrize("path", CORPUS_FILES, ids=lambda path: path.name)
+def test_imported_intersections_sit_where_the_source_saved_them(
+    path: Path, registry: OperatorRegistry
+) -> None:
+    """GeoGebra's intersection numbering is not the kernel's.
+
+    Every imported intersection point must land on the position the
+    source file recorded for it -- otherwise a point jumps to the other
+    end of the chord without any error being reported.
+    """
+    with zipfile.ZipFile(path) as archive:
+        root = ET.fromstring(archive.read("geogebra.xml"))
+    saved: dict[str, tuple[float, float]] = {}
+    for element in root.find("construction").findall("element"):
+        if element.get("type") != "point":
+            continue
+        coords = element.find("coords")
+        if coords is None:
+            continue
+        z = float(coords.get("z", "1") or 1)
+        saved[element.get("label", "")] = (
+            float(coords.get("x", "0")) / z,
+            float(coords.get("y", "0")) / z,
+        )
+
+    result = import_ggb(path)
+    figure = parse_dsl(result.dsl)
+    evaluate_numeric_direct(figure, registry)
+    checked = 0
+    for node_id, node in figure.nodes.items():
+        if not (node.op or "").startswith("point.intersect"):
+            continue
+        wanted = saved.get(node_id)
+        values = node.cache.get("numeric") or {}
+        actual = values.get("coords")
+        if wanted is None or actual is None:
+            continue
+        checked += 1
+        assert actual[0] == pytest.approx(wanted[0], abs=0.02), node_id
+        assert actual[1] == pytest.approx(wanted[1], abs=0.02), node_id
+    assert checked

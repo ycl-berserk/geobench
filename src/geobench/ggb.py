@@ -46,8 +46,13 @@ from pathlib import Path
 import sympy as sp
 
 from geobench.commands import COMMANDS, JUDGEMENT, CommandSpec
+from geobench.dsl import parse_dsl
 from geobench.dsl.parser import _KIND_BY_COMMAND
 from geobench.errors import GeobenchError
+from geobench.evaluate import evaluate_numeric_direct
+from geobench.model import Figure, Node
+from geobench.operators import register_builtins
+from geobench.registry import OperatorRegistry
 from geobench.style import COLORS
 
 #: GeoGebra command names -> ours.  Chinese names are already ours (both
@@ -364,6 +369,9 @@ class _Kinds:
         self.labels_hidden: set[str] = set()
         """Objects whose name the source does not print."""
 
+        self.intersections: list[tuple[str, str]] = []
+        """Imported intersections, so their selector can be matched later."""
+
     def set(
         self,
         label: str,
@@ -556,8 +564,147 @@ def import_ggb(path: Path) -> ImportResult:
         )
         lines.append(f'文本 {name}("{escaped}", {x}, {y})')
 
+    _choose_intersections(lines, kinds)
+
     result.dsl = "\n".join(lines) + "\n"
     return result
+
+
+def _choose_intersections(lines: list[str], kinds: _Kinds) -> None:
+    """Pick the intersection the source actually meant.
+
+    GeoGebra numbers the two answers of ``Intersect`` differently from
+    the kernel: its "second" can be the kernel's first.  The selector
+    alone therefore cannot be copied.  The source file does record the
+    **saved position** of the point, so after a quick numeric pass we
+    take whichever of the two answers is the one at that position.
+    """
+    if not kinds.intersections:
+        return
+    try:
+        registry = OperatorRegistry()
+        register_builtins(registry)
+    except Exception:
+        return
+
+    # An intersection may depend on another intersection that is also
+    # being corrected (N on the circle through H, say).  One pass would
+    # read the old H; repeat until nothing moves, so the corrections
+    # travel down the construction in order.
+    for _ in range(6):
+        try:
+            figure = parse_dsl("\n".join(lines))
+            evaluate_numeric_direct(figure, registry)
+        except Exception:
+            return
+        changed = False
+        for original, kind in kinds.intersections:
+            name = kinds.name(original)
+            node = figure.nodes.get(name)
+            saved = kinds.coords.get(original)
+            if node is None or saved is None:
+                continue
+            candidates = _candidates(figure, node, kind)
+            if candidates is None:
+                continue
+            index = 0
+            if _distance(candidates[1], saved) < _distance(candidates[0], saved):
+                index = 1
+            if len(node.args) >= 3 and node.args[2] == str(index):
+                continue
+            for position, line in enumerate(lines):
+                if line.startswith(f"{name} = 交点(") and line.endswith(")"):
+                    lines[position] = (
+                        f"{name} = 交点({node.args[0]}, {node.args[1]}, {index})"
+                    )
+                    changed = True
+                    break
+        if not changed:
+            return
+
+
+def _distance(first: tuple[float, float], second: tuple[float, float]) -> float:
+    return math.hypot(first[0] - second[0], first[1] - second[1])
+
+
+def _line_payload(
+    figure: Figure, name: str
+) -> tuple[float, float, float] | None:
+    node = figure.nodes.get(name)
+    if node is None:
+        return None
+    values = node.cache.get("numeric") or {}
+    line = values.get("line")
+    if line:
+        return float(line[0]), float(line[1]), float(line[2])
+    segment = values.get("segment")
+    if segment and len(segment) == 4:
+        x1, y1, x2, y2 = (float(value) for value in segment)
+        return y1 - y2, x2 - x1, x1 * y2 - x2 * y1
+    return None
+
+
+def _circle_payload(
+    figure: Figure, name: str
+) -> tuple[float, float, float] | None:
+    node = figure.nodes.get(name)
+    if node is None:
+        return None
+    values = node.cache.get("numeric") or {}
+    circle = values.get("circle")
+    if circle and len(circle) == 3:
+        return float(circle[0]), float(circle[1]), float(circle[2])
+    return None
+
+
+def _candidates(
+    figure: Figure, node: Node, kind: str
+) -> tuple[tuple[float, float], tuple[float, float]] | None:
+    if kind == "line_circle":
+        line = _line_payload(figure, node.args[0])
+        circle = _circle_payload(figure, node.args[1])
+        if line is None or circle is None:
+            return None
+        a, b, c = line
+        cx, cy, r2 = circle
+        norm_sq = a * a + b * b
+        if norm_sq == 0:
+            return None
+        p0x, p0y = -a * c / norm_sq, -b * c / norm_sq
+        dx, dy = b, -a
+        fx, fy = p0x - cx, p0y - cy
+        quad_a = dx * dx + dy * dy
+        quad_b = 2 * (fx * dx + fy * dy)
+        quad_c = fx * fx + fy * fy - r2
+        disc = quad_b * quad_b - 4 * quad_a * quad_c
+        if disc < 0 or quad_a == 0:
+            return None
+        root = math.sqrt(disc)
+        t_plus = (-quad_b + root) / (2 * quad_a)
+        t_minus = (-quad_b - root) / (2 * quad_a)
+        return (
+            (p0x + t_plus * dx, p0y + t_plus * dy),
+            (p0x + t_minus * dx, p0y + t_minus * dy),
+        )
+
+    first = _circle_payload(figure, node.args[0])
+    second = _circle_payload(figure, node.args[1])
+    if first is None or second is None:
+        return None
+    x1, y1, r1 = first
+    x2, y2, r2 = second
+    dx, dy = x2 - x1, y2 - y1
+    d2 = dx * dx + dy * dy
+    if d2 == 0:
+        return None
+    k = r1 - r2 + d2
+    n = 4 * r1 * d2 - k * k
+    if n < 0:
+        return None
+    t = k / (2 * d2)
+    bx, by = x1 + dx * t, y1 + dy * t
+    s = math.sqrt(n) / (2 * d2)
+    return ((bx - dy * s, by + dx * s), (bx + dy * s, by - dx * s))
 
 
 def _attributes(elements: list[ET.Element]) -> list[str]:
@@ -757,10 +904,12 @@ def _translate(
             circle_name = second if first_kind in _LINE_LIKE else first
             index = _selector(selector)
             kinds.set(label, "point")
+            kinds.intersections.append((outputs[0], "line_circle"))
             return f"{label} = 交点({line}, {circle_name}, {index})", ""
         if first_kind == "circle" and second_kind == "circle":
             index = _selector(selector)
             kinds.set(label, "point")
+            kinds.intersections.append((outputs[0], "circles"))
             return f"{label} = 交点({first}, {second}, {index})", ""
         kinds.missing.update(outputs)
         return None, f"Intersect({first}, {second}): 不认识这两条对象的类型"
