@@ -642,6 +642,10 @@ class StudioWindow(QMainWindow):
         self._judge_pending = False
         self._exact_request = 0
         self._exact_running = False
+        #: Set when the window is accepted for closing.  A worker still
+        #: thinking has no one to report to, and emitting on a window
+        #: whose Qt object is being torn down is an error.
+        self._exact_stopped = False
         self.verdictsReady.connect(self._on_verdicts)
         self.exactReady.connect(self._on_exact)
         self.refresh()
@@ -1652,6 +1656,7 @@ class StudioWindow(QMainWindow):
             event.ignore()
             return
         self._clear_recovery()
+        self._exact_stopped = True
         event.accept()
 
     def _build_toolbar(self) -> None:
@@ -2013,6 +2018,10 @@ class StudioWindow(QMainWindow):
                 state = self.controller.evaluate_exact_figure(figure)
             except GeobenchError as exc:  # pragma: no cover - worker safety
                 state = {"status": "failed", "reason": str(exc)}
+            if self._exact_stopped:
+                # The window was closed while this was being computed;
+                # there is no one left to tell.
+                return
             self.exactReady.emit(request, figure, state, version)
 
         threading.Thread(target=work, daemon=True).start()

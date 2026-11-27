@@ -399,7 +399,7 @@ class StudioController:
             raise GeobenchError(f"node {node_id!r} is attached to nothing")
         if object_node.kind == "circle":
             parameter = parameter_on_circle(figure, target, x, y)
-        elif object_node.kind in {"line", "segment"}:
+        elif object_node.kind in {"line", "segment", "ray"}:
             parameter = parameter_on_line(figure, target, x, y)
         else:
             raise GeobenchError(

@@ -230,8 +230,9 @@ def along_reference(
     """The base point and the direction that measure a parameter.
 
     The same rule the exact path uses: a segment is measured between
-    its ends, a drawn line between the two points it was drawn through,
-    and a built line along its own direction.
+    its ends, a ray from its start through its second point, a drawn
+    line between the two points it was drawn through, and a built line
+    along its own direction.
     """
     node = figure.node(node_id)
     values = node.cache.get(CACHE_VALUES) or {}
@@ -277,10 +278,10 @@ def point_on_line(
 
 
 def parameter_on_line(figure: Figure, node_id: str, x: float, y: float) -> str:
-    """Where on a line or a segment a click landed, as the parameter.
+    """Where on a line, segment or ray a click landed, as the parameter.
 
-    On a segment the point stays on the segment: the parameter is
-    clamped to the two ends.
+    On a segment the point stays between the two ends; on a ray it
+    stays in front of the start. Only an infinite line lets it run.
     """
     reference = along_reference(figure, node_id)
     if reference is None:
@@ -290,8 +291,11 @@ def parameter_on_line(figure: Figure, node_id: str, x: float, y: float) -> str:
     if denominator == 0:
         return "0"
     t = ((x - bx) * dx + (y - by) * dy) / denominator
-    if figure.node(node_id).kind == "segment":
+    kind = figure.node(node_id).kind
+    if kind == "segment":
         t = min(1.0, max(0.0, t))
+    elif kind == "ray":
+        t = max(0.0, t)
     return str(Fraction(t).limit_denominator(720))
 
 
@@ -307,6 +311,12 @@ def supporting_line(
             return None
         x1, y1, x2, y2 = (float(v) for v in segment[:4])
         return (y1 - y2, x2 - x1, x1 * y2 - x2 * y1)
+    if node.kind == "ray":
+        ray = values.get("ray")
+        if not ray or len(ray) < 4:
+            return None
+        x0, y0, x1, y1 = (float(v) for v in ray[:4])
+        return (y0 - y1, x1 - x0, x0 * y1 - x1 * y0)
     line = values.get("line")
     if not line or len(line) < 3:
         return None
@@ -368,9 +378,20 @@ def _on_drawn_part(
     two screen-millimetres apart is not a crossing of anything visible.
     """
     node = figure.node(node_id)
+    values = node.cache.get(CACHE_VALUES) or {}
+    if node.kind == "ray":
+        ray = values.get("ray")
+        if not ray or len(ray) < 4:
+            return False
+        x0, y0, x1, y1 = (float(value) for value in ray[:4])
+        dx, dy = x1 - x0, y1 - y0
+        length_sq = dx * dx + dy * dy
+        if length_sq == 0:
+            return False
+        t = ((x - x0) * dx + (y - y0) * dy) / length_sq
+        return t >= -(pad / math.sqrt(length_sq))
     if node.kind != "segment":
         return True
-    values = node.cache.get(CACHE_VALUES) or {}
     segment = values.get("segment")
     if not segment or len(segment) < 4:
         return False
@@ -400,7 +421,7 @@ def crossing_near(
     for node in figure.nodes.values():
         if not node.style.visible:
             continue
-        if node.kind in {"line", "segment"}:
+        if node.kind in {"line", "segment", "ray"}:
             coefficients = supporting_line(figure, node.id)
             if coefficients is not None:
                 lines.append((node.id, coefficients))

@@ -112,6 +112,33 @@ def test_right_drag_selects_everything_in_the_rectangle(
     window.close()
 
 
+def test_a_long_segment_crossing_the_rectangle_is_selected(
+    app: QApplication, controller: StudioController
+) -> None:
+    """A small band on a long segment must not fall between samples.
+
+    The rectangle is a fifth of a unit across on a segment twenty units
+    long; sampling the segment every unit and a half would step over it.
+    """
+    controller.add_free_point(-10, -10, "A")
+    controller.add_free_point(10, 10, "B")
+    controller.construct("segment.free", ["A", "B"], "s")
+    window = StudioWindow(controller)
+    window.resize(1000, 700)
+    window.show()
+    app.processEvents()
+    _arm_select(window)
+    app.processEvents()
+    canvas = window.canvas
+    viewport = canvas._viewport()
+    start = QPoint(*map(round, viewport.to_screen(0.75, -0.5)))
+    end = QPoint(*map(round, viewport.to_screen(0.55, 0.75)))
+    _right_drag(canvas, start, end)
+    app.processEvents()
+    assert "s" in canvas.selected()
+    window.close()
+
+
 def test_a_multi_selection_can_be_recoloured_and_deleted(
     app: QApplication, controller: StudioController
 ) -> None:

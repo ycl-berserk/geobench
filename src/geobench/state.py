@@ -215,7 +215,7 @@ class FigureStore:
         node = figure.nodes[node_id]
         # A segment carries a line: "the foot on BC" is the same request
         # whether BC is drawn as a segment or as a line.
-        if expected == "line" and node.kind in {"line", "segment"}:
+        if expected == "line" and node.kind in {"line", "segment", "ray"}:
             return
         if node.kind != expected:
             raise ArgumentTypeError(op, index, expected, node_id)

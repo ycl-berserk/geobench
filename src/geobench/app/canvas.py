@@ -948,22 +948,28 @@ class FigureCanvas(QWidget):
         viewport: Viewport,
         figure_view: View,
     ) -> bool:
-        def sample(points: list[tuple[float, float]]) -> bool:
-            return any(rect.contains(QPointF(*viewport.to_screen(x, y))) for x, y in points)
+        """Does the object's *drawn part* touch the selection rectangle?
 
+        Exact for points, segments, rays, lines, circles and polygons. An
+        arc is sampled at screen resolution, because whether a particular
+        span of a circle touches a rectangle has no closed form that is
+        worth the code; at four pixels a step the eye cannot tell.
+        """
+        # One screen pixel, in figure units, so a hair outside the
+        # rectangle still counts as touched.
+        pad = 1.0 / max(viewport.scale, 1e-9)
         if isinstance(primitive, PointPrimitive):
             return rect.contains(
                 QPointF(*viewport.to_screen(primitive.x, primitive.y))
             )
         if isinstance(primitive, SegmentPrimitive):
-            return sample(
-                [
-                    (
-                        primitive.x1 + (primitive.x2 - primitive.x1) * index / 24,
-                        primitive.y1 + (primitive.y2 - primitive.y1) * index / 24,
-                    )
-                    for index in range(25)
-                ]
+            return _segment_hits_view(
+                primitive.x1,
+                primitive.y1,
+                primitive.x2,
+                primitive.y2,
+                figure_view,
+                pad,
             )
         if isinstance(primitive, RayPrimitive):
             clipped = clip_ray(
@@ -975,47 +981,22 @@ class FigureCanvas(QWidget):
             )
             return clipped is not None
         if isinstance(primitive, LinePrimitive):
-            return clip_line(primitive.a, primitive.b, primitive.c, figure_view) is not None
+            return (
+                clip_line(primitive.a, primitive.b, primitive.c, figure_view)
+                is not None
+            )
         if isinstance(primitive, CirclePrimitive):
-            return sample(
-                [
-                    (
-                        primitive.cx + primitive.radius * math.cos(index * math.pi / 32),
-                        primitive.cy + primitive.radius * math.sin(index * math.pi / 32),
-                    )
-                    for index in range(64)
-                ]
+            return _circle_hits_view(
+                primitive.cx,
+                primitive.cy,
+                primitive.radius,
+                figure_view,
+                pad,
             )
         if isinstance(primitive, ArcPrimitive):
-            return sample(
-                [
-                    (
-                        primitive.cx + primitive.radius * math.cos(
-                            math.radians(primitive.start_angle + primitive.span_angle * index / 32)
-                        ),
-                        primitive.cy + primitive.radius * math.sin(
-                            math.radians(primitive.start_angle + primitive.span_angle * index / 32)
-                        ),
-                    )
-                    for index in range(33)
-                ]
-            )
-        if isinstance(primitive, (PolygonPrimitive,)):
-            vertices = [primitive.vertices[index : index + 2] for index in range(0, len(primitive.vertices) - 1, 2)]
-            return any(
-                sample(
-                    [
-                        (
-                            vertices[index][0]
-                            + (vertices[(index + 1) % len(vertices)][0] - vertices[index][0]) * step / 16,
-                            vertices[index][1]
-                            + (vertices[(index + 1) % len(vertices)][1] - vertices[index][1]) * step / 16,
-                        )
-                        for step in range(17)
-                    ]
-                )
-                for index in range(len(vertices))
-            )
+            return _arc_hits_view(primitive, viewport, figure_view, pad)
+        if isinstance(primitive, PolygonPrimitive):
+            return _polygon_hits_view(primitive, figure_view, pad)
         return False
 
     def _selection_menu(self, global_pos: QPoint) -> None:
@@ -1682,9 +1663,9 @@ class FigureCanvas(QWidget):
     def _nearest_attachable(
         self, px: float, py: float
     ) -> tuple[str, str, float] | None:
-        """The nearest line, segment or circle under the click.
+        """The nearest line, segment, ray or circle under the click.
 
-        One distance for all three: a click between a circle and a line
+        One distance for all four: a click between a circle and a line
         attaches to whichever it is actually nearer, instead of always
         preferring the circle because circles are checked first.
         """
@@ -1695,7 +1676,12 @@ class FigureCanvas(QWidget):
         best: tuple[str, str, float] | None = None
         for primitive in self.controller.primitives():
             node = figure.nodes.get(getattr(primitive, "id", ""))
-            if node is None or node.kind not in ("line", "segment", "circle"):
+            if node is None or node.kind not in (
+                "line",
+                "segment",
+                "ray",
+                "circle",
+            ):
                 continue
             distance = distance_to(primitive, x, y)
             if distance is None or distance > tolerance:
@@ -1709,15 +1695,159 @@ class FigureCanvas(QWidget):
 SELECTABLE_KINDS: tuple[str, ...] = ("point", "line", "segment", "ray", "circle", "polygon")
 
 #: The node kinds that answer to each argument kind. A construction that
-#: wants a line is happy with a segment: "the foot on BC" means the same
-#: thing whether BC is drawn as a segment or as a line.
+#: wants a line is happy with a segment or a ray: "the foot on BC" means
+#: the same thing however BC is drawn.
 _KIND_KINDS: dict[str, tuple[str, ...]] = {
     "point": ("point",),
-    "line": ("line", "segment"),
+    "line": ("line", "segment", "ray"),
     "segment": ("segment",),
     "circle": ("circle",),
     "polygon": ("polygon",),
 }
+
+
+def _segment_hits_view(
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    view: View,
+    pad: float = 0.0,
+) -> bool:
+    """Does the segment between two points touch the rectangle?
+
+    Liang-Barsky: clip the parameter interval to the four half-planes,
+    as the renderer does for a line. Exact, and it does not care how
+    long the segment is -- sampling misses a corner that falls between
+    two samples.
+    """
+    dx, dy = x2 - x1, y2 - y1
+    low, high = 0.0, 1.0
+    edges = (
+        (-dx, x1 - (view.x_min - pad)),
+        (dx, (view.x_max + pad) - x1),
+        (-dy, y1 - (view.y_min - pad)),
+        (dy, (view.y_max + pad) - y1),
+    )
+    for denominator, numerator in edges:
+        if denominator == 0:
+            if numerator < 0:
+                return False
+            continue
+        t = numerator / denominator
+        if denominator < 0:
+            if t > high:
+                return False
+            low = max(low, t)
+        else:
+            if t < low:
+                return False
+            high = min(high, t)
+    return low <= high
+
+
+def _circle_hits_view(
+    cx: float,
+    cy: float,
+    radius: float,
+    view: View,
+    pad: float = 0.0,
+) -> bool:
+    """Does the *circumference* touch the rectangle?
+
+    The nearest point of the rectangle tells whether the circle is too
+    far away; the farthest corner tells whether the rectangle is
+    entirely inside the circle. When both conditions hold, the circle
+    crosses the rectangle.
+    """
+    if radius < 0:
+        return False
+    nearest_x = min(max(cx, view.x_min), view.x_max)
+    nearest_y = min(max(cy, view.y_min), view.y_max)
+    nearest = math.hypot(cx - nearest_x, cy - nearest_y)
+    far_x = view.x_min if abs(cx - view.x_min) > abs(cx - view.x_max) else view.x_max
+    far_y = view.y_min if abs(cy - view.y_min) > abs(cy - view.y_max) else view.y_max
+    farthest = math.hypot(cx - far_x, cy - far_y)
+    return nearest <= radius + pad and farthest >= radius - pad
+
+
+def _arc_hits_view(
+    primitive: ArcPrimitive,
+    viewport: Viewport,
+    view: View,
+    pad: float,
+) -> bool:
+    """Does the drawn span of the circle touch the rectangle?"""
+    radius = primitive.radius
+    if radius <= 0 or not _circle_hits_view(
+        primitive.cx, primitive.cy, radius, view, pad
+    ):
+        return False
+    circumference_px = 2.0 * math.pi * radius * viewport.scale
+    steps = int(max(24.0, min(4000.0, circumference_px / 4.0)))
+    span = primitive.span_angle
+    for index in range(steps + 1):
+        angle = math.radians(primitive.start_angle + span * index / steps)
+        x = primitive.cx + radius * math.cos(angle)
+        y = primitive.cy + radius * math.sin(angle)
+        if (
+            view.x_min - pad <= x <= view.x_max + pad
+            and view.y_min - pad <= y <= view.y_max + pad
+        ):
+            return True
+    return False
+
+
+def _polygon_hits_view(
+    primitive: PolygonPrimitive, view: View, pad: float
+) -> bool:
+    """Does a polygon (or polyline) touch the rectangle?
+
+    A vertex inside the rectangle is a hit; so is an edge crossing it.
+    For a closed polygon the last case is the rectangle *inside* the
+    polygon -- no edge crosses, but the shape is right there.
+    """
+    raw = primitive.vertices
+    vertices = [(raw[index], raw[index + 1]) for index in range(0, len(raw) - 1, 2)]
+    if not vertices:
+        return False
+    for x, y in vertices:
+        if (
+            view.x_min - pad <= x <= view.x_max + pad
+            and view.y_min - pad <= y <= view.y_max + pad
+        ):
+            return True
+    count = len(vertices)
+    for index in range(count if primitive.closed else count - 1):
+        x1, y1 = vertices[index]
+        x2, y2 = vertices[(index + 1) % count]
+        if _segment_hits_view(x1, y1, x2, y2, view, pad):
+            return True
+    if primitive.closed:
+        return _point_in_polygon(
+            (view.x_min + view.x_max) / 2.0,
+            (view.y_min + view.y_max) / 2.0,
+            vertices,
+        )
+    return False
+
+
+def _point_in_polygon(
+    x: float, y: float, vertices: list[tuple[float, float]]
+) -> bool:
+    """Ray casting: is the point inside the closed polygon?"""
+    inside = False
+    previous_x, previous_y = vertices[-1]
+    for current_x, current_y in vertices:
+        if (current_y > y) != (previous_y > y):
+            crossing = (
+                (previous_x - current_x) * (y - current_y) / (previous_y - current_y)
+                + current_x
+            )
+            if x < crossing:
+                inside = not inside
+        previous_x, previous_y = current_x, current_y
+    return inside
 
 
 def _tick_step(scale: float) -> float:

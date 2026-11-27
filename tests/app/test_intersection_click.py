@@ -46,6 +46,16 @@ def _line_circle(segment_to: int = 2) -> StudioController:
     return controller
 
 
+def _ray_circle() -> StudioController:
+    controller = StudioController()
+    controller.add_free_point(-2, 0, "A")
+    controller.add_free_point(0, 0, "B")
+    controller.add_free_point(3, 0, "P")
+    controller.construct("ray.free", ["A", "B"], "r")
+    controller.construct("circle.free", ["P", "1"], "w")
+    return controller
+
+
 def _two_circles() -> StudioController:
     controller = StudioController()
     controller.add_free_point(0, 0, "P")
@@ -157,6 +167,56 @@ def test_the_other_branch_is_the_other_selector(app: QApplication) -> None:
     assert node.args == ["s", "w", "1"]
     assert node.placement is not None
     assert float(node.placement[0]) == pytest.approx(-1.0, abs=1e-9)
+    window.close()
+
+
+def test_a_ray_and_circle_crossing_is_smart_too(app: QApplication) -> None:
+    controller = _ray_circle()
+    window = _window(controller)
+    app.processEvents()
+    _click(window, 2.0, 0.0)
+    app.processEvents()
+    node = _made(controller, "point.intersect_line_circle")
+    assert node.args[0] == "r"
+    assert node.placement is not None
+    assert float(node.placement[0]) == pytest.approx(2.0)
+    window.close()
+
+
+def test_a_click_on_a_ray_away_from_the_crossing_stays_on_the_ray(
+    app: QApplication,
+) -> None:
+    controller = _ray_circle()
+    window = _window(controller)
+    app.processEvents()
+    _click(window, -1.0, 0.0)
+    app.processEvents()
+    node = _made(controller, "point.on_line")
+    assert node.args[0] == "r"
+    assert node.placement is not None
+    assert float(node.placement[0]) == pytest.approx(-1.0)
+    assert float(node.placement[1]) == pytest.approx(0.0)
+    window.close()
+
+
+def test_two_rays_make_their_crossing(app: QApplication) -> None:
+    """Ray meets ray: both supporting lines meet on both drawn parts."""
+    controller = StudioController()
+    controller.add_free_point(-2, -1, "A")
+    controller.add_free_point(2, -1, "B")
+    controller.add_free_point(1, -3, "C")
+    controller.add_free_point(1, 3, "D")
+    controller.construct("ray.free", ["A", "B"], "r1")
+    controller.construct("ray.free", ["C", "D"], "r2")
+    window = _window(controller)
+    app.processEvents()
+    _click(window, 1.0, -1.0)
+    app.processEvents()
+    node = _made(controller, "point.intersect_lines")
+    assert set(node.args) == {"r1", "r2"}
+    assert node.placement is not None
+    assert float(node.placement[0]) == pytest.approx(1.0)
+    assert float(node.placement[1]) == pytest.approx(-1.0)
     window.close()
 
 

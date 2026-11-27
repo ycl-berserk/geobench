@@ -38,6 +38,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 import sympy as sp
+from mpmath import mpf, pslq  # type: ignore[import-untyped]
 from sympy import Expr
 
 from geobench.errors import StateError
@@ -248,36 +249,80 @@ def _norm(values: list[float] | tuple[float, ...]) -> float:
 # -- the exact answer --------------------------------------------------------
 
 
+#: Denominators up to this are tried for a rational coordinate.  A
+#: 3-4-5 triangle gives 9/5; a competition figure rarely needs more.
+_RATIONAL_LIMIT = 1000
+
+#: The largest coefficient an integer relation may use.  Small enough
+#: that a random transcendental number has no relation, large enough
+#: for the heights of an ordinary triangle.
+_RELATION_LIMIT = 10_000
+
+
 def _candidates(value: float) -> list[Expr]:
     """The exact numbers that could be this value, simplest first.
 
     A rational with a small denominator first (that is what a 3-4-5
-    triangle gives), then a rational combination of small roots (what a
-    5-6-7 triangle gives).  Each candidate is only a *guess*; the exact
+    triangle gives), then a quadratic irrational (what a 5-6-7 triangle
+    gives: 12*sqrt(6)/5).  Each candidate is only a *guess*; the exact
     check decides, which is why a plausible-looking big fraction is
     harmless here -- it is rejected if it is not the true value.
     """
+    if not math.isfinite(value):
+        return []
     found: list[Expr] = []
     try:
-        simple = sp.Rational(value).limit_denominator(1000)
+        simple = sp.Rational(value).limit_denominator(_RATIONAL_LIMIT)
         if abs(float(simple) - value) <= 1e-9:
             found.append(simple)
     except (TypeError, ValueError):  # pragma: no cover - defensive
         pass
-    for tolerance in (1e-6, 1e-9):
+    candidate = _quadratic_candidate(value)
+    if candidate is not None and all(candidate != seen for seen in found):
+        found.append(candidate)
+    return found
+
+
+def _quadratic_candidate(value: float) -> Expr | None:
+    """The quadratic irrational this number is, if it is one.
+
+    The coordinates this solver is meant to recover are rational or a
+    single small root -- a 3-4-5 triangle, a 5-6-7 triangle.  A PSLQ
+    relation in **three** dimensions settles that in milliseconds.  The
+    previous version asked PSLQ for a relation against twenty square
+    roots at once; on a number with no such relation -- a 40-degree
+    angle is exactly that case -- it could run for minutes and freeze
+    the parser.  A value that needs a deeper radical is refused, with
+    the advice to construct it; that is honest, and it is fast.
+    """
+    # A tight relation first.  A loose tolerance finds *some* quadratic
+    # for almost any number, and on a 5-6-7 triangle that was a wrong
+    # one; only a candidate that reproduces the value to the solver's
+    # own accuracy is worth checking exactly.
+    for tolerance in (1e-9, 1e-6):
         try:
-            roots = [sp.sqrt(index) for index in range(2, 21)]
-            candidate = sp.nsimplify(value, constants=roots, tolerance=tolerance)
-        except (TypeError, ValueError):  # pragma: no cover - defensive
+            relation = pslq(
+                [mpf(1), mpf(value), mpf(value) ** 2],
+                tol=tolerance,
+                maxcoeff=_RELATION_LIMIT,
+                maxsteps=100,
+            )
+        except (ArithmeticError, TypeError, ValueError):  # pragma: no cover
+            return None
+        if not relation or len(relation) != 3 or relation[2] == 0:
             continue
-        if isinstance(candidate, Expr) and not candidate.free_symbols:
-            found.append(candidate)
-    unique: list[Expr] = []
-    for candidate in found:
-        if any(candidate == seen for seen in unique):
+        first, second, third = (int(coefficient) for coefficient in relation)
+        discriminant = second * second - 4 * first * third
+        if discriminant < 0:
             continue
-        unique.append(candidate)
-    return unique
+        root = sp.sqrt(discriminant)
+        for sign in (1, -1):
+            candidate = (-sp.Integer(second) + sign * root) / (
+                2 * sp.Integer(third)
+            )
+            if abs(float(candidate) - value) <= 1e-9:
+                return candidate
+    return None
 
 
 def _combinations(

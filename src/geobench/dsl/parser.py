@@ -168,7 +168,7 @@ class Arg:
 #: that satisfy it.
 _TYPE_FITS: dict[str, frozenset[str]] = {
     "point": frozenset({"point"}),
-    "line": frozenset({"line", "segment"}),
+    "line": frozenset({"line", "segment", "ray"}),
     "segment": frozenset({"segment"}),
     "circle": frozenset({"circle"}),
     "polygon": frozenset({"polygon"}),
@@ -1134,9 +1134,9 @@ def _expands_to(args: list[Arg], arity: int) -> bool:
 #: What an argument kind may be, for a relation's contract.
 _JUDGEMENT_FITS: dict[str, frozenset[str]] = {
     "point": frozenset({"point"}),
-    "line": frozenset({"line", "segment"}),
+    "line": frozenset({"line", "segment", "ray"}),
     "circle": frozenset({"circle"}),
-    "any": frozenset({"point", "line", "segment", "circle"}),
+    "any": frozenset({"point", "line", "segment", "ray", "circle"}),
 }
 
 

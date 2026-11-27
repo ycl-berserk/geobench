@@ -48,6 +48,10 @@ BUDGET_PICTURE_MS = 40.0
 #: A drag frame, as the app does it: the placement changes and the
 #: picture is rebuilt.
 BUDGET_APP_FRAME_MS = 60.0
+#: Refusing a constraint whose solution is not exact. The measured
+#: figure is about 1.4 s; this is generous, and it is what caught the
+#: PSLQ search that ran for minutes on a 40-degree angle.
+BUDGET_REFUSAL_S = 10.0
 
 
 def _registry() -> OperatorRegistry:
@@ -202,6 +206,30 @@ def test_adding_a_construction_is_within_budget() -> None:
     assert elapsed < BUDGET_NEW_CONSTRUCTION_MS, (
         f"adding a construction took {elapsed:.1f} ms "
         f"(budget {BUDGET_NEW_CONSTRUCTION_MS} ms)"
+    )
+
+
+def test_a_transcendental_constraint_is_refused_within_budget() -> None:
+    """Saying "no exact coordinate exists" must itself be quick.
+
+    A 40-degree apex is the case: the solver reaches a transcendental
+    value, and the old rationaliser asked PSLQ for a relation against
+    twenty square roots at once. On this value it ran for minutes -- the
+    full suite timed out at forty minutes -- while the parser sat on the
+    main thread. The search is now three-dimensional, so the refusal is
+    a second, not a hang.
+    """
+    from geobench.dsl import parse_dsl
+    from geobench.dsl.errors import DSLParseError
+
+    source = "点 A(0,0) B(5,0) C(2,4)\n约束 角度(B, A, C) = 40\n"
+    start = time.perf_counter()
+    with pytest.raises(DSLParseError):
+        parse_dsl(source)
+    elapsed = time.perf_counter() - start
+    assert elapsed < BUDGET_REFUSAL_S, (
+        f"refusing a 40-degree constraint took {elapsed:.1f} s "
+        f"(budget {BUDGET_REFUSAL_S} s)"
     )
 
 

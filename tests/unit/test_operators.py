@@ -12,7 +12,17 @@ import pytest
 
 from geobench.errors import AmbiguousIntersectionError
 from geobench.evaluate import evaluate_figure, undefined_nodes
-from geobench.model import CIRCLE, DERIVED, FREE, LINE, POINT, SEGMENT, Figure, Node
+from geobench.model import (
+    CIRCLE,
+    DERIVED,
+    FREE,
+    LINE,
+    POINT,
+    RAY,
+    SEGMENT,
+    Figure,
+    Node,
+)
 from geobench.operators import register_builtins
 from geobench.registry import OperatorRegistry
 
@@ -82,6 +92,46 @@ def test_the_other_intersection_works_when_the_known_point_is_at_the_base() -> N
     # r^2 = 10; the line AD is y = x, so the second intersection is (4,4):
     # (4-3)^2 + (4-1)^2 = 10.
     assert placement == ("4", "4")
+
+
+def test_a_ray_can_supply_the_line_of_a_line_circle_intersection() -> None:
+    """A ray is a line with a beginning; "line" arguments accept it.
+
+    Regression: the exact pass kept the ray's symbolic ends in one cache
+    and the picture kept the numbers in another, and the numeric path
+    picked the symbolic ones.  The point then had expressions where it
+    needed floats and came out undefined -- only after the exact pass had
+    run, which is why a fresh direct figure looked fine.
+    """
+    figure = Figure(id="fig_ray_line_circle")
+    for name, x, y in (("A", "-2", "0"), ("B", "0", "0"), ("P", "3", "0")):
+        figure.add_node(
+            Node(
+                id=name,
+                kind=POINT,
+                role=FREE,
+                coords=(f"x_{name}", f"y_{name}"),
+                placement=(x, y),
+            )
+        )
+    figure.add_node(Node(id="r", kind=RAY, role=DERIVED, op="ray.free", args=["A", "B"]))
+    figure.add_node(Node(id="w", kind=CIRCLE, role=DERIVED, op="circle.free", args=["P", "1"]))
+    figure.add_node(
+        Node(
+            id="G",
+            kind=POINT,
+            role=DERIVED,
+            op="point.intersect_line_circle",
+            args=["r", "w", "1"],
+        )
+    )
+    # evaluate_figure runs the exact path first, which is what exposed
+    # the bug; the numeric path is the one that has to use the numbers.
+    evaluate_figure(figure, _registry())
+    placement = figure.nodes["G"].placement
+    assert placement is not None
+    assert float(placement[0]) == pytest.approx(2.0)
+    assert float(placement[1]) == pytest.approx(0.0)
 
 
 def test_the_two_indices_are_the_two_different_intersections() -> None:

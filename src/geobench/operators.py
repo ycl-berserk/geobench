@@ -119,13 +119,26 @@ class OpContext:
             )
         return cast(tuple[Expr, ...], data)
 
-    def as_line(self, node_id: str) -> LineCoeffs:
-        """The supporting line of a line *or* a segment.
+    def ray(self, node_id: str) -> tuple[Expr, Expr, Expr, Expr]:
+        node = self.figure.node(node_id)
+        if node.kind != "ray":
+            raise StateError(f"node {node_id!r} is not a ray")
+        data = node.cache.get("ray")
+        if data is None:
+            raise OpNotImplementedError(
+                f"ray {node_id!r} has not been evaluated yet; run evaluate_figure() first"
+            )
+        return cast(tuple[Expr, Expr, Expr, Expr], data)
 
-        Competition figures draw segments, but the operations that need a
-        line (a foot, an intersection) work on the supporting line. Resolving
-        here keeps the operators uniform and avoids inserting extra nodes
-        into the figure.
+    def as_line(self, node_id: str) -> LineCoeffs:
+        """The supporting line of a line, segment or ray.
+
+        Competition figures draw segments and rays, but the operations
+        that need a line (a foot, an intersection) work on the supporting
+        line. Resolving here keeps the operators uniform and avoids
+        inserting extra nodes into the figure. What stays drawn -- the
+        part between two points, or the half-line -- is the renderer's
+        business; a crossing outside it is filtered by ``numeric``.
         """
         node = self.figure.node(node_id)
         if node.kind == "line":
@@ -133,7 +146,10 @@ class OpContext:
         if node.kind == "segment":
             x1, y1, x2, y2 = self.segment(node_id)
             return _line_through((x1, y1), (x2, y2))
-        raise StateError(f"node {node_id!r} is neither a line nor a segment")
+        if node.kind == "ray":
+            x0, y0, x1, y1 = self.ray(node_id)
+            return _line_through((x0, y0), (x1, y1))
+        raise StateError(f"node {node_id!r} is not a line, segment or ray")
 
     def line_points(self, node_id: str) -> list[tuple[Expr, Expr]]:
         """The points a line-like node was built from, if any."""
@@ -215,6 +231,17 @@ class NumericOpContext(OpContext):
             raise StateError(f"polygon {node_id!r} has no numeric vertices")
         return tuple(sp.Float(value) for value in values)
 
+    def ray(self, node_id: str) -> tuple[Expr, Expr, Expr, Expr]:
+        values = self._numbers(node_id, "ray")
+        if values is None or len(values) < 4:
+            raise StateError(f"ray {node_id!r} has no numeric ends")
+        return (
+            sp.Float(values[0]),
+            sp.Float(values[1]),
+            sp.Float(values[2]),
+            sp.Float(values[3]),
+        )
+
 
 def _line_through(a: tuple[Expr, Expr], b: tuple[Expr, Expr]) -> LineCoeffs:
     """Implicit coefficients of the line through two points."""
@@ -264,7 +291,7 @@ def op_point_on_circle(ctx: OpContext, args: list[str]) -> dict[str, object]:
 
 
 def op_point_on_line(ctx: OpContext, args: list[str]) -> dict[str, object]:
-    """A point attached to a line or a segment, at the parameter ``t``.
+    """A point attached to a line, segment or ray, at the parameter ``t``.
 
     ``t`` is the *ratio* along the object: 0 is one end, 1 is the
     other, 1/2 is the middle. A segment is measured between its own
