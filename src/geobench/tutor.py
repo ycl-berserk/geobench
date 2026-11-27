@@ -23,6 +23,7 @@ facts, not the rhetoric -- and the prompt says so.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -205,7 +206,10 @@ def _claim(raw: object, node_kinds: dict[str, str]) -> Claim | None:
 
 
 def _lesson_from(
-    data: object, problem: str, registry: OperatorRegistry
+    data: object,
+    problem: str,
+    registry: OperatorRegistry,
+    progress: Callable[[str], None] | None = None,
 ) -> Lesson:
     """Turn the model's JSON into a lesson, or say exactly what is wrong."""
     if not isinstance(data, dict):
@@ -219,6 +223,13 @@ def _lesson_from(
         figure = parse_dsl(figure_text)
     except (DSLParseError, GeobenchError) as exc:
         raise GeobenchError(f"figure 解析失败：{exc}") from exc
+    if len(figure.nodes) > 80:
+        raise GeobenchError(
+            f"图形太大了（{len(figure.nodes)} 个对象）；"
+            "请只画题目相关的对象和必要的辅助线。"
+        )
+    if progress is not None:
+        progress("正在求值、检查图形…")
     problems = check_figure(figure, registry)
     if problems:
         raise GeobenchError(
@@ -242,6 +253,8 @@ def _lesson_from(
         if not say:
             raise GeobenchError(f"第 {index} 步没有 say")
         claim = _claim(raw_step.get("claim"), node_kinds)
+        if claim is not None and progress is not None:
+            progress(f"正在核对第 {index} 步的几何事实…")
         if claim is not None and claim.scope != IDENTITY:
             # A lesson is a proof, not a snapshot: choosing `instance`
             # would let a figure that merely *looks* right dodge the
@@ -297,6 +310,7 @@ def build_lesson(
     problem: str,
     registry: OperatorRegistry,
     retries: int = 2,
+    progress: Callable[[str], None] | None = None,
 ) -> Lesson:
     """Ask for a figure and a lesson, and refuse a lesson that cannot run.
 
@@ -317,15 +331,21 @@ def build_lesson(
     client = _with_budget(provider, 3000)
     feedback = ""
     for _attempt in range(retries + 1):
+        if progress is not None:
+            progress(f"正在问模型（第 {_attempt + 1} 次）…")
         message = user if not feedback else f"{user}\n\n{feedback}"
         text = client.complete(system, message)
+        if progress is not None:
+            progress("模型已返回，正在解析图形…")
         try:
-            return _lesson_from(json_object(text), problem, registry)
+            return _lesson_from(json_object(text), problem, registry, progress)
         except GeobenchError as exc:
             feedback = (
                 f"上一次输出不能用：{exc}\n"
                 "请修正图形或步骤，只输出完整的 JSON。"
             )
+            if progress is not None and _attempt < retries:
+                progress("这次没有通过，正在让模型修正…")
     raise GeobenchError(f"模型没有给出可用的课程：{feedback}")
 
 

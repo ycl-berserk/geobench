@@ -46,6 +46,15 @@ class FakeProvider:
         return self.answer
 
 
+class BoomProvider:
+    """A provider whose worker dies: the panel must not wait forever."""
+
+    name = "boom"
+
+    def complete(self, system: str, user: str) -> str:
+        raise RuntimeError("service exploded")
+
+
 @pytest.fixture(scope="module")
 def app() -> QApplication:
     return QApplication.instance() or QApplication([])
@@ -155,6 +164,37 @@ def test_a_student_question_can_add_an_auxiliary_line(
         and "把 AM 连起来看" in panel.transcript.toPlainText(),
     ), panel.transcript.toPlainText()
     assert "AM" in window.canvas._teach_highlight
+    panel.close()
+    window.close()
+
+
+def test_a_worker_crash_is_shown_and_does_not_leave_the_button_stuck(
+    app: QApplication,
+) -> None:
+    controller = StudioController()
+    panel, window = _panel(app, controller)
+    panel._provider = BoomProvider()
+    panel.problem_edit.setPlainText("随便问一个不是几何题的问题")
+    panel._generate()
+    assert _wait(
+        app, lambda: "RuntimeError" in panel.status_label.text()
+    ), panel.status_label.text()
+    assert panel.lesson_button.text() == "生成课程"
+    assert not panel._busy
+    panel.close()
+    window.close()
+
+
+def test_a_timeout_releases_the_panel(app: QApplication) -> None:
+    controller = StudioController()
+    panel, window = _panel(app, controller)
+    panel._busy = True
+    panel._busy_token = 1
+    panel.lesson_button.setText("停止")
+    panel._timeout(1, "生成课程")
+    assert not panel._busy
+    assert panel.lesson_button.text() == "生成课程"
+    assert "停止等待" in panel.status_label.text()
     panel.close()
     window.close()
 

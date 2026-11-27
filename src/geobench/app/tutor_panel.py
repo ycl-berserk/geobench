@@ -10,10 +10,11 @@ it, and carrying the student's questions back to the model.
 from __future__ import annotations
 
 import html
+import logging
 import threading
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -54,9 +55,10 @@ _VERDICT_ZH = {
 class TutorPanel(QDialog):
     """A non-modal lesson window, tied to the live canvas."""
 
-    lessonReady = Signal(object, str)
-    replyReady = Signal(object, str)
+    lessonReady = Signal(int, object, str)
+    replyReady = Signal(int, object, str)
     verdictReady = Signal(int, object, str)
+    progressReady = Signal(int, str)
 
     def __init__(
         self,
@@ -80,6 +82,7 @@ class TutorPanel(QDialog):
         self._step_index = -1
         self._busy = False
         self._closed = False
+        self._busy_token = 0
         self._verdict_token = 0
         self._verdict_labels: dict[int, str] = {}
         self._history: list[tuple[str, str]] = []
@@ -88,6 +91,7 @@ class TutorPanel(QDialog):
         self.lessonReady.connect(self._on_lesson)
         self.replyReady.connect(self._on_reply)
         self.verdictReady.connect(self._on_verdict)
+        self.progressReady.connect(self._on_progress)
         self._show_provider()
 
     # -- construction ------------------------------------------------------
@@ -207,6 +211,7 @@ class TutorPanel(QDialog):
 
     def _generate(self) -> None:
         if self._busy:
+            self._cancel_busy()
             return
         problem = self.problem_edit.toPlainText().strip()
         if not problem:
@@ -218,7 +223,9 @@ class TutorPanel(QDialog):
             )
             return
         self._busy = True
-        self.lesson_button.setEnabled(False)
+        self._busy_token += 1
+        token = self._busy_token
+        self.lesson_button.setText("停止")
         self.next_button.setEnabled(False)
         self.status_label.setText("正在读题、画图、备课……")
         provider = self._provider
@@ -228,21 +235,66 @@ class TutorPanel(QDialog):
             if self._closed:
                 return
             try:
-                lesson = build_lesson(provider, problem, registry)
+                lesson = build_lesson(
+                    provider,
+                    problem,
+                    registry,
+                    retries=1,
+                    progress=lambda text: self.progressReady.emit(token, text),
+                )
             except GeobenchError as exc:
-                self.lessonReady.emit(None, str(exc))
+                self.lessonReady.emit(token, None, str(exc))
                 return
-            self.lessonReady.emit(lesson, "")
+            except Exception as exc:  # pragma: no cover - worker safety
+                logging.exception("tutor lesson generation failed")
+                self.lessonReady.emit(
+                    token, None, f"{type(exc).__name__}: {exc}"
+                )
+                return
+            self.lessonReady.emit(token, lesson, "")
 
         threading.Thread(target=work, daemon=True).start()
+        QTimer.singleShot(120_000, lambda: self._timeout(token, "生成课程"))
 
-    def _on_lesson(self, lesson: object, error: str) -> None:
-        self._busy = False
-        self.lesson_button.setEnabled(True)
+    def _on_lesson(self, token: int, lesson: object, error: str) -> None:
+        if token != self._busy_token:
+            return
+        self._finish_busy()
         if error or not isinstance(lesson, Lesson):
             self.status_label.setText(f"这节课没备出来：{error or '模型没有返回课程'}")
             return
         self._apply_lesson(lesson)
+
+    def _on_progress(self, token: int, text: str) -> None:
+        if token == self._busy_token and not self._closed:
+            self.status_label.setText(text)
+
+    def _finish_busy(self) -> None:
+        self._busy = False
+        self.lesson_button.setText("生成课程")
+        self.lesson_button.setEnabled(True)
+        self.next_button.setEnabled(self._lesson is not None)
+        self.ask_button.setEnabled(
+            self._lesson is not None and self._step_index >= 0
+        )
+
+    def _cancel_busy(self) -> None:
+        """Stop waiting; a late answer is ignored by its token."""
+        self._busy_token += 1
+        self._finish_busy()
+        self.status_label.setText(
+            "已停止等待。模型返回后不会替换画布，可以重试或换模型服务。"
+        )
+
+    def _timeout(self, token: int, what: str) -> None:
+        if self._closed or token != self._busy_token or not self._busy:
+            return
+        self._busy_token += 1
+        self._finish_busy()
+        self.status_label.setText(
+            f"{what}超过两分钟还没有结果，已停止等待。"
+            "可以重试，或在「设置模型…」里换一个服务。"
+        )
 
     def _apply_lesson(self, lesson: Lesson) -> None:
         """Replace the canvas and put the outline on screen."""
@@ -348,6 +400,9 @@ class TutorPanel(QDialog):
             self.status_label.setText("没有配置模型服务，不能回答问题。")
             return
         self._busy = True
+        self._busy_token += 1
+        token = self._busy_token
+        self.lesson_button.setText("停止")
         self.ask_button.setEnabled(False)
         self.next_button.setEnabled(False)
         self.status_label.setText("正在想……")
@@ -369,16 +424,21 @@ class TutorPanel(QDialog):
                     provider, lesson, step, question, figure_dsl, history, registry
                 )
             except GeobenchError as exc:
-                self.replyReady.emit(None, str(exc))
+                self.replyReady.emit(token, None, str(exc))
                 return
-            self.replyReady.emit(reply, "")
+            except Exception as exc:  # pragma: no cover - worker safety
+                logging.exception("tutor reply failed")
+                self.replyReady.emit(token, None, f"{type(exc).__name__}: {exc}")
+                return
+            self.replyReady.emit(token, reply, "")
 
         threading.Thread(target=work, daemon=True).start()
+        QTimer.singleShot(120_000, lambda: self._timeout(token, "回答"))
 
-    def _on_reply(self, reply: object, error: str) -> None:
-        self._busy = False
-        self.ask_button.setEnabled(True)
-        self.next_button.setEnabled(self._lesson is not None)
+    def _on_reply(self, token: int, reply: object, error: str) -> None:
+        if token != self._busy_token:
+            return
+        self._finish_busy()
         if error or not isinstance(reply, TutorReply):
             self._append("教练", f"这个问题没答上来：{error or '没有返回内容'}")
             self.status_label.setText("没答上来，可以换个问法。")

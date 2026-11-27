@@ -375,6 +375,18 @@ class SympyField:
                 numerator, denominator = sp.fraction(sp.together(expr))
             except Exception:  # pragma: no cover - sympy internal failure
                 numerator, denominator = expr, sp.Integer(1)
+            if (
+                sp.count_ops(denominator) > self.identity_budget_ops
+                or self._term_bound(denominator, self.expand_term_budget)
+                > self.expand_term_budget
+            ):
+                # Building the denominator polynomial is itself an
+                # expansion, and it can be the most expensive one in the
+                # expression.  Without this guard a single complex
+                # denominator could freeze the judge (and the tutor's
+                # lesson check) for minutes.  "Not proved" is the
+                # honest answer; sampling has already done its part.
+                return False
             if self._is_zero_polynomial(denominator, symbols):
                 # The expression is a rational function whose denominator
                 # vanishes identically: it has no value *anywhere*, so it

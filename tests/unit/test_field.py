@@ -52,6 +52,17 @@ def test_simplify_to_zero_recognises_identities() -> None:
     assert FIELD.simplify_to_zero(sp.sqrt(8) - 2 * sp.sqrt(2))
 
 
+def test_a_huge_denominator_is_not_expanded() -> None:
+    """The denominator check has the same expansion budget as the numerator.
+
+    A complex denominator used to be turned into a polynomial without a
+    budget; a tutor lesson with such a claim could freeze the judge for
+    minutes.  The answer here is "not proved", not an outage.
+    """
+    x = sp.Symbol("x")
+    assert not FIELD.simplify_to_zero(1 / (x + 1) ** 64)
+
+
 def test_simplify_to_zero_rejects_non_identities() -> None:
     x = sp.Symbol("x")
     assert not FIELD.simplify_to_zero(x - 1)
