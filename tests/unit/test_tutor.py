@@ -112,6 +112,58 @@ def test_a_claim_about_an_object_that_is_not_in_the_figure_is_refused() -> None:
         build_lesson(provider, "中点", _registry())
 
 
+def test_an_intersection_that_picks_the_known_point_is_sent_back() -> None:
+    """`交点(AH, O, 1)` picked A; the fix is `另一交点`, not a new proof."""
+    figure = (
+        "点 A(0,5) B(-4,0) C(3,0)\n"
+        "O = 外接圆(A,B,C)\n"
+        "H = 垂心(A,B,C)\n"
+        "AH = 直线(A,H)\n"
+        "Hp = 交点(AH,O,1)\n"
+    )
+    bad = _lesson(
+        figure=figure,
+        steps=[
+            {
+                "say": "H' 在圆上。",
+                "claim": {
+                    "kind": "point_in",
+                    "args": ["Hp", "O"],
+                    "scope": "identity",
+                },
+            }
+        ],
+    )
+    provider = FakeProvider([bad, bad, bad])
+    with pytest.raises(GeobenchError, match="另一交点"):
+        build_lesson(provider, "垂心", _registry())
+
+
+def test_the_other_intersection_selector_passes_the_lint() -> None:
+    figure = (
+        "点 A(0,5) B(-4,0) C(3,0)\n"
+        "O = 外接圆(A,B,C)\n"
+        "H = 垂心(A,B,C)\n"
+        "AH = 直线(A,H)\n"
+        "Hp = 交点(AH,O,另一交点)\n"
+    )
+    good = _lesson(
+        figure=figure,
+        steps=[
+            {
+                "say": "H' 是直线 AH 与外接圆的另一个交点。",
+                "claim": {
+                    "kind": "point_in",
+                    "args": ["Hp", "O"],
+                    "scope": "identity",
+                },
+            }
+        ],
+    )
+    lesson = build_lesson(FakeProvider([good]), "垂心", _registry())
+    assert lesson.steps[0].claim is not None
+
+
 def test_a_false_claim_is_sent_back_instead_of_taught() -> None:
     """A lesson with a claim the kernel refutes is not a lesson."""
     figure = "点 A(0,0) B(6,0) C(2,4)\nAB = 线段(A,B)\nBC = 线段(B,C)\n"

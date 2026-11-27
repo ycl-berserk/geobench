@@ -47,6 +47,7 @@ from geobench.judges import (
     REFUTED,
     UNDECIDED,
     JudgeRegistry,
+    Verdict,
     judge_relation,
 )
 from geobench.model import Figure
@@ -79,6 +80,42 @@ _SLOT_FITS: dict[str, frozenset[str]] = {
     "line": frozenset({"line", "segment", "ray"}),
     "circle": frozenset({"circle"}),
     "any": frozenset({"line", "segment", "ray", "circle"}),
+}
+
+#: What a refutation usually means, in words the model can act on.  A
+#: page of symbolic evidence is not feedback; "the angles may be
+#: supplementary" is.
+_CLAIM_HINTS: dict[str, str] = {
+    "angle_equal": (
+        "两个角在一般摆放下不一定相等（同弦圆周角在弦的两侧会互补）。"
+        "如果这一步是角度推理，请**直接删掉这条 claim、保留 say**，"
+        "不要再换另一条 angle_equal；或者改用等长/垂直/共圆等真恒等式。"
+    ),
+    "equal_length": (
+        "这两条线段在一般摆放下不一定相等。检查图形是否把条件画成了构造"
+        "（圆上的点 / 中点 / 交点分支），或换一条所有摆放下都成立的 claim。"
+    ),
+    "concyclic": (
+        "这四点不一定共圆。检查外接圆/圆上的点/交点分支是否选对。"
+    ),
+    "point_in": (
+        "这个点不一定在对象上。检查交点分支、圆上的点或线上的点。"
+    ),
+    "collinear": (
+        "这三点不一定共线。检查中点/交点/垂足等构造，不要只摆位置。"
+    ),
+    "perpendicular": (
+        "这两条线不一定垂直。检查垂足/垂心/交点分支是否选对。"
+    ),
+    "parallel": (
+        "这两条线不一定平行。检查平行构造，不要只摆成平行。"
+    ),
+    "midpoint_of": (
+        "这个点不一定是中点。检查中点构造。"
+    ),
+    "ratio_equal": (
+        "两组线段的比例不一定相等。检查 claim 的分组和图形构造。"
+    ),
 }
 
 
@@ -205,6 +242,64 @@ def _claim(raw: object, node_kinds: dict[str, str]) -> Claim | None:
     return Claim(kind=kind, args=tuple(names), scope=scope)
 
 
+def _intersection_lint(figure: Figure) -> None:
+    """Catch the most common DSL mistake before judging any claim.
+
+    ``交点(直线, 圆, 1)`` is a *branch number*, not "the other point".
+    A model that means the second intersection often writes ``1`` and
+    gets the point the line was drawn through -- the figure then looks
+    plausible and every claim about it is false.  Saying exactly that is
+    more useful than a page of polynomial evidence.
+    """
+    placements = {
+        node.id: node.placement
+        for node in figure.nodes.values()
+        if node.kind == "point" and node.placement is not None
+    }
+    intersections = {
+        "point.intersect_line_circle",
+        "point.intersect_lines",
+        "point.intersect_circles",
+    }
+    for node in figure.nodes.values():
+        if node.op not in intersections or node.placement is None:
+            continue
+        position = node.placement
+        # The known points are the defining points of the objects the
+        # intersection was built from; one level is enough for the DSL's
+        # lines, segments and circles.
+        defining: set[str] = set()
+        for arg in node.args[:2]:
+            obj = figure.nodes.get(arg)
+            if obj is None:
+                continue
+            for part in obj.args:
+                if part in figure.nodes and figure.nodes[part].kind == "point":
+                    defining.add(part)
+        for known in defining:
+            if known == node.id:
+                continue
+            if placements.get(known) == position:
+                raise GeobenchError(
+                    f"`{node.id} = 交点(...)` 选到了已知点 {known}。"
+                    "如果你要的是另一个交点，请写 `交点(直线, 圆, 另一交点)`；"
+                    "0/1 是分支号，不保证是另一个。"
+                )
+
+
+def _claim_hint(claim: Claim, verdict: Verdict) -> str:
+    if verdict.verdict == UNDECIDED:
+        return (
+            "内核在预算内没有判定这一条；请简化图形、减少辅助线，"
+            "或删掉这条 claim 用文字解释。"
+        )
+    return _CLAIM_HINTS.get(
+        claim.kind,
+        "这条 claim 在一般摆放下不成立；请检查图形是否把条件画成了构造，"
+        "或删掉它用文字解释。",
+    )
+
+
 def _lesson_from(
     data: object,
     problem: str,
@@ -236,6 +331,7 @@ def _lesson_from(
             "figure 里有对象没有值："
             + "；".join(problem.to_text() for problem in problems)
         )
+    _intersection_lint(figure)
     node_kinds = _node_kinds(figure)
     raw_steps = data.get("steps")
     if not isinstance(raw_steps, list) or not raw_steps:
@@ -277,11 +373,9 @@ def _lesson_from(
             )
             if verdict.verdict in (REFUTED, UNDECIDED):
                 raise GeobenchError(
-                    f"第 {index} 步的 claim 内核判为{verdict.verdict}："
-                    f"{verdict.evidence[:180]}。"
-                    "如果这是题目条件，请用构造把它固定下来"
-                    "（圆上的点 / 中点 / 线上的点 / 垂直 / 平行），"
-                    "不要只把点摆成恰好成立。"
+                    f"第 {index} 步的 claim {claim.kind}"
+                    f"({', '.join(claim.args)}) 内核判为{verdict.verdict}。"
+                    + _claim_hint(claim, verdict)
                 )
         steps.append(
             TutorStep(

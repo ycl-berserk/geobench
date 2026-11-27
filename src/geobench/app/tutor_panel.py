@@ -239,7 +239,7 @@ class TutorPanel(QDialog):
                     provider,
                     problem,
                     registry,
-                    retries=1,
+                    retries=2,
                     progress=lambda text: self.progressReady.emit(token, text),
                 )
             except GeobenchError as exc:
