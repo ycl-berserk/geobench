@@ -117,6 +117,7 @@ from geobench.app.tools import (
     ToolSpec,
     build_toolbar,
 )
+from geobench.app.tutor_panel import TutorPanel
 from geobench.commands import COMMANDS, JUDGEMENT, by_id
 from geobench.errors import GeobenchError
 from geobench.ggb import import_ggb
@@ -499,6 +500,7 @@ class StudioWindow(QMainWindow):
         #: table needs both to read as a sentence.
         self._verdict_args: list[list[str]] = []
         self._witness: dict[str, object] | None = None
+        self._tutor_panel: TutorPanel | None = None
         self._path: Path | None = None
         #: Once the user has chosen 从零开始, the first-screen card has
         #: done its job even though the figure is still empty.
@@ -1215,6 +1217,16 @@ class StudioWindow(QMainWindow):
         view_zoom_out.triggered.connect(self.canvas.zoom_out)
         view_menu.addAction(view_zoom_out)
 
+        ai_menu = menu.addMenu("AI")
+        tutor_action = QAction("AI 讲题…", self)
+        tutor_action.setToolTip("给 AI 一道题：它画图、拆步骤，内核核对每一步")
+        tutor_action.triggered.connect(self._open_tutor_panel)
+        ai_menu.addAction(tutor_action)
+        ai_draw_action = QAction("AI 作图…", self)
+        ai_draw_action.setToolTip("用一句话描述一张图，交给解析器判断")
+        ai_draw_action.triggered.connect(self._open_ai_panel)
+        ai_menu.addAction(ai_draw_action)
+
         settings_menu = menu.addMenu("设置")
         service_action = QAction("模型服务…", self)
         service_action.setToolTip("选择模型服务，并告诉它钥匙在哪")
@@ -1661,6 +1673,7 @@ class StudioWindow(QMainWindow):
 
         starters = (
             ("从零开始画图", self._start_blank),
+            ("让 AI 讲一道题", self._open_tutor_panel),
             ("打开一个示例", self._open_example),
             ("用一句话作图", self._open_ai_panel),
             ("打开文件…", self._open_file),
@@ -1865,6 +1878,8 @@ class StudioWindow(QMainWindow):
             return
         self._clear_recovery()
         self._exact_stopped = True
+        if self._tutor_panel is not None:
+            self._tutor_panel.close()
         event.accept()
 
     def _build_toolbar(self) -> None:
@@ -2106,6 +2121,53 @@ class StudioWindow(QMainWindow):
             )
             return
         self.status.showMessage("AI 画的图已经放到画板上了")
+
+    def _open_tutor_panel(self) -> None:
+        """Give the model a problem, and keep the canvas as the blackboard."""
+        if self._tutor_panel is not None:
+            self._tutor_panel.show()
+            self._tutor_panel.raise_()
+            self._tutor_panel.activateWindow()
+            return
+        resolution = resolve_provider()
+        panel = TutorPanel(
+            self,
+            self.controller,
+            self.canvas,
+            self._apply_tutor_figure,
+            resolution.provider,
+            resolution,
+        )
+        panel.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        panel.destroyed.connect(self._forget_tutor)
+        self._tutor_panel = panel
+        panel.show()
+
+    def _forget_tutor(self, *_args: object) -> None:
+        self._tutor_panel = None
+
+    def _apply_tutor_figure(self, text: str) -> bool:
+        """Put a lesson's figure on the canvas, after the usual data check.
+
+        The tutor is allowed to replace the drawing, but not to discard
+        unsaved work without asking: it goes through the same guard as
+        opening a file.
+        """
+        if not self._confirm_discard():
+            return False
+        try:
+            self.controller.load_text(text)
+        except GeobenchError as exc:
+            self.status.showMessage(f"这节课的图放不上来：{exc}")
+            return False
+        self._path = None
+        self._dirty = False
+        self._suppress_empty_state = False
+        self._clear_recovery()
+        self._update_title()
+        self.canvas.fit()
+        self.refresh()
+        return True
 
     def _open_settings(self) -> None:
         """Say which model service to talk to, and where the key is."""

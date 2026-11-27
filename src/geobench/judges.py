@@ -701,7 +701,12 @@ def _judge_uncached(
             # fails, so the sample is skipped rather than counted.
             continue
         admissible += 1
-        if value != 0:
+        # A sample is exact, but sympy does not always *show* it equal
+        # to zero: a dot product with a square root can be 0 without
+        # being structurally 0.  Treating that as a counterexample
+        # refuted true statements about points on a circle.  Pay for
+        # the exact reduction only when the expression is not already 0.
+        if value != 0 and not FIELD.simplify_to_zero(value):
             nonzero = mapping
             break
     if nonzero is not None:

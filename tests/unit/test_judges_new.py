@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from geobench.dsl import parse_dsl
 from geobench.evaluate import evaluate_figure
 from geobench.judges import (
     IDENTITY,
@@ -253,4 +254,33 @@ def test_the_instance_scope_sees_the_picture_as_drawn(judges: JudgeRegistry) -> 
     assert (
         judge_relation(figure, "collinear", ["A", "B", "C"], judges, scope=INSTANCE).verdict
         == REFUTED
+    )
+
+
+def test_a_radical_zero_is_not_mistaken_for_a_counterexample(
+    registry: OperatorRegistry, judges: JudgeRegistry
+) -> None:
+    """C on a circle at 120° makes the median perpendicular, but the
+    expression carries sqrt(3).  Sampling used to read "structurally
+    nonzero" as a counterexample and refute a true theorem; the median
+    of an isosceles triangle is the textbook case.
+    """
+    figure = evaluate_figure(
+        parse_dsl(
+            "点 A(0,4) B(-3,0)\n"
+            "w = 圆(A,B)\n"
+            "C = 圆上的点(w, 1/3)\n"
+            "D = 中点(B,C)\n"
+            "AD = 线段(A,D)\n"
+            "BCs = 线段(B,C)\n"
+        ),
+        registry,
+    )
+    assert (
+        judge_relation(figure, "collinear", ["B", "D", "C"], judges, scope=IDENTITY).verdict
+        == PROVED
+    )
+    assert (
+        judge_relation(figure, "perpendicular", ["AD", "BCs"], judges, scope=IDENTITY).verdict
+        != REFUTED
     )

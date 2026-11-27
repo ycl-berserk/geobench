@@ -832,6 +832,28 @@ class StudioController:
 
     # -- judging -----------------------------------------------------------
 
+    def judge_claim(
+        self,
+        kind: str,
+        args: list[str],
+        scope: str = IDENTITY,
+        figure: Figure | None = None,
+    ) -> Verdict:
+        """Judge one claim, without adding it to the figure.
+
+        The tutor checks a step with this: the claim is a fact to verify,
+        not necessarily a permanent assertion the teacher wants in the
+        construction.  A snapshot keeps the proof off the live figure,
+        so a slow symbolic check cannot see a point move underneath it.
+        """
+        target = figure if figure is not None else self.figure()
+        state = target.runtime.get("exact") or {}
+        if state.get("status") == "pending":
+            self.evaluate_exact_figure(target)
+        return judge_relation(
+            target, kind, list(args), self.judges, scope=scope
+        )
+
     def judge(self, scope: str = IDENTITY) -> list[Verdict]:
         """Judge every relation of the figure, exactly, right now.
 

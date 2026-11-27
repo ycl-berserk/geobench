@@ -211,6 +211,10 @@ class FigureCanvas(QWidget):
         self._tool_args: list[str] = []
         self._awaiting_value = False
         self._selected: list[str] = []
+        #: Objects the tutor is talking about.  Separate from the
+        #: selection: the tutor must be able to point at something
+        #: without changing what the student has picked.
+        self._teach_highlight: set[str] = set()
         self._hover_point: str | None = None
         self._hover_crossing: tuple[float, float] | None = None
         self._rubber_start: tuple[float, float] | None = None
@@ -355,6 +359,7 @@ class FigureCanvas(QWidget):
                 self._draw_label(painter, viewport, primitive, style)
             elif isinstance(primitive, TextPrimitive):
                 self._draw_text(painter, viewport, primitive, style)
+        self._draw_teaching_highlight(painter, viewport, style)
         self._draw_proof_marks(painter, viewport)
         self._draw_selection(painter, viewport, style)
         self._draw_tool_feedback(painter, viewport)
@@ -644,6 +649,104 @@ class FigureCanvas(QWidget):
             sx, sy = viewport.to_screen(0.0, 0.0)
             painter.setPen(label_colour)
             painter.drawText(QPointF(sx + 4, sy + 14), "0")
+
+    def _draw_teaching_highlight(
+        self, painter: QPainter, viewport: Viewport, style: FigureStyle
+    ) -> None:
+        """A halo around what the tutor is talking about.
+
+        It is deliberately outside the selection: the student may have
+        something selected, and the tutor pointing at a second object
+        must not steal that selection.  A halo is thicker but sits under
+        the normal stroke, so the object keeps its own colour.
+        """
+        if not self._teach_highlight:
+            return
+        accent = QColor(PALETTE.accent)
+        halo = QPen(accent, 9.0)
+        halo.setCapStyle(Qt.PenCapStyle.RoundCap)
+        ring = QPen(accent, 2.4)
+        painter.save()
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for primitive in self.controller.primitives():
+            if getattr(primitive, "id", "") not in self._teach_highlight:
+                continue
+            if isinstance(primitive, PointPrimitive):
+                if not (
+                    math.isfinite(primitive.x) and math.isfinite(primitive.y)
+                ):
+                    continue
+                x, y = viewport.to_screen(primitive.x, primitive.y)
+                base = (
+                    style.point_radius
+                    if primitive.free
+                    else style.derived_point_radius
+                )
+                painter.setPen(ring)
+                painter.drawEllipse(QPointF(x, y), base + 7.0, base + 7.0)
+            elif isinstance(primitive, SegmentPrimitive):
+                x1, y1 = viewport.to_screen(primitive.x1, primitive.y1)
+                x2, y2 = viewport.to_screen(primitive.x2, primitive.y2)
+                painter.setPen(halo)
+                painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+            elif isinstance(primitive, RayPrimitive):
+                clipped = clip_ray(
+                    primitive.x0,
+                    primitive.y0,
+                    primitive.x1,
+                    primitive.y1,
+                    viewport.view,
+                )
+                if clipped is None:
+                    continue
+                x1, y1 = viewport.to_screen(clipped[0], clipped[1])
+                x2, y2 = viewport.to_screen(clipped[2], clipped[3])
+                painter.setPen(halo)
+                painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+            elif isinstance(primitive, LinePrimitive):
+                clipped = _clip_line(
+                    primitive.a, primitive.b, primitive.c, viewport
+                )
+                if clipped is None:
+                    continue
+                x1, y1 = viewport.to_screen(clipped[0], clipped[1])
+                x2, y2 = viewport.to_screen(clipped[2], clipped[3])
+                painter.setPen(halo)
+                painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+            elif isinstance(primitive, CirclePrimitive):
+                cx, cy = viewport.to_screen(primitive.cx, primitive.cy)
+                radius = primitive.radius * viewport.scale
+                painter.setPen(halo)
+                painter.drawEllipse(QPointF(cx, cy), radius, radius)
+            elif isinstance(primitive, ArcPrimitive):
+                cx, cy = viewport.to_screen(primitive.cx, primitive.cy)
+                radius = primitive.radius * viewport.scale
+                rect = QRectF(cx - radius, cy - radius, 2 * radius, 2 * radius)
+                painter.setPen(halo)
+                painter.drawArc(
+                    rect,
+                    round(primitive.start_angle * 16),
+                    round(primitive.span_angle * 16),
+                )
+            elif isinstance(primitive, PolygonPrimitive):
+                corners = [
+                    QPointF(
+                        *viewport.to_screen(
+                            primitive.vertices[2 * index],
+                            primitive.vertices[2 * index + 1],
+                        )
+                    )
+                    for index in range(len(primitive.vertices) // 2)
+                ]
+                if len(corners) < 2:
+                    continue
+                points = QPolygonF(corners)
+                painter.setPen(halo)
+                if primitive.closed:
+                    painter.drawPolygon(points)
+                else:
+                    painter.drawPolyline(points)
+        painter.restore()
 
     def _draw_selection(
         self, painter: QPainter, viewport: Viewport, style: FigureStyle
@@ -1180,6 +1283,16 @@ class FigureCanvas(QWidget):
     def selected(self) -> list[str]:
         """The selected objects, in the order they were picked."""
         return list(self._selected)
+
+    def set_teaching_highlight(self, node_ids: list[str]) -> None:
+        """Point at objects for the tutor, without touching the selection."""
+        self._teach_highlight = {node_id for node_id in node_ids if node_id}
+        self.update()
+
+    def clear_teaching_highlight(self) -> None:
+        if self._teach_highlight:
+            self._teach_highlight.clear()
+            self.update()
 
     def prune_selection(self) -> None:
         """Forget selected objects that no longer exist.

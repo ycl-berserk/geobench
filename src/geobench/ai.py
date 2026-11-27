@@ -57,11 +57,12 @@ __all__ = [
     "build_prompt",
     "check_figure",
     "interpret_claims",
+    "json_object",
     "propose",
     "relation_list",
 ]
 
-def _resource(name: str) -> Path:
+def resource(name: str) -> Path:
     """Where a text resource lives, in a checkout and in a frozen app.
 
     PyInstaller unpacks data next to the executable (``_internal``) and
@@ -76,17 +77,17 @@ def _resource(name: str) -> Path:
 #: The prompt template. The command list is filled in from the command
 #: table, so the model can never be told about a command that does not
 #: exist, or miss one that does.
-PROMPT_PATH = _resource("prompts/nl-to-dsl.md")
+PROMPT_PATH = resource("prompts/nl-to-dsl.md")
 
 #: The conventions a competition figure follows.  The model is told the
 #: rules; without them it draws a figure that is right but does not look
 #: like the one in the paper.
-STANDARDS_PATH = _resource("prompts/figure-standards.md")
+STANDARDS_PATH = resource("prompts/figure-standards.md")
 
 #: Worked examples.  A rule that is demonstrated is obeyed; a rule that
 #: is only stated is forgotten -- and the difference between the two is
 #: the whole reliability of this channel.
-EXAMPLES_PATH = _resource("prompts/figure-examples.md")
+EXAMPLES_PATH = resource("prompts/figure-examples.md")
 
 
 class Provider(Protocol):
@@ -358,7 +359,7 @@ scope 的取法：
 """
 
 
-def _json_object(text: str) -> object:
+def json_object(text: str) -> object:
     """The JSON object in the model's answer, fences and prose removed.
 
     Models like to wrap JSON in a code fence or add a sentence before
@@ -399,7 +400,7 @@ def interpret_claims(
         )
     else:
         user = f"老师的话：\n{request.strip()}\n"
-    data = _json_object(provider.complete(system, user))
+    data = json_object(provider.complete(system, user))
     if not isinstance(data, dict):
         raise GeobenchError("模型没有返回一个可判定的对象")
     if "error" in data:
