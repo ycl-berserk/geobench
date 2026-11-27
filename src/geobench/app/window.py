@@ -87,6 +87,7 @@ from PySide6.QtWidgets import (
 )
 
 from geobench import __version__
+from geobench.ai import Claim, interpret_claims
 from geobench.ai_settings import resolve_provider
 from geobench.app.ai_panel import AIPanel
 from geobench.app.canvas import FigureCanvas
@@ -482,6 +483,9 @@ class StudioWindow(QMainWindow):
     #: The exact evaluation finished: the request, the figure it ran on,
     #: and what it found out about itself.
     exactReady = Signal(int, object, dict, int)
+    #: The claim translator answered: the claims, and the failure that
+    #: stopped it ("" when there was none).
+    claimsReady = Signal(object, str)
 
     def __init__(self, controller: StudioController | None = None) -> None:
         super().__init__()
@@ -648,6 +652,7 @@ class StudioWindow(QMainWindow):
         self._exact_stopped = False
         self.verdictsReady.connect(self._on_verdicts)
         self.exactReady.connect(self._on_exact)
+        self.claimsReady.connect(self._receive_claims)
         self.refresh()
         # The pointer is armed from the start: opening a figure should not
         # put a point under the first click.  The point tool is one click
@@ -711,23 +716,86 @@ class StudioWindow(QMainWindow):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # What a teacher asks is almost never "show me all seventeen
-        # relations": it is "these three points -- are they collinear?".
-        # The panel follows the selection, and the full list stays one
-        # click away for the times when there is no selection yet.
+        # The front door is one sentence.  A teacher should not have to
+        # pick a relation from seventeen buttons and then fill its slots
+        # in the kernel's order: they say what they want checked, and
+        # the model translates it.  The verdict still comes from the
+        # local kernel -- the model only reads the sentence.
+        ask_row = QHBoxLayout()
+        ask_row.setSpacing(6)
+        self.claim_edit = QLineEdit()
+        self.claim_edit.setPlaceholderText(
+            "用一句话问，例如：A、M、B 共线吗？"
+        )
+        self.claim_edit.setClearButtonEnabled(True)
+        self.claim_edit.returnPressed.connect(self._ask_judgement)
+        ask_row.addWidget(self.claim_edit, 1)
+        self.claim_button = QPushButton("判定")
+        self.claim_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.claim_button.clicked.connect(self._ask_judgement)
+        ask_row.addWidget(self.claim_button)
+        layout.addLayout(ask_row)
+
+        note_row = QHBoxLayout()
+        note_row.setContentsMargins(0, 0, 0, 0)
+        self.claim_note = QLabel(
+            "AI 只把这句话翻译成关系，成立与否由本地内核判定；"
+            "会把这句话和当前图形发给你设置的服务，不配模型也能用手动选择。"
+        )
+        self.claim_note.setObjectName("panelNote")
+        self.claim_note.setWordWrap(True)
+        note_row.addWidget(self.claim_note, 1)
+        self.judge_settings_button = QPushButton("设置模型…")
+        self.judge_settings_button.setFlat(True)
+        self.judge_settings_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.judge_settings_button.setToolTip("选择模型服务；不配也能用手动选择")
+        self.judge_settings_button.clicked.connect(
+            self._configure_judge_service
+        )
+        note_row.addWidget(self.judge_settings_button)
+        layout.addLayout(note_row)
+
+        self.claim_status = QLabel("")
+        self.claim_status.setWordWrap(True)
+        self.claim_status.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        layout.addWidget(self.claim_status)
+
+        # The old, explicit way: selection chips, the whole catalogue,
+        # and the scope.  It stays for the offline case and for anyone
+        # who prefers to point at objects -- but it is folded away.
+        self._manual_toggle = QToolButton()
+        self._manual_toggle.setText("手动选择")
+        self._manual_toggle.setCheckable(True)
+        self._manual_toggle.setChecked(False)
+        self._manual_toggle.setArrowType(Qt.ArrowType.RightArrow)
+        self._manual_toggle.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+        )
+        self._manual_toggle.setToolTip("不用模型，直接挑关系、点对象")
+        self._manual_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._manual_toggle.toggled.connect(self._toggle_manual)
+        layout.addWidget(self._manual_toggle)
+
+        self._manual_box = QWidget()
+        manual_layout = QVBoxLayout(self._manual_box)
+        manual_layout.setContentsMargins(0, 0, 0, 0)
+        manual_layout.setSpacing(6)
+
         self._context_hint = QLabel(
             "在图上点选对象（按住 Shift 可多选），这里会出现能问的问题。"
         )
         self._context_hint.setObjectName("panelNote")
         self._context_hint.setWordWrap(True)
-        layout.addWidget(self._context_hint)
+        manual_layout.addWidget(self._context_hint)
 
         self._context_box = QWidget()
         self._context_layout = QGridLayout(self._context_box)
         self._context_layout.setContentsMargins(0, 0, 0, 0)
         self._context_layout.setHorizontalSpacing(6)
         self._context_layout.setVerticalSpacing(6)
-        layout.addWidget(self._context_box)
+        manual_layout.addWidget(self._context_box)
 
         self._all_toggle = QToolButton()
         self._all_toggle.setText("全部关系")
@@ -740,7 +808,7 @@ class StudioWindow(QMainWindow):
         self._all_toggle.setToolTip("没有选中对象时，也可以直接挑一种关系")
         self._all_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
         self._all_toggle.toggled.connect(self._toggle_all_relations)
-        layout.addWidget(self._all_toggle)
+        manual_layout.addWidget(self._all_toggle)
 
         self._all_relations = QWidget()
         chips = QGridLayout(self._all_relations)
@@ -756,7 +824,7 @@ class StudioWindow(QMainWindow):
             )
             chips.addWidget(button, index // 4, index % 4)
         self._all_relations.setVisible(False)
-        layout.addWidget(self._all_relations)
+        manual_layout.addWidget(self._all_relations)
 
         scope_row = QWidget()
         scope_layout = QHBoxLayout(scope_row)
@@ -784,7 +852,10 @@ class StudioWindow(QMainWindow):
             scope_layout.addWidget(button)
         self.scope_buttons[IDENTITY].setChecked(True)
         scope_layout.addStretch(1)
-        layout.addWidget(scope_row)
+        manual_layout.addWidget(scope_row)
+
+        self._manual_box.setVisible(False)
+        layout.addWidget(self._manual_box)
 
         layout.addWidget(self.judgements)
 
@@ -848,6 +919,143 @@ class StudioWindow(QMainWindow):
         self._all_toggle.setArrowType(
             Qt.ArrowType.DownArrow if open_ else Qt.ArrowType.RightArrow
         )
+
+    def _toggle_manual(self, open_: bool) -> None:
+        self._manual_box.setVisible(open_)
+        self._manual_toggle.setArrowType(
+            Qt.ArrowType.DownArrow if open_ else Qt.ArrowType.RightArrow
+        )
+
+    def _reveal_manual(self) -> None:
+        self._manual_toggle.setChecked(True)
+        self._manual_box.setVisible(True)
+
+    def _configure_judge_service(self) -> None:
+        """Set up the model service from the judgement panel itself."""
+        dialog = SettingsDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        resolution = resolve_provider()
+        if resolution.provider is None:
+            self.claim_status.setText(
+                "还没有可用的模型服务；可以展开「手动选择」，直接挑关系。"
+            )
+        else:
+            self.claim_status.setText(f"模型：{resolution.provider.name}")
+
+    def _ask_judgement(self) -> None:
+        """Translate a sentence with the model, then judge it locally."""
+        request = self.claim_edit.text().strip()
+        if not request:
+            self.claim_status.setText("先说一句要判定的话。")
+            return
+        if not self.controller.figure().nodes:
+            self.claim_status.setText("图里还没有对象，先画一张图。")
+            return
+        resolution = resolve_provider()
+        provider = resolution.provider
+        if provider is None:
+            self.claim_status.setText(
+                "还没有配置模型服务，不能把这句话翻译成判定。"
+                "点「设置模型…」，或者展开「手动选择」直接挑关系。"
+            )
+            self._reveal_manual()
+            return
+        self.claim_button.setEnabled(False)
+        self.claim_status.setText("正在让模型理解这句话……")
+        current = self.controller.to_text()
+
+        def work() -> None:
+            try:
+                claims = interpret_claims(provider, request, current)
+            except GeobenchError as exc:
+                self.claimsReady.emit(None, str(exc))
+                return
+            self.claimsReady.emit(claims, "")
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _receive_claims(self, claims: object, error: str) -> None:
+        """The model answered; validate before anything reaches the kernel."""
+        self.claim_button.setEnabled(True)
+        if error:
+            self.claim_status.setText(f"没听懂这句话：{error}")
+            return
+        if not isinstance(claims, list) or not all(
+            isinstance(claim, Claim) for claim in claims
+        ):
+            self.claim_status.setText("模型没有给出可判定的关系。")
+            return
+        self._accept_claims(claims)
+
+    def _accept_claims(self, claims: list[Claim]) -> None:
+        """Check the model's translation against the figure, then judge.
+
+        The model is allowed to be wrong; it is not allowed to put a
+        relation on a figure that has no such objects.  Every object is
+        checked against the relation's own slots, so a mistranslation is
+        an error the teacher sees, not a verdict about something else.
+        """
+        specs = {spec.kind: spec for spec in _relations()}
+        by_label: dict[str, list[RelationSpec]] = {}
+        for catalog_spec in specs.values():
+            by_label.setdefault(catalog_spec.label, []).append(catalog_spec)
+        figure = self.controller.figure()
+        accepted: list[tuple[str, list[str]]] = []
+        for claim in claims:
+            kind = claim.kind
+            if kind not in specs and len(by_label.get(kind, [])) == 1:
+                kind = by_label[kind][0].kind
+            spec = specs.get(kind)
+            if spec is None:
+                self.claim_status.setText(
+                    f"模型给了这个软件不认识的关系：{claim.kind}"
+                )
+                return
+            if len(claim.args) != spec.arg_count:
+                self.claim_status.setText(
+                    f"{spec.label} 要 {spec.arg_count} 个对象，"
+                    f"模型给了 {len(claim.args)} 个。"
+                )
+                return
+            for index, (arg, slot) in enumerate(
+                zip(claim.args, spec.arg_kinds, strict=True)
+            ):
+                node = figure.nodes.get(arg)
+                if node is None:
+                    self.claim_status.setText(f"图里没有叫 {arg} 的对象。")
+                    return
+                fits = _KIND_CANDIDATES.get(slot, (slot,))
+                if node.kind not in fits:
+                    self.claim_status.setText(
+                        f"{spec.label} 的第 {index + 1} 个对象应该是"
+                        f"{_KIND_LABELS.get(slot, slot)}，但 {arg} 不是。"
+                    )
+                    return
+            accepted.append((kind, list(claim.args)))
+
+        scope = claims[0].scope if claims else IDENTITY
+        if scope not in (IDENTITY, INSTANCE):
+            scope = IDENTITY
+        existing = {
+            (relation.kind, tuple(relation.args))
+            for relation in figure.relations
+        }
+        added = 0
+        for kind, args in accepted:
+            if (kind, tuple(args)) in existing:
+                continue
+            self.controller.add_relation(kind, args)
+            existing.add((kind, tuple(args)))
+            added += 1
+        # The scope belongs to the window, as it always did; the model's
+        # reading of "证明" or "这张图里" sets it for this batch.
+        self.set_scope(scope)
+        if added:
+            self.claim_status.setText(f"已交给内核判定（{added} 条）。")
+            self.claim_edit.clear()
+        else:
+            self.claim_status.setText("这条关系已经问过了，结论就在下面。")
 
     def _toggle_derivation(self, open_: bool) -> None:
         self.evidence.setVisible(open_)

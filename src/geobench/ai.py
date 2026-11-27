@@ -32,23 +32,33 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
-from geobench.commands import COMMANDS
+from geobench.commands import COMMANDS, JUDGEMENT
 from geobench.dsl import parse_dsl
 from geobench.errors import GeobenchError
 from geobench.evaluate import evaluate_figure, undefined_nodes
-from geobench.judges import INSTANCE, REFUTED, UNDECIDED, JudgeRegistry, judge_relation
+from geobench.judges import (
+    IDENTITY,
+    INSTANCE,
+    REFUTED,
+    UNDECIDED,
+    JudgeRegistry,
+    judge_relation,
+)
 from geobench.model import Figure
 from geobench.registry import OperatorRegistry
 
 __all__ = [
     "PROMPT_PATH",
+    "Claim",
     "OpenAICompatibleProvider",
     "Problem",
     "Proposal",
     "Provider",
     "build_prompt",
     "check_figure",
+    "interpret_claims",
     "propose",
+    "relation_list",
 ]
 
 def _resource(name: str) -> Path:
@@ -86,6 +96,20 @@ class Provider(Protocol):
 
     def complete(self, system: str, user: str) -> str:
         """Answer the prompt, in text."""
+
+
+@dataclass(frozen=True)
+class Claim:
+    """One relation the model read out of a teacher's sentence.
+
+    The model does not say whether it is true. It only says **what to
+    check**: the relation id the kernel knows, the objects it is about,
+    and whether the question was "prove it" or "look at this drawing".
+    """
+
+    kind: str
+    args: tuple[str, ...]
+    scope: str = IDENTITY
 
 
 @dataclass
@@ -281,6 +305,125 @@ def command_list(registry: OperatorRegistry | None = None) -> str:
                 shape = ", ".join(arg.type for arg in spec.args)
         lines.append(f"- {command.name_zh}({shape}) —— {command.summary}")
     return "\n".join(lines)
+
+
+def relation_list() -> str:
+    """The relations the kernel can judge, one per line.
+
+    Generated from the command table for the same reason the drawing
+    command list is: the model cannot name a relation the kernel does
+    not have, and cannot miss one it does.
+    """
+    lines: list[str] = []
+    for command in COMMANDS:
+        if command.kind != JUDGEMENT or not command.implemented:
+            continue
+        kinds = command.arg_kinds or ("point",) * command.arity
+        lines.append(
+            f"- {command.id}（{command.name_zh}）："
+            f"{command.arity} 个参数，类型 {'、'.join(kinds)}；"
+            f"{command.summary}"
+        )
+    return "\n".join(lines)
+
+
+#: The claim translator's system prompt.  It is deliberately short: the
+#: model is not asked to know geometry, only to read a sentence and fill
+#: a small JSON object from a catalogue the kernel wrote.
+_CLAIM_PROMPT = """\
+你是竞赛平面几何软件的“命题翻译器”。老师会用一句中文，问一个关于当前图形的问题。
+你唯一的任务是把这句话翻译成内核能判定的关系，**不要判断真假，也不要证明**。
+
+只能使用下面列出的关系。id 必须原样使用，参数必须是当前图里已经存在的对象名字。
+{relations}
+
+参数按“组”写，容易弄错顺序的几条是：
+- equal_length：A,B,C,D 表示 AB = CD；
+- ratio_equal：A,B,C,D,E,F,G,H 表示 AB/CD = EF/GH；
+- angle_equal：A,B,C,D,E,F 表示 ∠ABC = ∠DEF（顶点在中间）；
+- point_in：P, 对象；tangent_to：线, 圆；
+- 其余关系按上面的参数个数和类型，照中文意思写。
+
+scope 的取法：
+- "identity"：老师说的是“证明 / 恒成立 / 对任意图形”，或者没有特别说明；
+- "instance"：老师说的是“这张图里 / 现在 / 图中”，只想看当前摆放。
+
+一句话里可以有几个命题，按老师说的顺序放进 claims。最多 8 条。
+
+只输出 JSON，不要代码块，不要解释。格式：
+{"claims": [{"kind": "collinear", "args": ["A", "M", "B"], "scope": "identity"}]}
+
+如果这句话无法翻译成这些关系（对象没说清、关系不在表里），输出：
+{"error": "一句话说明哪里不清楚"}
+"""
+
+
+def _json_object(text: str) -> object:
+    """The JSON object in the model's answer, fences and prose removed.
+
+    Models like to wrap JSON in a code fence or add a sentence before
+    it.  Finding the outermost braces is more forgiving than asking for
+    a strictly clean answer, and the validation afterwards is what
+    actually protects the kernel.
+    """
+    cleaned = _clean(text)
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start < 0 or end < start:
+        raise GeobenchError("模型没有按 JSON 回答，里面没有可判定的内容")
+    try:
+        return json.loads(cleaned[start : end + 1])
+    except json.JSONDecodeError as exc:
+        raise GeobenchError(f"模型返回的 JSON 读不了：{exc.msg}") from exc
+
+
+def interpret_claims(
+    provider: Provider, request: str, current: str = ""
+) -> list[Claim]:
+    """Turn a teacher's sentence into relations, without judging them.
+
+    The model is a translator here, not a judge: the returned claims are
+    validated against the figure and handed to the local kernel, which
+    is the only thing that says "成立" or "不成立".  A wrong translation
+    is an error the teacher can see, not a wrong verdict.
+    """
+    system = _CLAIM_PROMPT.replace("{relations}", relation_list())
+    if current.strip():
+        user = (
+            "当前图形的 DSL（对象名字以这里为准）：\n"
+            "```\n"
+            f"{current.strip()}\n"
+            "```\n\n"
+            "老师的话：\n"
+            f"{request.strip()}\n"
+        )
+    else:
+        user = f"老师的话：\n{request.strip()}\n"
+    data = _json_object(provider.complete(system, user))
+    if not isinstance(data, dict):
+        raise GeobenchError("模型没有返回一个可判定的对象")
+    if "error" in data:
+        raise GeobenchError(str(data["error"]))
+    raw = data.get("claims")
+    if not isinstance(raw, list) or not raw:
+        raise GeobenchError("模型没有给出任何要判定的关系")
+    if len(raw) > 8:
+        raise GeobenchError("一句话里的命题太多了，请分成几次问")
+    claims: list[Claim] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            raise GeobenchError("模型给出的关系格式不对")
+        kind = str(item.get("kind") or "").strip()
+        args = item.get("args")
+        if not kind or not isinstance(args, list) or not args:
+            raise GeobenchError("模型给出的关系缺少名称或对象")
+        if not all(isinstance(arg, str) for arg in args):
+            raise GeobenchError("模型给出的对象名字不是文字")
+        scope = str(item.get("scope") or IDENTITY)
+        if scope not in (IDENTITY, INSTANCE):
+            scope = IDENTITY
+        claims.append(Claim(kind=kind, args=tuple(args), scope=scope))
+    return claims
 
 
 def build_prompt(request: str, current: str = "", registry: OperatorRegistry | None = None) -> tuple[str, str]:
